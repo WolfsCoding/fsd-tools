@@ -1,0 +1,107 @@
+<!doctype html>
+<!-- Case file header, 800 x 160. Title, subtitle and logo come from the URL: header.html?title=Strafakte&sub=...&logo=vpd -->
+<html>
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@60,700&family=Inter:wght@500&display=block" rel="stylesheet" />
+<style>
+  :root { --navy: #1f2d55; --gold: #e3b53b; }
+  html, body { margin: 0; background: transparent; }
+  .header { position: relative; width: 800px; height: 160px; }
+  .band {
+    position: absolute;
+    inset: 18px 0;
+    border-radius: 12px;
+    background: var(--navy);
+    overflow: hidden;
+  }
+  /* Gold and white stripes along the top and bottom edge. */
+  .band::before, .band::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 9px;
+    background: linear-gradient(var(--gold) 0 2px, transparent 2px 4px, #fff 4px 5px, transparent 5px);
+  }
+  .band::before { top: 8px; }
+  .band::after { bottom: 8px; transform: scaleY(-1); }
+  .watermark {
+    position: absolute;
+    right: -70px;
+    top: -50px;
+    width: 240px;
+    opacity: 0.07;
+    filter: grayscale(1) brightness(2.5);
+  }
+  .logo {
+    position: absolute;
+    left: 14px;
+    top: 0;
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    filter: drop-shadow(0 2px 6px rgb(0 0 0 / 0.35));
+  }
+  .text {
+    position: absolute;
+    left: 186px;
+    right: 24px;
+    top: 18px;
+    bottom: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+  }
+  .title {
+    font-family: "Source Serif 4", serif;
+    font-optical-sizing: auto;
+    font-weight: 700;
+    font-size: 54px;
+    line-height: 1.22;  /* room for descenders (g, p) above the subtitle */
+    color: #fff;
+    white-space: nowrap;
+  }
+  .sub {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: "Inter", sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    color: #fff;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .sub::before, .sub::after { content: ""; width: 54px; height: 2px; background: var(--gold); }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="band"><img class="watermark" id="watermark" alt="" /></div>
+  <img class="logo" id="logo" alt="" />
+  <div class="text">
+    <div class="title" id="title"></div>
+    <div class="sub" id="sub"></div>
+  </div>
+</div>
+<script>
+  const params = new URLSearchParams(location.search)
+  document.getElementById("title").textContent = params.get("title") ?? "Strafakte"
+  document.getElementById("sub").textContent = params.get("sub") ?? "Vinewood Police Department"
+  const logo = `logo-${params.get("logo") ?? "fast"}.webp`
+  document.getElementById("logo").src = logo
+  document.getElementById("watermark").src = logo
+  // Shrink long titles to fit next to the logo.
+  document.fonts.ready.then(() => {
+    const title = document.getElementById("title")
+    let size = 54
+    while (title.offsetWidth > 470 && size > 32) title.style.fontSize = `${--size}px`
+  })
+</script>
+</body>
+</html>

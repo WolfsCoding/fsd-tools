@@ -1,0 +1,262 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Inter Variable', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+    --color-frame: var(--frame);
+    --color-frame-foreground: var(--frame-foreground);
+    --color-island: var(--island);
+    --color-selection: var(--selection);
+    --color-selection-border: var(--selection-border);
+    --color-link: var(--link);
+    --color-tab-hover: var(--tab-hover);
+    --color-tab-active: var(--tab-active);
+    --color-tab-active-border: var(--tab-active-border);
+    --color-strip-foreground: var(--strip-foreground);
+    --color-strip-hover: var(--strip-hover);
+    --color-strip-active: var(--strip-active);
+    --color-tooltip: var(--tooltip);
+    --color-tooltip-foreground: var(--tooltip-foreground);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* Colors follow JetBrains' "Islands" themes: content sits on rounded
+   islands (--island) that float on the darker/lighter window frame (--frame). */
+:root {
+    --frame: #ebecf0;
+    --frame-foreground: #6c707e;
+    --island: #ffffff;
+    --background: var(--island);
+    --foreground: #000000;
+    --card: #f7f8fa;
+    --card-foreground: #000000;
+    --popover: #ffffff;
+    --popover-foreground: #000000;
+    --primary: #3574f0;
+    --primary-foreground: #ffffff;
+    --secondary: #ebecf0;
+    --secondary-foreground: #000000;
+    --muted: #ebecf0;
+    --muted-foreground: #6c707e;
+    --accent: #dfe1e5;
+    --accent-foreground: #000000;
+    --selection: #d4e2ff;
+    --selection-border: #a0bdf8;
+    --link: #2e55a3;
+    --tab-hover: #dfe1e5;
+    --tab-active: #ebecf0;
+    --tab-active-border: #c9ccd6;
+    --strip-foreground: #6c707e;
+    --strip-hover: #dfe1e5;
+    --strip-active: #3574f0;
+    --tooltip: #ffffff;
+    --tooltip-foreground: #000000;
+    --destructive: #e55765;
+    --border: #ebecf0;
+    --input: #c9ccd6;
+    --ring: #3574f0;
+    --chart-1: #3574f0;
+    --chart-2: #5fb865;
+    --chart-3: #e5a64a;
+    --chart-4: #c77dbb;
+    --chart-5: #e55765;
+    --radius: 0.5rem;
+    --sidebar: var(--frame);
+    --sidebar-foreground: #000000;
+    --sidebar-primary: #3574f0;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #dfe1e5;
+    --sidebar-accent-foreground: #000000;
+    --sidebar-border: #dfe1e5;
+    --sidebar-ring: #3574f0;
+}
+
+/* Islands Dark, sampled from WebStorm. */
+.dark {
+    --frame: #26282c;
+    --frame-foreground: #9da0a8;
+    --island: #191a1c;
+    --background: var(--island);
+    --foreground: #dfe1e5;
+    --card: #1e1f22;
+    --card-foreground: #dfe1e5;
+    --popover: #2b2d30;
+    --popover-foreground: #dfe1e5;
+    --primary: #3574f0;
+    --primary-foreground: #ffffff;
+    --secondary: #2b2d30;
+    --secondary-foreground: #dfe1e5;
+    --muted: #2b2d30;
+    --muted-foreground: #868a91;
+    --accent: #33353b;
+    --accent-foreground: #dfe1e5;
+    --selection: #233558;
+    --selection-border: #2e4d89;
+    --link: #548af7;
+    --tab-hover: #2e2f30;
+    --tab-active: #26282c;
+    --tab-active-border: #40434a;
+    --strip-foreground: #c3c5cb;
+    --strip-hover: #494b4e;
+    --strip-active: #3871e1;
+    --tooltip: #33353b;
+    --tooltip-foreground: #d1d3d9;
+    --destructive: #f75464;
+    --border: #2b2d30;
+    --input: #43454a;
+    --ring: #3574f0;
+    --chart-1: #548af7;
+    --chart-2: #5fb865;
+    --chart-3: #e5a64a;
+    --chart-4: #c77dbb;
+    --chart-5: #f75464;
+    --sidebar: var(--frame);
+    --sidebar-foreground: #dfe1e5;
+    --sidebar-primary: #3574f0;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #33353b;
+    --sidebar-accent-foreground: #dfe1e5;
+    --sidebar-border: #393b40;
+    --sidebar-ring: #3574f0;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-frame text-foreground;
+    }
+  html {
+    @apply font-sans antialiased;
+    }
+  ::selection {
+    background-color: color-mix(in oklch, var(--primary) 40%, transparent);
+  }
+  /* Tailwind v4 resets buttons to the default cursor; everything clickable gets the hand. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="checkbox"]:not(:disabled),
+  [role="switch"]:not(:disabled),
+  [role="radio"]:not(:disabled),
+  [role="menuitem"]:not([data-disabled]),
+  [role="option"]:not([data-disabled]),
+  summary,
+  label[for],
+  select:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Desktop shell: the title bar drags the window; its controls must stay clickable.
+   Electron/Tauri and PWAs with Window Controls Overlay honor app-region. */
+@utility app-drag {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+@utility app-no-drag {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}
+
+/* Thin, theme-colored scrollbars without arrow buttons. */
+:root {
+  --scrollbar-thumb: color-mix(in oklch, var(--foreground) 15%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklch, var(--foreground) 30%, transparent);
+}
+
+/* Firefox (no ::-webkit-scrollbar support). Chromium ignores the webkit rules
+   below once scrollbar-color is set, so keep this scoped. */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 20px;
+  height: 20px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Keeps the thumb clear of the islands' rounded corners. */
+::-webkit-scrollbar-track {
+  margin: 4px;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb {
+  /* Transparent border + content-box clip makes the thumb look inset and slim. */
+  border: 4px solid transparent;
+  border-radius: 9999px;
+  background-color: var(--scrollbar-thumb);
+  background-clip: content-box;
+}
+
+/* A wider outer border leaves room between the thumb and the edge it hugs. */
+::-webkit-scrollbar-thumb:vertical {
+  border-right-width: 10px;
+}
+
+::-webkit-scrollbar-thumb:horizontal {
+  border-bottom-width: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
