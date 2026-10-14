@@ -527,7 +527,9 @@ function InlineTextInput({ field, values, onChange, suggestions, docId }: FieldP
  */
 function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListField>) {
   const stored = listItems(values[field.key])
-  const items = stored.length ? stored : [""]
+  // Without a fallback nothing stands in for missing points, so the list may have none at all.
+  const canBeEmpty = !field.fallback
+  const items = stored.length || canBeEmpty ? stored : [""]
   const refs = useRef<(HTMLInputElement | null)[]>([])
   /** Where the cursor goes after the next change: the start, the end or a position of a point. */
   const focusNext = useRef<{ index: number; at: "start" | "end" | number } | null>(null)
@@ -599,7 +601,7 @@ function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListF
       const pos = el.selectionStart ?? el.value.length
       splice(i, [el.value.slice(0, pos), el.value.slice(pos)])
       focusNext.current = { index: i + 1, at: "start" }
-    } else if (e.key === "Backspace" && el.value === "" && items.length > 1) {
+    } else if (e.key === "Backspace" && el.value === "" && (items.length > 1 || canBeEmpty)) {
       e.preventDefault()
       splice(i, [])
       focusNext.current = { index: Math.max(0, i - 1), at: "end" }
@@ -644,7 +646,7 @@ function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListF
                   e.preventDefault()
                   splice(i, item.trim() ? [item, ...lines] : lines)
                 }}
-                placeholder={i === 0 ? field.fallback : undefined}
+                placeholder={i === 0 ? field.fallback || undefined : undefined}
                 aria-label={`${field.label}, Punkt ${i + 1}`}
                 className="h-10 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
               />

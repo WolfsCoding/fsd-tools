@@ -1,5 +1,5 @@
 import { RotateCcwIcon } from "lucide-react"
-import { SidePanel } from "@/components/side-panel"
+import { BackButton } from "@/components/explorer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChargesEditor } from "@/features/case-files/charges-input"
@@ -7,7 +7,7 @@ import type { Row } from "@/features/case-files/types"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { useLocalStorage } from "@/lib/local-storage"
 import { removedToast } from "@/lib/undo"
-import { LawBookNav } from "./law-book-nav"
+import { LAW_BOOK_BASE } from "./paths"
 
 /** The calculator's charges, as rows like the ones of a case file. */
 export const CALCULATOR_KEY = "gesetzbuch:rechner"
@@ -35,32 +35,29 @@ export function ChargeCalculator() {
   }
 
   return (
-    <>
-      <SidePanel title="Gesetzbücher" mobileClassName="border-b">
-        <LawBookNav active="calculator" />
-      </SidePanel>
-
-      <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-        <div className="mx-auto grid max-w-5xl gap-6 px-6 py-8">
-          <header className="flex flex-wrap items-end gap-4 border-b pb-6">
-            <div className="grid flex-1 gap-2">
+    <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+      <div className="mx-auto grid max-w-5xl gap-6 px-6 py-8">
+        <header className="flex flex-wrap items-end gap-4 border-b pb-6">
+          <div className="grid flex-1 gap-2">
+            <div className="flex items-center gap-2">
+              <BackButton to={LAW_BOOK_BASE} label="Alle Gesetzbücher" className="-ml-2" />
               <Badge variant="secondary" className="w-fit">
                 CO · TO
               </Badge>
-              <h1 className="text-2xl font-semibold tracking-tight">Strafrechner</h1>
-              <p className="text-sm text-muted-foreground">
-                Straftaten zusammenrechnen, ohne eine Akte anzulegen. Die Rechnung bleibt gespeichert, bis sie zurückgesetzt
-                wird.
-              </p>
             </div>
-            <Button variant="outline" size="sm" onClick={reset} disabled={rows.length === 0}>
-              <RotateCcwIcon />
-              Zurücksetzen
-            </Button>
-          </header>
-          <ChargesEditor label="Straftaten" value={rows} onChange={setStored} />
-        </div>
-      </main>
-    </>
+            <h1 className="text-2xl font-semibold tracking-tight">Strafrechner</h1>
+            <p className="text-sm text-muted-foreground">
+              Straftaten zusammenrechnen, ohne eine Akte anzulegen. Die Rechnung bleibt gespeichert, bis sie zurückgesetzt
+              wird.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={reset} disabled={rows.length === 0}>
+            <RotateCcwIcon />
+            Zurücksetzen
+          </Button>
+        </header>
+        <ChargesEditor label="Straftaten" value={rows} onChange={setStored} />
+      </div>
+    </main>
   )
 }

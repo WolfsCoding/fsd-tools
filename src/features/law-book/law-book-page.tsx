@@ -1,10 +1,11 @@
-import { useCallback, useLayoutEffect, useMemo, useRef } from "react"
-import { Navigate, NavLink, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router"
-import { CalculatorIcon, ListIcon, ScaleIcon, StarIcon } from "lucide-react"
+import { useCallback, useLayoutEffect, useMemo, useRef, type ReactNode } from "react"
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router"
+import { CalculatorIcon, ListIcon, ScaleIcon, StarIcon, StarOffIcon } from "lucide-react"
 import { cn } from "cn"
+import { BackButton, Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { NoResults } from "@/components/no-results"
-import { SidePanel } from "@/components/side-panel"
+import { SearchField } from "@/components/search-field"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
@@ -15,12 +16,8 @@ import { books } from "./data/books"
 import type { Book, Chapter, Paragraph } from "./data/types"
 import { citation, containsTerm, matchesParagraph, parseQuery } from "./offenses"
 import { CopyCitation, Highlight, ParagraphNumber, ParagraphText } from "./paragraph-text"
-import { LawBookNav } from "./law-book-nav"
 import { PenaltyCatalog } from "./penalty-catalog"
-import { calculatorPath, catalogPath, lawBookPath, paragraphAnchor } from "./paths"
-
-/** Opened when no book is chosen: the one most needed on duty. */
-const DEFAULT_BOOK = "co"
+import { calculatorPath, catalogPath, LAW_BOOK_BASE, lawBookPath, paragraphAnchor, type BackState } from "./paths"
 
 interface Hit {
   book: Book
@@ -50,8 +47,8 @@ function scrollToParagraph(bookId: string, number: number, behavior: ScrollBehav
 
 export function LawBookPage() {
   const navigate = useNavigate()
-  // The search is part of the URL (`?q=`), so reloading and going back keep it, and every
-  // link to a book or paragraph ends it.
+  // The search is part of the URL (`?q=`), so reloading and going back keep it. The hits keep it
+  // in their links, so the paragraph opened from them marks the terms and leads back to the hits.
   const [params, setParams] = useSearchParams()
   const query = params.get("q") ?? ""
   const setQuery = useCallback(
@@ -111,112 +108,195 @@ export function LawBookPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <Routes>
-        <Route index element={<Navigate to={lawBookPath(DEFAULT_BOOK)} replace />} />
+        <Route index element={<LawBookExplorer query={query} terms={terms} onQuery={setQuery} />} />
         <Route path="strafkatalog" element={<PenaltyCatalog query={query} terms={terms} onQuery={setQuery} />} />
         <Route path="rechner" element={<ChargeCalculator />} />
-        <Route path=":bookId/:paragraph?" element={<BookRoute query={query} terms={terms} onQuery={setQuery} />} />
+        <Route path=":bookId/:paragraph?" element={<BookRoute terms={terms} />} />
       </Routes>
     </div>
   )
 }
 
-/** Resolves `:bookId`; unknown books go to the default one. */
-function BookRoute({ query, terms, onQuery }: { query: string; terms: string[]; onQuery: (q: string) => void }) {
+const paragraphCount = (book: Book) => book.chapters.reduce((n, c) => n + c.paragraphs.length, 0)
+
+/** The books, the Strafkatalog and Strafrechner, and the bookmarked paragraphs; searching shows the hits instead. */
+function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: string[]; onQuery: (q: string) => void }) {
+  const bookmarks = useBookmarks()
+  const searching = terms.length > 0
+  const hits = useMemo(() => (searching ? search(terms) : []), [searching, terms])
+
+  return (
+    <Explorer
+      title="Gesetzbücher"
+      toolbar={
+        <SearchField
+          value={query}
+          onChange={onQuery}
+          focusKey
+          placeholder="§ 5, Diebstahl, Geldstrafe…"
+          aria-label="Gesetzbücher durchsuchen"
+        />
+      }
+    >
+      {searching ? (
+        <SearchResults hits={hits} query={query} terms={terms} bookmarks={bookmarks} onReset={() => onQuery("")} />
+      ) : (
+        <div className="grid gap-4">
+          <ExplorerSection title="Bücher">
+            {books.map((b) => (
+              <Link key={b.id} to={lawBookPath(b.id)} className={EXPLORER_ROW}>
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  <span className="w-7 shrink-0 text-xs font-semibold text-amber-400">{b.abbreviation}</span>
+                  <span className="truncate">{b.title}</span>
+                </span>
+                <span className="text-xs text-muted-foreground/70">
+                  {b.chapters.length} Kapitel · {paragraphCount(b)} Paragraphen
+                </span>
+              </Link>
+            ))}
+          </ExplorerSection>
+          <ExplorerSection title="Werkzeuge">
+            <Link to={catalogPath()} className={EXPLORER_ROW}>
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <ListIcon className="size-4 shrink-0 text-muted-foreground" />
+                Strafkatalog
+              </span>
+              <span className="text-xs text-muted-foreground/70">Alle Straftaten aus CO und TO mit Strafmaß</span>
+            </Link>
+            <Link to={calculatorPath()} className={EXPLORER_ROW}>
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <CalculatorIcon className="size-4 shrink-0 text-muted-foreground" />
+                Strafrechner
+              </span>
+              <span className="text-xs text-muted-foreground/70">Straftaten zusammenrechnen, ohne Akte</span>
+            </Link>
+          </ExplorerSection>
+          {bookmarks.bookmarks.length > 0 && (
+            <ExplorerSection title="Favoriten">
+              {bookmarks.bookmarks.map(({ id, book, paragraph }) => (
+                <div key={id} className="group/bookmark relative">
+                  <Link to={lawBookPath(book.id, paragraph.number)} className={EXPLORER_ROW}>
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      <ParagraphNumber number={paragraph.number} className="shrink-0 text-xs" />
+                      <span className="shrink-0 text-xs text-muted-foreground">{book.abbreviation}</span>
+                      <span className="truncate">{paragraph.title}</span>
+                    </span>
+                  </Link>
+                  <Hint label="Aus Favoriten entfernen">
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => bookmarks.remove(id)}
+                      aria-label={`§ ${paragraph.number} ${book.abbreviation} aus Favoriten entfernen`}
+                      className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground opacity-0 group-hover/bookmark:opacity-100 focus-visible:opacity-100 hover:text-foreground"
+                    >
+                      <StarOffIcon />
+                    </Button>
+                  </Hint>
+                </div>
+              ))}
+            </ExplorerSection>
+          )}
+        </div>
+      )}
+    </Explorer>
+  )
+}
+
+function ExplorerSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="grid gap-1.5">
+      <h2 className="px-1 text-xs font-medium text-muted-foreground">{title}</h2>
+      <nav aria-label={title} className={EXPLORER_LIST}>
+        {children}
+      </nav>
+    </section>
+  )
+}
+
+/** Resolves `:bookId`; unknown books go back to the explorer. */
+function BookRoute({ terms }: { terms: string[] }) {
   const { bookId, paragraph } = useParams()
   const book = books.find((b) => b.id === bookId)
   useTabTitle(book ? `${book.title} (${book.abbreviation})` : undefined)
-  if (!book) return <Navigate to={lawBookPath(DEFAULT_BOOK)} replace />
+  if (!book) return <Navigate to={LAW_BOOK_BASE} replace />
   const number = paragraph === undefined ? undefined : Number(paragraph)
-  return <BookView book={book} paragraph={number} query={query} terms={terms} onQuery={onQuery} />
+  return <BookView book={book} paragraph={number} terms={terms} />
 }
 
-function BookView({
-  book,
-  paragraph,
-  query,
-  terms,
-  onQuery,
-}: {
-  book: Book
-  paragraph?: number
-  query: string
-  terms: string[]
-  onQuery: (q: string) => void
-}) {
+function BookView({ book, paragraph, terms }: { book: Book; paragraph?: number; terms: string[] }) {
   const mainRef = useRef<HTMLElement>(null)
-  const searching = terms.length > 0
-  const hits = useMemo(() => (searching ? search(terms) : []), [searching, terms])
   const bookmarks = useBookmarks()
+  // Opened from the hits, the search is still in the URL and leads back to them.
+  const { search, state } = useLocation()
+  const from = state as BackState | null
 
   // Opening a book starts at the top; opening a paragraph scrolls to it.
   useLayoutEffect(() => {
-    if (searching) return
     if (paragraph === undefined) mainRef.current?.scrollTo({ top: 0 })
     else scrollToParagraph(book.id, paragraph, "instant")
-  }, [book.id, paragraph, searching])
+  }, [book.id, paragraph])
 
   return (
-    <>
-      <SidePanel title="Gesetzbücher" mobileClassName="max-h-[40%] border-b">
-        <LawBookNav active={book.id} query={query} onQuery={onQuery} />
-        <nav aria-label="Paragraphen" className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          <p className="px-2 pb-2 text-sm font-medium">{book.title}</p>
-          {book.chapters.map((chapter) => (
-            <div key={chapter.title} className="mb-3 last:mb-0">
-              <p className="px-2 pt-1 pb-1.5 text-xs font-medium text-muted-foreground">{chapter.title}</p>
-              {chapter.paragraphs.map((p) => (
-                <NavLink
-                  key={p.number}
-                  to={lawBookPath(book.id, p.number)}
-                  onClick={() => {
-                    // Same route again (after scrolling away) wouldn't scroll by itself.
-                    if (p.number === paragraph && !searching) scrollToParagraph(book.id, p.number)
-                  }}
-                  className="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-foreground/80 outline-none hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-accent aria-[current=page]:font-medium aria-[current=page]:text-foreground"
-                >
-                  <ParagraphNumber number={p.number} className="w-10 shrink-0 text-xs" />
-                  <span className="truncate">{p.title}</span>
-                </NavLink>
-              ))}
+    <main ref={mainRef} className="min-h-0 min-w-0 flex-1 scroll-pt-6 overflow-y-auto">
+      <div className="mx-auto max-w-3xl px-6 py-8">
+        <article>
+          <header className="mb-6 grid gap-2 border-b pb-6">
+            <div className="flex items-center gap-2">
+              <BackButton
+                to={from?.back ?? { pathname: LAW_BOOK_BASE, search }}
+                label={from?.backLabel ?? (terms.length ? "Zurück zu den Treffern" : "Alle Gesetzbücher")}
+                className="-ml-2"
+              />
+              <Badge variant="secondary" className="w-fit">
+                {book.abbreviation}
+              </Badge>
             </div>
+            <h1 className="text-2xl font-semibold tracking-tight">{book.title}</h1>
+            {/* The chapters, now that the paragraph list is no longer beside the book. */}
+            <nav aria-label="Kapitel" className="flex flex-wrap gap-1.5 pt-2">
+              {book.chapters.map((chapter) => {
+                const first = chapter.paragraphs[0]
+                if (!first) return null
+                return (
+                  <Button key={chapter.title} asChild variant="outline" size="xs">
+                    <NavLink
+                      to={{ pathname: lawBookPath(book.id, first.number), search }}
+                      state={from}
+                      replace
+                      onClick={() => {
+                        // Same route again (after scrolling away) wouldn't scroll by itself.
+                        if (first.number === paragraph) scrollToParagraph(book.id, first.number)
+                      }}
+                    >
+                      {chapter.title}
+                    </NavLink>
+                  </Button>
+                )
+              })}
+            </nav>
+          </header>
+          {book.chapters.map((chapter) => (
+            <section key={chapter.title} className="mb-10 last:mb-0">
+              <h2 className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">{chapter.title}</h2>
+              <div className="grid gap-3">
+                {chapter.paragraphs.map((p) => (
+                  <ParagraphCard
+                    key={p.number}
+                    book={book}
+                    paragraph={p}
+                    terms={terms}
+                    active={p.number === paragraph}
+                    bookmarked={bookmarks.has(book, p)}
+                    onBookmark={() => bookmarks.toggle(book, p)}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
-        </nav>
-      </SidePanel>
-
-      <main ref={mainRef} className="min-h-0 min-w-0 flex-1 scroll-pt-6 overflow-y-auto">
-        <div className="mx-auto max-w-3xl px-6 py-8">
-          {searching ? (
-            <SearchResults hits={hits} query={query} terms={terms} bookmarks={bookmarks} onReset={() => onQuery("")} />
-          ) : (
-            <article>
-              <header className="mb-6 grid gap-2 border-b pb-6">
-                <Badge variant="secondary" className="w-fit">
-                  {book.abbreviation}
-                </Badge>
-                <h1 className="text-2xl font-semibold tracking-tight">{book.title}</h1>
-              </header>
-              {book.chapters.map((chapter) => (
-                <section key={chapter.title} className="mb-10 last:mb-0">
-                  <h2 className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">{chapter.title}</h2>
-                  <div className="grid gap-3">
-                    {chapter.paragraphs.map((p) => (
-                      <ParagraphCard
-                        key={p.number}
-                        book={book}
-                        paragraph={p}
-                        active={p.number === paragraph}
-                        bookmarked={bookmarks.has(book, p)}
-                        onBookmark={() => bookmarks.toggle(book, p)}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </article>
-          )}
-        </div>
-      </main>
-    </>
+        </article>
+      </div>
+    </main>
   )
 }
 
@@ -319,7 +399,7 @@ function SearchResults({
             paragraph={paragraph}
             terms={terms}
             context={`${book.abbreviation} · ${chapter.title}`}
-            to={lawBookPath(book.id, paragraph.number)}
+            to={`${lawBookPath(book.id, paragraph.number)}?${new URLSearchParams({ q: query })}`}
             bookmarked={bookmarks.has(book, paragraph)}
             onBookmark={() => bookmarks.toggle(book, paragraph)}
           />

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type DragEvent } from "react"
 import { cn } from "cn"
 import {
+  Columns2Icon,
+  CopyIcon,
   PinIcon,
   PinOffIcon,
   PlusIcon,
@@ -19,6 +21,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Hint } from "@/components/hint"
@@ -31,7 +34,7 @@ type DropTarget = { id: string; side: "before" | "after" }
 const ICON_BUTTON =
   "flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-tab-hover hover:text-foreground focus-visible:bg-tab-hover"
 
-/** WebStorm-like editor tabs in their own island above the side panel and page. */
+/** WebStorm-like editor tabs in their own island above the page. */
 export function TabBar() {
   const { tabs, activeId, openInNewTab, titleOf, move } =
     useTabs()
@@ -78,7 +81,7 @@ export function TabBar() {
             scrollRef.current.scrollLeft += e.deltaY
           }
         }}
-        className="flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none]"
+        className="flex min-w-0 items-center gap-1 no-scrollbar overflow-x-auto"
       >
         {tabs.map((tab) => (
           <TabItem
@@ -121,7 +124,78 @@ export function TabBar() {
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      <SplitButton />
     </div>
+  )
+}
+
+/** Opens the split view of the active tab with a page to pick, or closes it. Not on phones. */
+function SplitButton() {
+  const { tabs, activeId, openSplit, closeSplit, titleOf } = useTabs()
+  const { enabledFeatures } = useEnabledFeatures()
+  const active = tabs.find((t) => t.id === activeId)
+  if (!active) return null
+
+  if (active.split !== undefined) {
+    return (
+      <Hint label="Split View schließen">
+        <button
+          type="button"
+          onClick={closeSplit}
+          aria-label="Split View schließen"
+          aria-pressed
+          className={cn(ICON_BUTTON, "ml-auto hidden bg-tab-hover text-foreground md:flex")}
+        >
+          <Columns2Icon className="size-4" />
+        </button>
+      </Hint>
+    )
+  }
+
+  const others = tabs.filter((t) => t.id !== activeId)
+  return (
+    <DropdownMenu>
+      <Hint label="Split View öffnen">
+        <DropdownMenuTrigger aria-label="Split View öffnen" className={cn(ICON_BUTTON, "ml-auto hidden md:flex")}>
+          <Columns2Icon className="size-4" />
+        </DropdownMenuTrigger>
+      </Hint>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuLabel>Rechts daneben öffnen</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => openSplit()}>
+          <CopyIcon />
+          <span className="truncate">Diese Seite</span>
+        </DropdownMenuItem>
+        {others.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Offene Tabs</DropdownMenuLabel>
+            {others.map((t) => (
+              <TabOption key={t.id} tab={t} title={titleOf(t)} onSelect={() => openSplit(t.path)} />
+            ))}
+          </>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Bereiche</DropdownMenuLabel>
+        {enabledFeatures.map((f) => (
+          <DropdownMenuItem key={f.path} onSelect={() => openSplit(`/${f.path}`)}>
+            <f.icon />
+            <span className="truncate">{f.title}</span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function TabOption({ tab, title, onSelect }: { tab: Tab; title: string; onSelect: () => void }) {
+  const { featureOf } = useTabs()
+  const feature = featureOf(tab.path)
+  return (
+    <DropdownMenuItem onSelect={onSelect}>
+      {feature && <feature.icon />}
+      <span className="truncate">{title}</span>
+    </DropdownMenuItem>
   )
 }
 
@@ -153,14 +227,19 @@ function TabItem({
     reopenClosed,
     canReopen,
     titleOf,
+    titleOfPath,
     featureOf,
+    activeId,
+    openSplit,
+    closeSplit,
   } = useTabs()
   const feature = featureOf(tab.path)
   const title = titleOf(tab)
   const index = tabs.indexOf(tab)
   const hasUnpinned = tabs.some((t) => !t.pinned)
   const tooltip =
-    feature && feature.title !== title ? `${feature.title} › ${title}` : title
+    (feature && feature.title !== title ? `${feature.title} › ${title}` : title) +
+    (tab.split ? ` | ${titleOfPath(tab.split)}` : "")
 
   return (
     <ContextMenu>
@@ -197,6 +276,7 @@ function TabItem({
           >
             {feature && <feature.icon className="size-3.5 shrink-0" />}
             <span className="truncate">{title}</span>
+            {tab.split && <Columns2Icon aria-label="Split View" className="size-3.5 shrink-0 text-muted-foreground" />}
             <button
               type="button"
               tabIndex={-1}
@@ -271,6 +351,20 @@ function TabItem({
         <ContextMenuItem onSelect={() => duplicate(tab.id)}>
           Tab duplizieren
         </ContextMenuItem>
+        <ContextMenuSeparator />
+        {active ? (
+          tab.split ? (
+            <ContextMenuItem onSelect={closeSplit}>Split View schließen</ContextMenuItem>
+          ) : (
+            <ContextMenuItem onSelect={() => openSplit()}>Split View öffnen</ContextMenuItem>
+          )
+        ) : (
+          // Shows this tab's page next to the active one.
+          <ContextMenuItem disabled={!activeId} onSelect={() => openSplit(tab.path)}>
+            Rechts neben aktivem Tab öffnen
+          </ContextMenuItem>
+        )}
+        <ContextMenuSeparator />
         <ContextMenuItem disabled={!canReopen} onSelect={reopenClosed}>
           Geschlossenen Tab wiederherstellen
           <ContextMenuShortcut>Alt ⇧ T</ContextMenuShortcut>

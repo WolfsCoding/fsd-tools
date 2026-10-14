@@ -2,6 +2,7 @@ import { useEffect, useRef, type ComponentProps } from "react"
 import { SearchIcon } from "lucide-react"
 import { cn } from "cn"
 import { Input } from "@/components/ui/input"
+import { usePane } from "@/hooks/use-pane"
 
 function isEditable(target: EventTarget | null) {
   return (
@@ -12,7 +13,8 @@ function isEditable(target: EventTarget | null) {
 
 /**
  * Search input with an icon. Escape clears it; with `focusKey`, "/" focuses it from
- * anywhere on the page (only give one visible field per page the shortcut).
+ * anywhere on the page (only give one visible field per page the shortcut). In the
+ * split pane the shortcut is left to the main pane.
  */
 export function SearchField({
   value,
@@ -30,12 +32,13 @@ export function SearchField({
   "aria-label": string
 }) {
   const ref = useRef<HTMLInputElement>(null)
+  const pane = usePane()
 
   useEffect(() => {
-    if (!focusKey) return
+    if (!focusKey || pane !== "main") return
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || isEditable(e.target)) return
-      // Hidden fields (e.g. the side panel on phones) have no layout box.
+      // Hidden fields (e.g. on a page in the background) have no layout box.
       if (!ref.current?.offsetParent) return
       e.preventDefault()
       ref.current.focus()
@@ -43,7 +46,7 @@ export function SearchField({
     }
     document.addEventListener("keydown", onKeyDown)
     return () => document.removeEventListener("keydown", onKeyDown)
-  }, [focusKey])
+  }, [focusKey, pane])
 
   return (
     <div className={cn("relative flex-1", className)}>

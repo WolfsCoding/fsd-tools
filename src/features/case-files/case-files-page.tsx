@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState, type ReactNode } from "react"
-import { Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router"
+import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router"
 import {
   CircleCheckIcon,
   EllipsisIcon,
@@ -12,11 +12,11 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { cn } from "cn"
+import { Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { InlineEdit } from "@/components/inline-edit"
-import { EmptyList, NoResults } from "@/components/no-results"
+import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
-import { SidePanel } from "@/components/side-panel"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
 import {
@@ -96,14 +96,7 @@ export function CaseFilesPage({ kind = POLICE_FILES_KIND }: { kind?: CaseFileKin
 
   return (
     <Routes>
-      <Route
-        index
-        element={
-          <Layout kind={kind} api={api} me={me} onCreate={create} onDelete={onDelete}>
-            <Home kind={kind} onCreate={create} />
-          </Layout>
-        }
-      />
+      <Route index element={<CaseFileList kind={kind} api={api} me={me} onCreate={create} onDelete={onDelete} />} />
       <Route
         path=":akteId"
         element={<CaseFileRoute kind={kind} api={api} me={me} onCreate={create} onDelete={onDelete} />}
@@ -124,21 +117,7 @@ function CaseFileRoute(props: ListProps) {
   const { akteId: caseFileId } = useParams()
   const caseFile = props.api.caseFiles.find((a) => a.id === caseFileId)
   if (!caseFile) return <Navigate to=".." replace />
-  return (
-    <Layout {...props} currentId={caseFile.id}>
-      <CaseFileView key={caseFile.id} kind={props.kind} caseFile={caseFile} api={props.api} onDelete={props.onDelete} />
-    </Layout>
-  )
-}
-
-function Layout({ currentId, children, ...props }: ListProps & { currentId?: string; children: ReactNode }) {
-  return (
-    <div className="flex min-h-0 flex-1">
-      {/* On phones the list and the open case file take turns. */}
-      <CaseFileList {...props} currentId={currentId} />
-      <div className={cn("min-h-0 min-w-0 flex-1 flex-col", currentId ? "flex" : "hidden md:flex")}>{children}</div>
-    </div>
-  )
+  return <CaseFileView key={caseFile.id} kind={props.kind} caseFile={caseFile} api={props.api} onDelete={props.onDelete} />
 }
 
 function NewCaseFileMenu({
@@ -183,7 +162,7 @@ interface ItemAction {
   destructive?: boolean
 }
 
-function CaseFileList({ kind, api, me, currentId, onCreate, onDelete }: ListProps & { currentId?: string }) {
+function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
   const [query, setQuery] = useState("")
   const [renamingId, setRenamingId] = useState<string>()
   const navigate = useNavigate()
@@ -211,18 +190,23 @@ function CaseFileList({ kind, api, me, currentId, onCreate, onDelete }: ListProp
     { label: "Löschen", icon: Trash2Icon, onSelect: () => onDelete(a), destructive: true },
   ]
 
-  return (
-    <SidePanel title={kind.title} mobileHidden={!!currentId}>
-      <div className="flex gap-2 p-4">
-        <SearchField value={query} onChange={setQuery} focusKey aria-label={`${kind.title} durchsuchen`} />
-        <NewCaseFileMenu kind={kind} onCreate={onCreate} hint={`Neue ${kind.noun}`}>
-          <Button size="icon" aria-label={`Neue ${kind.noun}`}>
-            <PlusIcon />
-          </Button>
-        </NewCaseFileMenu>
-      </div>
+  if (api.caseFiles.length === 0) return <Home kind={kind} onCreate={onCreate} />
 
-      <nav className="grid min-h-0 flex-1 content-start gap-1.5 overflow-y-auto px-4 pb-4">
+  return (
+    <Explorer
+      title={kind.title}
+      toolbar={
+        <>
+          <SearchField value={query} onChange={setQuery} focusKey aria-label={`${kind.title} durchsuchen`} />
+          <NewCaseFileMenu kind={kind} onCreate={onCreate} hint={`Neue ${kind.noun}`}>
+            <Button size="icon" aria-label={`Neue ${kind.noun}`}>
+              <PlusIcon />
+            </Button>
+          </NewCaseFileMenu>
+        </>
+      }
+    >
+      <nav className={EXPLORER_LIST}>
         {shown.map((a) => {
           const main = kind.templates[a.docs[0].template]
           const attached = a.docs.length - 1
@@ -241,7 +225,7 @@ function CaseFileList({ kind, api, me, currentId, onCreate, onDelete }: ListProp
           // While renaming, the row is no link, so clicks into the field don't navigate.
           if (renamingId === a.id)
             return (
-              <div key={a.id} className={cn("grid gap-0.5 rounded-md px-2.5 py-2", a.id === currentId && "bg-accent")}>
+              <div key={a.id} className={EXPLORER_ROW}>
                 <span className="flex items-center gap-1 text-sm font-medium">
                   {icon}
                   <InlineEdit
@@ -262,26 +246,21 @@ function CaseFileList({ kind, api, me, currentId, onCreate, onDelete }: ListProp
             <div key={a.id} className="group/item relative">
               <ContextMenu>
                 <ContextMenuTrigger asChild>
-                  <NavLink
+                  <Link
                     to={casePath(kind, a.id)}
-                    onDoubleClick={() => setRenamingId(a.id)}
                     onKeyDown={(e) => {
                       if (e.key === "F2") {
                         e.preventDefault()
                         setRenamingId(a.id)
                       }
                     }}
-                    className={cn(
-                      "grid gap-0.5 rounded-md py-2 pr-9 pl-2.5 hover:bg-accent/60",
-                      a.id === currentId && "bg-accent hover:bg-accent",
-                      a.settled && "opacity-60",
-                    )}
+                    className={cn(EXPLORER_ROW, a.settled && "opacity-60")}
                   >
                     <WithIds text={caseFileTitle(a, me, kind.templates)} className="text-sm font-medium">
                       {icon}{" "}
                     </WithIds>
                     {meta}
-                  </NavLink>
+                  </Link>
                 </ContextMenuTrigger>
                 {/* Not refocusing the row keeps the focus in the title field after "Umbenennen". */}
                 <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
@@ -299,7 +278,7 @@ function CaseFileList({ kind, api, me, currentId, onCreate, onDelete }: ListProp
                     variant="ghost"
                     size="icon-xs"
                     aria-label={`Aktionen für „${caseFileTitle(a, me, kind.templates)}"`}
-                    className="absolute top-2 right-2 text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                    className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
                   >
                     <EllipsisIcon />
                   </Button>
@@ -315,10 +294,9 @@ function CaseFileList({ kind, api, me, currentId, onCreate, onDelete }: ListProp
             </div>
           )
         })}
-        {q && shown.length === 0 && <NoResults query={query} onReset={() => setQuery("")} />}
-        {!api.caseFiles.length && <EmptyList>Noch keine {kind.title}. Mit „+“ eine neue anlegen.</EmptyList>}
       </nav>
-    </SidePanel>
+      {q && shown.length === 0 && <NoResults query={query} onReset={() => setQuery("")} />}
+    </Explorer>
   )
 }
 

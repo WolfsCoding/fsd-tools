@@ -1,22 +1,11 @@
-import { useLayoutEffect, useMemo, useRef, type RefObject } from "react"
-import {
-  NavLink,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router"
-import { BookOpenIcon, FileTextIcon, SearchXIcon } from "lucide-react"
+import { useLayoutEffect, useMemo, useRef } from "react"
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router"
+import { BookOpenIcon, FileTextIcon } from "lucide-react"
+import { Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
-import { SidePanel } from "@/components/side-panel"
-import { Button } from "@/components/ui/button"
 import {
   Empty,
-  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -40,26 +29,6 @@ export function FsuPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const query = searchParams.get("q") ?? ""
   const setQuery = (q: string) => setSearchParams(q ? { q } : {}, { replace: true })
-  const search = query ? `?${new URLSearchParams({ q: query })}` : ""
-  const mainRef = useRef<HTMLElement>(null)
-  const { pathname } = useLocation()
-
-  // The scroll container outlives route changes, so start every post at the top.
-  useLayoutEffect(() => {
-    mainRef.current?.scrollTo({ top: 0 })
-  }, [pathname])
-
-  const groups = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return allGroups
-    return groupByCategory(
-      posts.filter((p) =>
-        [p.title, p.category, p.content].some((v) =>
-          v.toLowerCase().includes(q),
-        ),
-      ),
-    )
-  }, [query])
 
   const commandGroups = useMemo<CommandGroupDef[]>(
     () => [
@@ -83,105 +52,30 @@ export function FsuPage() {
   useRegisterCommands("fsu", commandGroups)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <SidePanel
-        title="Beiträge"
-        mobileClassName="max-h-[40%] border-b"
-      >
-        <div className="p-4">
-          <SearchField
-            value={query}
-            onChange={setQuery}
-            aria-label="Beiträge durchsuchen"
-            focusKey
-          />
-        </div>
-        <nav className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
-          {groups.map(([category, items]) => (
-            <div key={category} className="mb-3 last:mb-0">
-              <p className="px-2 pt-1 pb-1.5 text-xs font-medium text-muted-foreground">
-                {category}
-              </p>
-              {items.map((post) => (
-                <PostLink key={post.id} post={post} search={search} />
-              ))}
-            </div>
-          ))}
-          {query.trim() && groups.length === 0 && (
-            <NoResults query={query} onReset={() => setQuery("")} />
-          )}
-        </nav>
-      </SidePanel>
-
-      <main ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-        <Routes>
-          <Route
-            index
-            element={
-              <IndexView
-                firstId={groups[0]?.[1][0]?.id}
-                search={search}
-                query={query.trim()}
-                onResetSearch={() => setQuery("")}
-              />
-            }
-          />
-          <Route
-            path=":postId"
-            element={<PostRoute query={query} scrollRef={mainRef} />}
-          />
-        </Routes>
-      </main>
-    </div>
+    <Routes>
+      <Route index element={<PostList query={query} onQuery={setQuery} />} />
+      <Route path=":postId" element={<PostRoute query={query} />} />
+    </Routes>
   )
 }
 
-function PostLink({ post, search }: { post: Post; search: string }) {
-  return (
-    <NavLink
-      to={{ pathname: `${FSU_BASE}/${post.id}`, search }}
-      className="flex h-8 items-center gap-2 rounded-md px-2 text-sm text-foreground/80 outline-none hover:bg-accent/60 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring aria-[current=page]:bg-accent aria-[current=page]:font-medium aria-[current=page]:text-foreground"
-    >
-      <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
-      <span className="truncate">{post.title}</span>
-    </NavLink>
-  )
-}
+function PostList({ query, onQuery }: { query: string; onQuery: (q: string) => void }) {
+  const search = query ? `?${new URLSearchParams({ q: query })}` : ""
+  const groups = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return allGroups
+    return groupByCategory(
+      posts.filter((p) =>
+        [p.title, p.category, p.content].some((v) =>
+          v.toLowerCase().includes(q),
+        ),
+      ),
+    )
+  }, [query])
 
-/** Resolves `:postId`; unknown ids go back to the index. */
-function PostRoute({
-  query,
-  scrollRef,
-}: {
-  query: string
-  scrollRef: RefObject<HTMLElement | null>
-}) {
-  const { postId } = useParams()
-  const post = posts.find((p) => p.id === postId)
-  useTabTitle(post?.title)
-  // Keyed so per-post state (active heading) starts fresh.
-  return post ? (
-    <PostView key={post.id} post={post} query={query} scrollRef={scrollRef} />
-  ) : (
-    <Navigate to={FSU_BASE} replace />
-  )
-}
-
-function IndexView({
-  firstId,
-  search,
-  query,
-  onResetSearch,
-}: {
-  /** First post in sidebar order that matches the search. */
-  firstId: string | undefined
-  search: string
-  query: string
-  onResetSearch: () => void
-}) {
   if (posts.length === 0) {
     return (
-      <Empty className="h-full">
+      <Empty className="flex-1">
         <EmptyHeader>
           <EmptyMedia variant="icon">
             <BookOpenIcon />
@@ -196,25 +90,83 @@ function IndexView({
     )
   }
 
-  if (!firstId) {
-    return (
-      <Empty className="h-full">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <SearchXIcon />
-          </EmptyMedia>
-          <EmptyTitle>Keine Treffer</EmptyTitle>
-          <EmptyDescription>Kein Beitrag passt zu „{query}“.</EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent>
-          <Button variant="outline" onClick={onResetSearch}>
-            Suche zurücksetzen
-          </Button>
-        </EmptyContent>
-      </Empty>
-    )
-  }
+  return (
+    <Explorer
+      title="Beiträge"
+      toolbar={
+        <SearchField
+          value={query}
+          onChange={onQuery}
+          aria-label="Beiträge durchsuchen"
+          focusKey
+        />
+      }
+    >
+      <nav className="grid gap-4">
+        {groups.map(([category, items]) => (
+          <section key={category} className="grid gap-1.5">
+            <p className="px-1 text-xs font-medium text-muted-foreground">
+              {category}
+            </p>
+            <div className={EXPLORER_LIST}>
+              {items.map((post) => (
+                <PostRow key={post.id} post={post} search={search} />
+              ))}
+            </div>
+          </section>
+        ))}
+      </nav>
+      {query.trim() && groups.length === 0 && (
+        <NoResults query={query} onReset={() => onQuery("")} />
+      )}
+    </Explorer>
+  )
+}
 
-  // Open the first matching post in sidebar order, keeping the search.
-  return <Navigate to={{ pathname: `${FSU_BASE}/${firstId}`, search }} replace />
+function PostRow({ post, search }: { post: Post; search: string }) {
+  return (
+    <Link
+      to={{ pathname: `${FSU_BASE}/${post.id}`, search }}
+      className={EXPLORER_ROW}
+    >
+      <span className="flex items-center gap-2 text-sm font-medium">
+        <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
+        <span className="truncate">{post.title}</span>
+      </span>
+      <span className="truncate text-xs text-muted-foreground">
+        {excerpt(post.content)}
+      </span>
+    </Link>
+  )
+}
+
+/** The first line of prose, without markdown marks. */
+function excerpt(markdown: string) {
+  const line = markdown
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l && !/^(#|---|```|\||!\[|<)/.test(l))
+  return line?.replace(/^([-*+>]|\d+\.)\s+/, "").replace(/[*_`]|\[([^\]]*)\]\([^)]*\)/g, "$1") ?? ""
+}
+
+/** Resolves `:postId`; unknown ids go back to the list. */
+function PostRoute({ query }: { query: string }) {
+  const { postId } = useParams()
+  const post = posts.find((p) => p.id === postId)
+  const mainRef = useRef<HTMLElement>(null)
+  const { pathname } = useLocation()
+  useTabTitle(post?.title)
+
+  // The scroll container outlives moving to the next post, so start every post at the top.
+  useLayoutEffect(() => {
+    mainRef.current?.scrollTo({ top: 0 })
+  }, [pathname])
+
+  if (!post) return <Navigate to={FSU_BASE} replace />
+  return (
+    <main ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+      {/* Keyed so per-post state (active heading) starts fresh. */}
+      <PostView key={post.id} post={post} query={query} scrollRef={mainRef} />
+    </main>
+  )
 }

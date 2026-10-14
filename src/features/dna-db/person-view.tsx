@@ -1,6 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react"
 import {
-  ChevronLeftIcon,
   ClipboardCopyIcon,
   FileTextIcon,
   FolderIcon,
@@ -11,6 +10,7 @@ import {
   UserIcon,
 } from "lucide-react"
 import { Link, Navigate, useParams } from "react-router"
+import { BackButton } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { EmptyList } from "@/components/no-results"
 import { Button } from "@/components/ui/button"
@@ -75,13 +75,7 @@ function PersonView({
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="border-b px-6 py-4">
         <div className="flex items-center gap-3">
-          <Hint label="Zur DNA-DB">
-            <Button variant="ghost" size="icon-sm" asChild>
-              <Link to={DNA_DB_BASE} aria-label="Zur DNA-DB">
-                <ChevronLeftIcon />
-              </Link>
-            </Button>
-          </Hint>
+          <BackButton to={DNA_DB_BASE} label="Zur DNA-DB" />
           <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <UserIcon className="size-5" />
           </span>

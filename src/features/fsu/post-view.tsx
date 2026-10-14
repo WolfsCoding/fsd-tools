@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react"
 import { Link, useLocation } from "react-router"
 import { ChevronLeftIcon, ChevronRightIcon, TableOfContentsIcon } from "lucide-react"
 import { cn } from "cn"
+import { BackButton } from "@/components/explorer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -46,11 +47,14 @@ export function PostView({
     <div className="mx-auto flex max-w-5xl gap-10 px-8 py-8">
       <article ref={articleRef} className="min-w-0 max-w-3xl flex-1">
         <header className="mb-8 grid gap-3 border-b pb-6">
-          {post.category && (
-            <Badge variant="secondary" className="w-fit">
-              {post.category}
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            <BackButton to={{ pathname: FSU_BASE, search }} label="Alle Beiträge" className="-ml-2" />
+            {post.category && (
+              <Badge variant="secondary" className="w-fit">
+                {post.category}
+              </Badge>
+            )}
+          </div>
           <div className="flex items-start gap-3">
             <h1 className="flex-1 text-2xl font-semibold tracking-tight">{post.title}</h1>
             {showToc && <TocPopover headings={headings} activeId={activeId} />}

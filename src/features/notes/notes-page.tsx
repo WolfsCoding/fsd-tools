@@ -1,12 +1,11 @@
-import { useMemo, useState, type ReactNode } from "react"
-import { Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router"
+import { useMemo, useState } from "react"
+import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router"
 import { EllipsisIcon, FilePlusIcon, FileTextIcon, NotebookPenIcon, PencilIcon, Trash2Icon } from "lucide-react"
-import { cn } from "cn"
+import { Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { InlineEdit } from "@/components/inline-edit"
-import { EmptyList, NoResults } from "@/components/no-results"
+import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
-import { SidePanel } from "@/components/side-panel"
 import { Button } from "@/components/ui/button"
 import {
   ContextMenu,
@@ -96,14 +95,7 @@ export function NotesPage() {
 
   return (
     <Routes>
-      <Route
-        index
-        element={
-          <Layout api={api} actions={actions}>
-            <Home api={api} onCreate={actions.onCreate} />
-          </Layout>
-        }
-      />
+      <Route index element={<NoteList api={api} actions={actions} />} />
       <Route path=":noteId" element={<NoteRoute api={api} actions={actions} />} />
     </Routes>
   )
@@ -114,59 +106,22 @@ function NoteRoute({ api, actions }: { api: NotesApi; actions: ListActions }) {
   const note = api.notes.find((n) => n.id === noteId)
   if (!note) return <Navigate to=".." replace />
   return (
-    <Layout api={api} currentId={note.id} actions={actions}>
-      <NoteEditor
-        key={note.id}
-        note={note}
-        onChange={(patch) => api.updateNote(note.id, patch)}
-        autoFocusTitle={note.id === actions.createdId}
-      />
-    </Layout>
+    <NoteEditor
+      key={note.id}
+      note={note}
+      onChange={(patch) => api.updateNote(note.id, patch)}
+      autoFocusTitle={note.id === actions.createdId}
+    />
   )
 }
 
-function Layout({
-  api,
-  currentId,
-  actions,
-  children,
-}: {
-  api: NotesApi
-  currentId?: string
-  actions: ListActions
-  children: ReactNode
-}) {
-  return (
-    <div className="flex min-h-0 flex-1">
-      {/* On phones the list and the open note take turns. */}
-      <NoteList api={api} currentId={currentId} actions={actions} />
-      <div className={cn("min-h-0 flex-1 flex-col", currentId ? "flex" : "hidden md:flex")}>{children}</div>
-    </div>
-  )
-}
-
-const ROW = "grid gap-0.5 rounded-md px-2.5 py-2 pr-9"
-
-function NoteList({
-  api,
-  currentId,
-  actions,
-}: {
-  api: NotesApi
-  currentId?: string
-  actions: ListActions
-}) {
+function NoteList({ api, actions }: { api: NotesApi; actions: ListActions }) {
   const [query, setQuery] = useState("")
-  // The open note keeps its place while it is edited and moves up once another one opens.
-  const openedAt = api.notes.find((n) => n.id === currentId)?.updatedAt
-  const [pinned, setPinned] = useState({ id: currentId, updatedAt: openedAt })
-  if (pinned.id !== currentId) setPinned({ id: currentId, updatedAt: openedAt })
 
   const q = query.trim().toLowerCase()
-  const sortKey = (n: Note) => (n.id === pinned.id && pinned.updatedAt) || n.updatedAt
   const shown = (
     q ? api.notes.filter((n) => n.title.toLowerCase().includes(q) || noteText(n).toLowerCase().includes(q)) : api.notes
-  ).toSorted((a, b) => sortKey(b).localeCompare(sortKey(a)))
+  ).toSorted((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 
   function finishRename(n: Note, title: string | undefined) {
     if (title !== undefined) api.updateNote(n.id, { title })
@@ -179,18 +134,23 @@ function NoteList({
     })
   }
 
-  return (
-    <SidePanel title="Notizen" mobileHidden={!!currentId}>
-      <div className="flex gap-2 p-4">
-        <SearchField value={query} onChange={setQuery} aria-label="Notizen durchsuchen" focusKey />
-        <Hint label="Neue Notiz">
-          <Button size="icon" onClick={actions.onCreate} aria-label="Neue Notiz">
-            <FilePlusIcon />
-          </Button>
-        </Hint>
-      </div>
+  if (api.notes.length === 0) return <Home onCreate={actions.onCreate} />
 
-      <nav className="grid min-h-0 flex-1 content-start gap-px overflow-y-auto px-4 pb-4">
+  return (
+    <Explorer
+      title="Notizen"
+      toolbar={
+        <>
+          <SearchField value={query} onChange={setQuery} aria-label="Notizen durchsuchen" focusKey />
+          <Hint label="Neue Notiz">
+            <Button size="icon" onClick={actions.onCreate} aria-label="Neue Notiz">
+              <FilePlusIcon />
+            </Button>
+          </Hint>
+        </>
+      }
+    >
+      <nav className={EXPLORER_LIST}>
         {shown.map((n) => {
           const details = (
             <>
@@ -209,7 +169,7 @@ function NoteList({
 
           if (actions.renamingId === n.id) {
             return (
-              <div key={n.id} className={cn(ROW, n.id === currentId && "bg-accent")}>
+              <div key={n.id} className={EXPLORER_ROW}>
                 <InlineEdit
                   value={n.title}
                   onDone={(title) => finishRename(n, title)}
@@ -227,20 +187,19 @@ function NoteList({
             <div key={n.id} className="group relative">
               <ContextMenu>
                 <ContextMenuTrigger asChild>
-                  <NavLink
+                  <Link
                     to={notePath(n.id)}
                     data-note-id={n.id}
-                    onDoubleClick={() => actions.onRename(n.id)}
                     onKeyDown={(e) => {
                       if (e.key !== "F2") return
                       e.preventDefault()
                       actions.onRename(n.id)
                     }}
-                    className={cn(ROW, "hover:bg-accent/60", n.id === currentId && "bg-accent hover:bg-accent")}
+                    className={EXPLORER_ROW}
                   >
                     <span className="truncate text-sm font-medium">{noteTitle(n)}</span>
                     {details}
-                  </NavLink>
+                  </Link>
                 </ContextMenuTrigger>
                 {/* Not refocusing the row keeps the focus in the title field after "Umbenennen". */}
                 <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
@@ -262,7 +221,7 @@ function NoteList({
                     variant="ghost"
                     size="icon-sm"
                     aria-label={`Aktionen für „${noteTitle(n)}"`}
-                    className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
+                    className="absolute top-1/2 right-2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
                   >
                     <EllipsisIcon />
                   </Button>
@@ -283,26 +242,22 @@ function NoteList({
             </div>
           )
         })}
-        {q && shown.length === 0 && <NoResults query={query} onReset={() => setQuery("")} />}
-        {!q && shown.length === 0 && <EmptyList>Noch keine Notizen</EmptyList>}
       </nav>
-    </SidePanel>
+      {q && shown.length === 0 && <NoResults query={query} onReset={() => setQuery("")} />}
+    </Explorer>
   )
 }
 
-function Home({ api, onCreate }: { api: NotesApi; onCreate: () => void }) {
-  const empty = api.notes.length === 0
+function Home({ onCreate }: { onCreate: () => void }) {
   return (
     <Empty className="flex-1">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <NotebookPenIcon />
         </EmptyMedia>
-        <EmptyTitle>{empty ? "Noch keine Notizen" : "Keine Notiz geöffnet"}</EmptyTitle>
+        <EmptyTitle>Noch keine Notizen</EmptyTitle>
         <EmptyDescription>
-          {empty
-            ? "Schreib einfachen Text auf DIN-A4-Seiten – was nicht mehr passt, landet auf der nächsten Seite."
-            : "Wähle links eine Notiz aus oder leg eine neue an."}
+          Schreib einfachen Text auf DIN-A4-Seiten – was nicht mehr passt, landet auf der nächsten Seite.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>

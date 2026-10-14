@@ -8,6 +8,8 @@ import {
 } from "react"
 import { useLocation, useNavigate } from "react-router"
 import {
+  ArrowLeftRightIcon,
+  Columns2Icon,
   CopyIcon,
   PinIcon,
   RotateCcwIcon,
@@ -63,7 +65,7 @@ function insertAfter(tabs: Tab[], afterId: string | null, tab: Tab) {
 
 /** Replaces the tabs and drops titles no open tab uses anymore. */
 function withTabs(state: TabsState, tabs: Tab[]): TabsState {
-  const paths = new Set(tabs.map((t) => routeOf(t.path)))
+  const paths = new Set(tabs.flatMap((t) => [t.path, ...(t.split ? [t.split] : [])].map(routeOf)))
   const titles = Object.fromEntries(
     Object.entries(state.titles).filter(([path]) => paths.has(path)),
   )
@@ -157,7 +159,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
           existing.id,
         )
       }
-      // Another feature never replaces the active tab's page; it gets a tab of its own.
+      // A feature without a tab replaces the active tab's page, unless that tab is pinned.
+      if (active && !active.pinned) return showInActive(active.id)
       const tab = { id: crypto.randomUUID(), path }
       return withActive(withTabs(s, insertAfter(s.tabs, s.activeId, tab)), tab.id)
     })
@@ -252,7 +255,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       const source = tabs.find((t) => t.id === id)
       if (!source) return
-      const tab = { id: crypto.randomUUID(), path: source.path }
+      const tab = { id: crypto.randomUUID(), path: source.path, split: source.split }
       update((s) =>
         withActive(withTabs(s, insertAfter(s.tabs, id, tab)), tab.id),
       )
@@ -298,10 +301,37 @@ export function TabsProvider({ children }: { children: ReactNode }) {
     [update],
   )
 
-  const titleOf = useCallback(
-    (tab: Tab) => state.titles[routeOf(tab.path)] ?? featureOf(tab.path)?.title ?? routeOf(tab.path),
+  const titleOfPath = useCallback(
+    (path: string) => state.titles[routeOf(path)] ?? featureOf(path)?.title ?? routeOf(path),
     [state.titles, featureOf],
   )
+  const titleOf = useCallback((tab: Tab) => titleOfPath(tab.path), [titleOfPath])
+
+  /** Changes the active tab with `fn`; without an active tab nothing happens. */
+  const updateActive = useCallback(
+    (fn: (tab: Tab) => Tab) =>
+      update((s) => withTabs(s, s.tabs.map((t) => (t.id === s.activeId ? fn(t) : t)))),
+    [update],
+  )
+
+  const openSplit = useCallback(
+    (path?: string) => updateActive((t) => ({ ...t, split: path ?? t.path })),
+    [updateActive],
+  )
+  const closeSplit = useCallback(
+    () => updateActive((t) => ({ ...t, split: undefined })),
+    [updateActive],
+  )
+  const setSplitPath = useCallback(
+    (path: string) => updateActive((t) => (t.split === undefined || t.split === path ? t : { ...t, split: path })),
+    [updateActive],
+  )
+  const swapSplit = useCallback(() => {
+    const active = tabs.find((t) => t.id === activeId)
+    if (!active?.split) return
+    updateActive((t) => ({ ...t, path: active.split!, split: active.path }))
+    navigate(active.split)
+  }, [tabs, activeId, updateActive, navigate])
 
   // Ctrl/⌘+click on any in-app link opens it in a new app tab instead of a
   // browser tab. Capture phase, so it runs before the router's link handler.
@@ -379,7 +409,13 @@ export function TabsProvider({ children }: { children: ReactNode }) {
           icon: CopyIcon,
           onSelect: () => duplicate(active.id),
         },
+        active.split
+          ? { id: "tabs:split", label: "Split View schließen", icon: Columns2Icon, onSelect: closeSplit }
+          : { id: "tabs:split", label: "Split View öffnen", icon: Columns2Icon, onSelect: () => openSplit() },
       )
+      if (active.split) {
+        actions.push({ id: "tabs:split-swap", label: "Seiten im Split View tauschen", icon: ArrowLeftRightIcon, onSelect: swapSplit })
+      }
     }
     if (closed.length > 0) {
       actions.push({
@@ -415,6 +451,9 @@ export function TabsProvider({ children }: { children: ReactNode }) {
     duplicate,
     reopenClosed,
     activate,
+    openSplit,
+    closeSplit,
+    swapSplit,
     titleOf,
     featureOf,
   ])
@@ -427,6 +466,11 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       initialized: stored !== null,
       featureOf,
       titleOf,
+      titleOfPath,
+      openSplit,
+      closeSplit,
+      setSplitPath,
+      swapSplit,
       activate,
       openInNewTab,
       closeTabs,
@@ -444,6 +488,11 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       stored,
       featureOf,
       titleOf,
+      titleOfPath,
+      openSplit,
+      closeSplit,
+      setSplitPath,
+      swapSplit,
       activate,
       openInNewTab,
       closeTabs,

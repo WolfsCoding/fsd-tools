@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { Link, useLocation, useSearchParams } from "react-router"
+import { useLocation, useSearchParams } from "react-router"
 import {
-  ChevronLeftIcon,
   CircleCheckIcon,
   ClipboardCopyIcon,
   CopyIcon,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
+import { BackButton } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { InlineEdit } from "@/components/inline-edit"
 import { Button } from "@/components/ui/button"
@@ -218,11 +218,7 @@ export function CaseFileView({
     <div className="flex min-h-0 flex-1 flex-col">
       <header className={cn("border-b px-6 pt-5", !showTabs && "pb-4")}>
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon-sm" asChild className="md:hidden">
-            <Link to={kind.base} aria-label={`Alle ${kind.title}`}>
-              <ChevronLeftIcon />
-            </Link>
-          </Button>
+          <BackButton to={kind.base} label={`Alle ${kind.title}`} />
           <div className="grid min-w-0 flex-1 gap-0.5">
             <p className="truncate text-xs text-muted-foreground">
               {main.label} · geändert {formatRelative(caseFile.updatedAt)}
@@ -341,7 +337,7 @@ export function CaseFileView({
           <div
             role="tablist"
             aria-label="Dokumente der Akte"
-            className="-mx-3 mt-3 flex items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="-mx-3 mt-3 flex items-center gap-0.5 no-scrollbar overflow-x-auto"
           >
             {caseFile.docs.map((d) =>
               renaming === d.id ? (

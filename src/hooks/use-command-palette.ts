@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, type ComponentType } from "react"
+import { usePane } from "@/hooks/use-pane"
 
 export interface CommandAction {
   id: string
@@ -40,9 +41,11 @@ export function useCommandPalette() {
 
 /**
  * Adds command groups to the palette while the calling component is mounted.
- * Memoize `groups` so it only re-registers when its contents change.
+ * Memoize `groups` so it only re-registers when its contents change. Pages in
+ * the split pane register nothing; their commands come from the main pane.
  */
 export function useRegisterCommands(id: string, groups: CommandGroupDef[]) {
   const { register } = useCommandPaletteContext()
-  useEffect(() => register(id, groups), [id, groups, register])
+  const pane = usePane()
+  useEffect(() => (pane === "main" ? register(id, groups) : undefined), [pane, id, groups, register])
 }

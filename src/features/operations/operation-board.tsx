@@ -1,9 +1,8 @@
 import { useState } from "react"
-import { Link, useSearchParams } from "react-router"
+import { useSearchParams } from "react-router"
 import {
   AtSignIcon,
   CheckCheckIcon,
-  ChevronLeftIcon,
   ClipboardCheckIcon,
   ClipboardCopyIcon,
   ClockIcon,
@@ -35,6 +34,7 @@ import { copy } from "@/lib/clipboard"
 import { formatDate } from "@/lib/format-date"
 import { sameText } from "@/lib/text"
 import { removedToast } from "@/lib/undo"
+import { BackButton } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { InlineEdit } from "@/components/inline-edit"
 import { EmptyList, NoResults } from "@/components/no-results"
@@ -100,10 +100,13 @@ export function OperationBoard({
   operation,
   api,
   onDelete,
+  autoFocusTitle,
 }: {
   operation: Operation
   api: Api
   onDelete: (operation: Operation) => void
+  /** Set for a new operation, to name it right away. */
+  autoFocusTitle?: boolean
 }) {
   const now = useNow()
   const [tab, setTab] = useTabParam()
@@ -157,16 +160,13 @@ export function OperationBoard({
         <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
           <section className="grid gap-1">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon-sm" asChild className="md:hidden">
-                <Link to={OPERATIONS_BASE} aria-label="Alle Einsätze">
-                  <ChevronLeftIcon />
-                </Link>
-              </Button>
+              <BackButton to={OPERATIONS_BASE} label="Alle Einsätze" />
               <HeaderField
                 operation={operation}
                 api={api}
                 field="title"
                 placeholder="Unbenannter Einsatz"
+                autoFocus={autoFocusTitle}
                 className="min-w-0 flex-1 text-xl font-semibold"
               />
               <span className="flex shrink-0 items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
@@ -267,7 +267,7 @@ export function OperationBoard({
           </section>
 
           <Tabs value={activeTab} onValueChange={setTab} className="min-h-0 flex-1 gap-4">
-            <TabsList className="max-w-full justify-start overflow-x-auto">
+            <TabsList className="no-scrollbar max-w-full justify-start overflow-x-auto">
               <TabsTrigger value="lage" className="px-3">
                 Lage
               </TabsTrigger>
@@ -557,12 +557,14 @@ function HeaderField({
   field,
   placeholder,
   className,
+  autoFocus,
 }: {
   operation: Operation
   api: Api
   field: OperationField
   placeholder: string
   className?: string
+  autoFocus?: boolean
 }) {
   const locked = useLocked()
   const session = useEditSession(operation[field], (before, after) =>
@@ -573,6 +575,7 @@ function HeaderField({
       value={operation[field]}
       {...session}
       readOnly={locked}
+      autoFocus={autoFocus}
       onChange={(e) => api.setField(operation.id, field, e.target.value)}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       placeholder={placeholder}

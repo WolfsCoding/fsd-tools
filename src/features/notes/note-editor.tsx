@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from "react"
 import { createPortal } from "react-dom"
-import { Link } from "react-router"
-import { ChevronLeftIcon, PlusIcon, PrinterIcon, Trash2Icon } from "lucide-react"
+import { PlusIcon, PrinterIcon, Trash2Icon } from "lucide-react"
+import { BackButton } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
 import { removedToast } from "@/lib/undo"
@@ -306,7 +306,8 @@ export function NoteEditor({
 
   return (
     <div ref={areaRef} className="flex min-h-0 flex-1 flex-col items-center gap-4 overflow-hidden p-6">
-      <div style={{ width: SHEET_WIDTH_PX * zoom }} className="flex h-9 shrink-0 items-center">
+      <div style={{ width: SHEET_WIDTH_PX * zoom }} className="flex h-9 shrink-0 items-center gap-1">
+        <BackButton to={NOTES_BASE} label="Alle Notizen" />
         <input
           value={note.title}
           onChange={(e) => onChange({ title: e.target.value })}
@@ -350,13 +351,6 @@ export function NoteEditor({
 
       {/* As wide as the sheet, so the pagination lines up with its right edge. */}
       <div style={{ width: SHEET_WIDTH_PX * zoom }} className="flex h-9 shrink-0 items-center gap-2">
-        <Hint label="Alle Notizen">
-          <Button variant="outline" size="icon" asChild className="border-dashed md:hidden">
-            <Link to={NOTES_BASE} aria-label="Alle Notizen">
-              <ChevronLeftIcon />
-            </Link>
-          </Button>
-        </Hint>
         {/* The span keeps the tooltip working while the button is disabled. */}
         <Hint label="Seite löschen">
           <span className="flex">

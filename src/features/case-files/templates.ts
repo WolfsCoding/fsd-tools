@@ -94,7 +94,7 @@ export interface TextField extends BaseField {
 /** Bullet points, one input each. */
 export interface ListField extends BaseField {
   type: "list"
-  /** Written as the only point while there are none. */
+  /** Written as the only point while there are none; "" starts without points and writes none. */
   fallback: string
 }
 
@@ -305,7 +305,7 @@ export interface Reader {
   filled: (key: string) => string
   /** The entered text, or what the field writes when empty. */
   text: (key: string) => string
-  /** The entered bullet points, or the field's fallback as the only one. */
+  /** The entered bullet points, or the field's fallback (if it has one) as the only one. */
   lines: (key: string) => string[]
   /** Every option of a checklist, with its `{key}` references filled in. */
   checks: (key: string) => { label: string; checked: boolean }[]
@@ -362,7 +362,7 @@ export function createReader(
     lines(key) {
       const f = fields.get(key)
       const lines = listItems(values[key]).map(withMe).filter(Boolean)
-      return lines.length || f?.type !== "list" ? lines : [f.fallback]
+      return lines.length || f?.type !== "list" || !f.fallback ? lines : [f.fallback]
     },
     checks(key) {
       const f = fields.get(key)
@@ -554,7 +554,7 @@ const TODOS: TableField = {
 
 const todoRows = (...tasks: string[]): Row[] => tasks.map((aufgabe) => ({ aufgabe, zustaendig: "", erledigt: "" }))
 
-const OTHER: ListField = { type: "list", key: "sonstiges", label: "Sonstiges", fallback: "Sonstiges" }
+const OTHER: ListField = { type: "list", key: "sonstiges", label: "Sonstiges", fallback: "" }
 
 const OTHER_SECTION: Section = {
   title: "Sonstige Informationen",

@@ -1,12 +1,12 @@
 import { useMemo, useState, type ReactNode } from "react"
-import { Navigate, NavLink, Route, Routes, useNavigate, useParams } from "react-router"
+import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router"
 import { PencilIcon, PlusIcon, SirenIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
+import { Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { InlineEdit } from "@/components/inline-edit"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
-import { SidePanel } from "@/components/side-panel"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -24,6 +24,8 @@ type Api = ReturnType<typeof useOperations>
 /** What the list needs from the page: creating, renaming and deleting operations. */
 interface ListActions {
   onCreate: () => void
+  /** The operation created last, whose board focuses its title. */
+  createdId: string | undefined
   /** The operation whose title is being edited in the list. */
   renamingId: string | undefined
   onRename: (id: string | undefined) => void
@@ -35,14 +37,16 @@ export function OperationsPage() {
   const api = useOperations()
   const navigate = useNavigate()
   const [renamingId, setRenamingId] = useState<string | undefined>()
+  const [createdId, setCreatedId] = useState<string | undefined>()
 
   const actions = useMemo<ListActions>(
     () => ({
       onCreate: () => {
         const id = api.createOperation()
-        setRenamingId(id)
+        setCreatedId(id)
         navigate(operationPath(id))
       },
+      createdId,
       renamingId,
       onRename: setRenamingId,
       onDelete: (operation) => {
@@ -50,7 +54,7 @@ export function OperationsPage() {
         removedToast(`„${operationTitle(operation)}“`, () => api.restoreOperation(operation))
       },
     }),
-    [api, navigate, renamingId],
+    [api, navigate, createdId, renamingId],
   )
 
   const commandGroups = useMemo<CommandGroupDef[]>(
@@ -77,14 +81,7 @@ export function OperationsPage() {
 
   return (
     <Routes>
-      <Route
-        index
-        element={
-          <Layout api={api} actions={actions}>
-            <Home api={api} onCreate={actions.onCreate} />
-          </Layout>
-        }
-      />
+      <Route index element={<OperationList api={api} actions={actions} />} />
       <Route path=":einsatzId" element={<OperationRoute api={api} actions={actions} />} />
     </Routes>
   )
@@ -95,41 +92,17 @@ function OperationRoute({ api, actions }: { api: Api; actions: ListActions }) {
   const operation = api.operations.find((e) => e.id === operationId)
   if (!operation) return <Navigate to=".." replace />
   return (
-    <Layout api={api} currentId={operation.id} actions={actions}>
-      <OperationBoard key={operation.id} operation={operation} api={api} onDelete={actions.onDelete} />
-    </Layout>
+    <OperationBoard
+      key={operation.id}
+      operation={operation}
+      api={api}
+      onDelete={actions.onDelete}
+      autoFocusTitle={operation.id === actions.createdId}
+    />
   )
 }
 
-function Layout({
-  api,
-  currentId,
-  actions,
-  children,
-}: {
-  api: Api
-  currentId?: string
-  actions: ListActions
-  children: ReactNode
-}) {
-  return (
-    <div className="flex min-h-0 flex-1">
-      {/* On phones the list and the open operation take turns. */}
-      <OperationList api={api} currentId={currentId} actions={actions} />
-      <div className={cn("min-h-0 min-w-0 flex-1 flex-col", currentId ? "flex" : "hidden md:flex")}>{children}</div>
-    </div>
-  )
-}
-
-function OperationList({
-  api,
-  currentId,
-  actions,
-}: {
-  api: Api
-  currentId?: string
-  actions: ListActions
-}) {
+function OperationList({ api, actions }: { api: Api; actions: ListActions }) {
   const [query, setQuery] = useState("")
 
   const q = query.trim().toLowerCase()
@@ -140,6 +113,8 @@ function OperationList({
     : api.operations
   const running = shown.filter((e) => !e.endedAt)
   const ended = shown.filter((e) => e.endedAt)
+
+  if (api.operations.length === 0) return <Home onCreate={actions.onCreate} />
 
   const details = (e: Operation) => (
     <>
@@ -155,7 +130,7 @@ function OperationList({
   const item = (e: Operation) =>
     actions.renamingId === e.id ? (
       // Edited outside the link, so clicking into the field doesn't follow it.
-      <div key={e.id} className="grid gap-0.5 rounded-md bg-accent px-2.5 py-2">
+      <div key={e.id} className={cn(EXPLORER_ROW, "bg-accent")}>
         <span className="flex items-center gap-2">
           {dot(e)}
           <InlineEdit
@@ -177,26 +152,22 @@ function OperationList({
     ) : (
       <ContextMenu key={e.id}>
         <ContextMenuTrigger asChild>
-          <NavLink
+          <Link
             to={operationPath(e.id)}
-            onDoubleClick={() => actions.onRename(e.id)}
             onKeyDown={(ev) => {
               if (ev.key === "F2") {
                 ev.preventDefault()
                 actions.onRename(e.id)
               }
             }}
-            className={cn(
-              "grid gap-0.5 rounded-md px-2.5 py-2 hover:bg-accent/60",
-              e.id === currentId && "bg-accent hover:bg-accent",
-            )}
+            className={EXPLORER_ROW}
           >
             <span className="flex items-center gap-2">
               {dot(e)}
               <span className="truncate text-sm font-medium">{operationTitle(e)}</span>
             </span>
             {details(e)}
-          </NavLink>
+          </Link>
         </ContextMenuTrigger>
         {/* Not refocusing the row keeps the focus in the title field after "Umbenennen". */}
         <ContextMenuContent onCloseAutoFocus={(ev) => ev.preventDefault()}>
@@ -211,45 +182,53 @@ function OperationList({
     )
 
   return (
-    <SidePanel title="Einsätze" mobileHidden={!!currentId}>
-      <div className="flex gap-2 p-4">
-        {/* The units tab of an open operation has the "/" shortcut. */}
-        <SearchField value={query} onChange={setQuery} focusKey={!currentId} aria-label="Einsätze durchsuchen" />
-        <Hint label="Neuer Einsatz">
-          <Button size="icon" onClick={actions.onCreate} aria-label="Neuer Einsatz">
-            <PlusIcon />
-          </Button>
-        </Hint>
-      </div>
-
-      <nav className="grid min-h-0 flex-1 content-start gap-px overflow-y-auto px-4 pb-4">
-        {running.length > 0 && <ListHeading>Laufend</ListHeading>}
-        {running.map(item)}
-        {ended.length > 0 && <ListHeading>Beendet</ListHeading>}
-        {ended.map(item)}
-        {q && shown.length === 0 && <NoResults query={query} onReset={() => setQuery("")} />}
+    <Explorer
+      title="Einsätze"
+      toolbar={
+        <>
+          <SearchField value={query} onChange={setQuery} focusKey aria-label="Einsätze durchsuchen" />
+          <Hint label="Neuer Einsatz">
+            <Button size="icon" onClick={actions.onCreate} aria-label="Neuer Einsatz">
+              <PlusIcon />
+            </Button>
+          </Hint>
+        </>
+      }
+    >
+      <nav className="grid gap-4">
+        {running.length > 0 && (
+          <section className="grid gap-1.5">
+            <ListHeading>Laufend</ListHeading>
+            <div className={EXPLORER_LIST}>{running.map(item)}</div>
+          </section>
+        )}
+        {ended.length > 0 && (
+          <section className="grid gap-1.5">
+            <ListHeading>Beendet</ListHeading>
+            <div className={EXPLORER_LIST}>{ended.map(item)}</div>
+          </section>
+        )}
       </nav>
-    </SidePanel>
+      {q && shown.length === 0 && <NoResults query={query} onReset={() => setQuery("")} />}
+    </Explorer>
   )
 }
 
 function ListHeading({ children }: { children: ReactNode }) {
-  return <p className="px-2.5 pt-3 pb-1 text-xs font-medium text-muted-foreground">{children}</p>
+  return <p className="px-1 text-xs font-medium text-muted-foreground">{children}</p>
 }
 
-function Home({ api, onCreate }: { api: Api; onCreate: () => void }) {
-  const empty = api.operations.length === 0
+function Home({ onCreate }: { onCreate: () => void }) {
   return (
     <Empty className="flex-1">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <SirenIcon />
         </EmptyMedia>
-        <EmptyTitle>{empty ? "Noch keine Einsätze" : "Kein Einsatz geöffnet"}</EmptyTitle>
+        <EmptyTitle>Noch keine Einsätze</EmptyTitle>
         <EmptyDescription>
-          {empty
-            ? "Leg einen Einsatz an, um Streifen, ihren Status und ihre Aufgaben im Blick zu behalten. Jede Änderung landet im Verlauf."
-            : "Wähle links einen Einsatz aus oder leg einen neuen an."}
+          Leg einen Einsatz an, um Streifen, ihren Status und ihre Aufgaben im Blick zu behalten. Jede Änderung landet im
+          Verlauf.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>

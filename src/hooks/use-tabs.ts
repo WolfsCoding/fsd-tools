@@ -7,6 +7,8 @@ export interface Tab {
   /** Current route of the tab including its query, e.g. "/fsu/dna-extraction-blood" or "/dna-db?q=x". */
   path: string
   pinned?: boolean
+  /** Route shown right of the tab's page in a split view, including its query. */
+  split?: string
 }
 
 /** Which tabs `closeTabs` closes, relative to the tab it's called with. */
@@ -20,6 +22,15 @@ export interface TabsContextValue {
   featureOf: (path: string) => Feature | undefined
   /** Page title of a tab, set by its page via `useTabTitle`, else the feature title. */
   titleOf: (tab: Tab) => string
+  /** The same for any route, e.g. the split pane's. */
+  titleOfPath: (path: string) => string
+  /** Shows `path` (default: the active page) right of the active tab's page. */
+  openSplit: (path?: string) => void
+  closeSplit: () => void
+  /** Follows navigation inside the split pane. */
+  setSplitPath: (path: string) => void
+  /** Swaps the pages of the active tab's two panes. */
+  swapSplit: () => void
   activate: (id: string) => void
   /** Opens `path` in a new tab next to the active one. */
   openInNewTab: (path: string) => void

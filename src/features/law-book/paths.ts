@@ -1,3 +1,5 @@
+import type { To } from "react-router"
+
 /** Route prefix of the law books; must match its `path` in the registry. */
 export const LAW_BOOK_BASE = "/law-book"
 
@@ -19,4 +21,10 @@ export function catalogPath() {
 /** The Strafrechner: charges added up outside of a case file. */
 export function calculatorPath() {
   return `${LAW_BOOK_BASE}/rechner`
+}
+
+/** Route state of a paragraph link that should lead back somewhere else than the books, e.g. the Strafkatalog. */
+export interface BackState {
+  back: To
+  backLabel: string
 }

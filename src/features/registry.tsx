@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react"
-import { BookOpenIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, NotebookPenIcon, ScaleIcon, SirenIcon, UserIcon } from "lucide-react"
+import { BookOpenIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, NotebookPenIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
 import { CaseFilesPage } from "./case-files/case-files-page"
 import { CaseFilesSettings, MarkdownSettings, OwnPersonSettings, SnippetsSettings } from "./case-files/case-files-settings"
 import { POLICE_FILES_BASE } from "./case-files/paths"
@@ -14,7 +14,14 @@ import { OperationsPage } from "./operations/operations-page"
 import { OperationsSettings } from "./operations/operations-settings"
 import { OPERATIONS_BASE } from "./operations/paths"
 import { OPERATIONS_KEY, isValidOperationsData } from "./operations/use-operations"
+import { FlowchartsPage } from "./flowcharts/flowcharts-page"
+import { FlowchartsSettings } from "./flowcharts/flowcharts-settings"
+import { FLOWCHARTS_BASE } from "./flowcharts/paths"
+import { FLOWCHARTS_KEY, isValidFlowchartsData } from "./flowcharts/use-flowcharts"
 import { FsuPage } from "./fsu/fsu-page"
+import { HeadersPage } from "./headers/headers-page"
+import { HEADER_KEY, HEADER_SCALE_KEY, isValidHeaderData } from "./headers/storage"
+import { HEADERS_BASE } from "./headers/paths"
 import { LawBookPage } from "./law-book/law-book-page"
 import { BOOKMARKS_KEY } from "./law-book/bookmarks"
 import { CALCULATOR_KEY } from "./law-book/charge-calculator"
@@ -85,6 +92,23 @@ export const features: Feature[] = [
     element: <NotesPage />,
     storage: { keys: [NOTES_KEY, LEGACY_PAGES_KEY], validate: isValidNotesData },
     settings: NotesSettings,
+  },
+  {
+    path: FLOWCHARTS_BASE.slice(1),
+    title: "Ablaufdiagramme",
+    description: "Abläufe mit Verzweigungen bauen und als PNG zum Posten exportieren",
+    icon: WorkflowIcon,
+    element: <FlowchartsPage />,
+    storage: { keys: [FLOWCHARTS_KEY], validate: isValidFlowchartsData },
+    settings: FlowchartsSettings,
+  },
+  {
+    path: HEADERS_BASE.slice(1),
+    title: "Header-Bilder",
+    description: "Header für Akten mit Titel, Untertitel und Logo gestalten und als PNG exportieren",
+    icon: ImageIcon,
+    element: <HeadersPage />,
+    storage: { keys: [HEADER_KEY, HEADER_SCALE_KEY], validate: isValidHeaderData },
   },
   {
     path: OPERATIONS_BASE.slice(1),
