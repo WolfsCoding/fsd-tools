@@ -146,7 +146,6 @@ function SettingsDialogBody({
         <SearchField
           value={query}
           onChange={setQuery}
-          placeholder="Suchen"
           aria-label="Einstellungen durchsuchen"
           className="flex-none"
         />
@@ -180,12 +179,10 @@ function SettingsDialogBody({
       </nav>
 
       <div className="min-h-0 overflow-y-auto rounded-xl bg-card px-8 py-6 ring-1 ring-border">
-        {/* Keyed so dialogs/state inside reset when switching pages. */}
-        {"content" in active ? (
-          <SettingsPageView key={activeKey} page={active} />
-        ) : (
-          <FeatureSettingsPage key={activeKey} feature={active} />
-        )}
+        {/* Keyed so dialogs/state inside reset, and the page fades in, when switching pages. */}
+        <div key={activeKey} className="animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
+          {"content" in active ? <SettingsPageView page={active} /> : <FeatureSettingsPage feature={active} />}
+        </div>
       </div>
     </>
   )
@@ -216,7 +213,7 @@ function NavButton({
       type="button"
       data-active={active}
       onClick={onClick}
-      className="flex h-8 items-center gap-2.5 rounded-lg border border-transparent px-2 text-left text-sm font-medium text-foreground/80 outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:border-input data-[active=true]:bg-card data-[active=true]:text-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground data-[active=true]:[&_svg]:text-primary"
+      className="flex h-8 items-center gap-2.5 rounded-lg border border-transparent px-2 text-left text-sm font-medium text-foreground/80 outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:border-input data-[active=true]:bg-card data-[active=true]:text-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground data-[active=true]:[&_svg]:text-primary"
     >
       <entry.icon />
       {entry.title}

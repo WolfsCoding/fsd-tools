@@ -100,17 +100,18 @@ function chargeFine(c: Charge) {
   return [fine && formatFine(fine), c.offense.other].filter(Boolean).join(" + ") || "--"
 }
 
-/** The charges as a quoted table plus the total, for the markdown of a document. Unknown ones stay listed as such. */
-export function chargesMarkdown(value: Value | undefined) {
+/**
+ * The charges as a quoted table plus the total, for the markdown of a document. Unknown ones stay
+ * listed as such; the empty template (`blank`) shows one row of placeholders instead of none.
+ */
+export function chargesMarkdown(value: Value | undefined, blank = false) {
   const entries = chargeEntries(value)
-  const rows = table(
-    ["#", "Paragraph", "Tatbestand", "Strafmaß"],
-    entries.map((c, i) =>
-      c.offense
-        ? [String(i + 1), c.offense.ref, chargeTitle(c), chargeFine(c)]
-        : [String(i + 1), c.row.offense || "--", "Unbekannte Straftat (nicht im Gesetzbuch)", "--"],
-    ),
+  const cells = entries.map((c) =>
+    c.offense
+      ? [c.offense.ref, chargeTitle(c), chargeFine(c)]
+      : [c.row.offense || "--", "Unbekannte Straftat (nicht im Gesetzbuch)", "--"],
   )
+  const rows = table(["Paragraph", "Tatbestand", "Strafmaß"], cells.length || !blank ? cells : [["§XX", "XXX", "XXX"]])
   const charges = entries.filter((c): c is Charge => !!c.offense)
   if (!charges.length) return rows
   const { fine, other, hasFine } = totalOf(charges)

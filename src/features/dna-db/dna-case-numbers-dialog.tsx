@@ -99,9 +99,9 @@ function CaseNumbersForm({ entry, onChange }: { entry: DnaEntry; onChange: Updat
       </div>
 
       {numbers.length ? (
-        <ul className="grid max-h-72 divide-y overflow-y-auto rounded-lg border">
+        <ul className="grid max-h-72 gap-2 overflow-y-auto">
           {numbers.map((number) => (
-            <li key={number} className="flex items-center gap-3 py-1.5 pr-1.5 pl-3">
+            <li key={number} className="flex items-center gap-3 rounded-lg border py-1.5 pr-1.5 pl-3">
               <FolderIcon className="size-4 shrink-0 text-muted-foreground" />
               <span className="flex-1 truncate font-mono text-sm">{number}</span>
               <Hint label="Entfernen">

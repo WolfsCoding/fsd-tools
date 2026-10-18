@@ -12,9 +12,12 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Combobox } from "@/components/combobox"
 import { TagInput } from "./tag-input"
-import type { DnaEntry, DnaEntryInput, DnaTag } from "./types"
+import { PROFILE_FIELDS, type DnaEntry, type DnaEntryInput, type DnaTag, type ProfileKey } from "./types"
 import { entryName, isDuplicate, toId } from "./use-dna-entries"
+
+const GENDERS = ["Männlich", "Weiblich", "Divers", "Unbekannt"]
 
 interface DnaEntryDialogProps {
   open: boolean
@@ -42,7 +45,7 @@ export function DnaEntryDialog({
 }: DnaEntryDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-xl">
         {/* Keyed so the form resets whenever the dialog opens for another entry. */}
         <DnaEntryForm
           key={entry?.id ?? "new"}
@@ -80,6 +83,9 @@ function DnaEntryForm({
   const [dnaId, setDnaId] = useState(entry?.dnaId ?? "")
   const [fingerprintId, setFingerprintId] = useState(entry?.fingerprintId ?? "")
   const [tags, setTags] = useState(entry?.tags ?? [])
+  const [profile, setProfile] = useState<Record<ProfileKey, string>>(() =>
+    Object.fromEntries(PROFILE_FIELDS.map(({ key }) => [key, entry?.[key] ?? ""])) as Record<ProfileKey, string>,
+  )
 
   // Unknown traces have no name yet, only an ID.
   const canSubmit = [name, dnaId, fingerprintId].some((v) => v.trim() !== "")
@@ -99,11 +105,13 @@ function DnaEntryForm({
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!canSubmit) return
+    const details = Object.fromEntries(PROFILE_FIELDS.map(({ key }) => [key, profile[key].trim()])) as Record<ProfileKey, string>
     const input = {
       name: name.trim(),
       dnaId: dnaId.trim(),
       fingerprintId: fingerprintId.trim(),
       tags,
+      ...details,
     }
     if (!entry) return onSubmit(input)
     // Only what was changed here, onto the entry as it is stored now.
@@ -112,12 +120,13 @@ function DnaEntryForm({
     if (input.dnaId !== entry.dnaId.trim()) changes.dnaId = input.dnaId
     if (input.fingerprintId !== entry.fingerprintId.trim()) changes.fingerprintId = input.fingerprintId
     if (!sameTags(tags, entry.tags ?? [])) changes.tags = tags
+    for (const { key } of PROFILE_FIELDS) if (details[key] !== (entry[key] ?? "").trim()) changes[key] = details[key]
     onSubmit(changes)
   }
 
   return (
     <form onSubmit={handleSubmit} className="contents">
-      <DialogPanel>
+      <DialogPanel className="overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{entry ? "Eintrag bearbeiten" : "Neuer Eintrag"}</DialogTitle>
           <DialogDescription>
@@ -163,6 +172,29 @@ function DnaEntryForm({
         <div className="grid gap-2">
           <Label htmlFor="dna-tags">Tags</Label>
           <TagInput id="dna-tags" value={tags} onChange={setTags} knownTags={knownTags} />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {PROFILE_FIELDS.map(({ key, label }) => (
+            <div key={key} className={key === "address" ? "grid gap-2 sm:col-span-2" : "grid gap-2"}>
+              <Label htmlFor={`dna-${key}`}>{label}</Label>
+              {key === "gender" ? (
+                <Combobox
+                  id="dna-gender"
+                  value={profile.gender}
+                  onChange={(gender) => setProfile((p) => ({ ...p, gender }))}
+                  options={GENDERS}
+                />
+              ) : (
+                <Input
+                  id={`dna-${key}`}
+                  type={key === "email" ? "email" : key === "phone" ? "tel" : "text"}
+                  value={profile[key]}
+                  onChange={(e) => setProfile((p) => ({ ...p, [key]: e.target.value }))}
+                  placeholder={key === "birthDate" ? "TT.MM.JJJJ" : undefined}
+                />
+              )}
+            </div>
+          ))}
         </div>
       </DialogPanel>
 

@@ -212,7 +212,7 @@ export function offered<T extends { sources: string[] }>(list: T[], source: stri
 }
 
 /** Values that only stand in for a missing one and are never worth suggesting. */
-const NOT_A_VALUE = new Set(["---", "xxx", "nicht gewollt"])
+const NOT_A_VALUE = new Set(["---", "n/a", "xxx", "nicht gewollt"])
 
 /**
  * Everything entered for each suggestion group, from the open case file first, then the

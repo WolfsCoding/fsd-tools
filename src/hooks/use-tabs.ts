@@ -27,6 +27,13 @@ export interface TabsContextValue {
   /** Shows `path` (default: the active page) right of the active tab's page. */
   openSplit: (path?: string) => void
   closeSplit: () => void
+  /**
+   * Merges tab `id` into the active tab (or, if it is the active one, the last used
+   * other tab) as one split view, its page on `side`. A page it pushes out keeps a tab.
+   */
+  splitWith: (id: string, side: "left" | "right") => void
+  /** Turns the active tab's split view back into two tabs. */
+  unsplit: () => void
   /** Follows navigation inside the split pane. */
   setSplitPath: (path: string) => void
   /** Swaps the pages of the active tab's two panes. */
@@ -52,7 +59,10 @@ export function routeOf(path: string) {
   return i === -1 ? path : path.slice(0, i)
 }
 
-export const TabsContext = createContext<TabsContextValue | null>(null)
+/** Drag data type of a dragged tab, holding its id; lets drop zones tell tabs apart. */
+export const TAB_DRAG_TYPE = "application/x-fsd-tab"
+
+export const TabsContext =createContext<TabsContextValue | null>(null)
 
 export function useTabs() {
   const ctx = useContext(TabsContext)

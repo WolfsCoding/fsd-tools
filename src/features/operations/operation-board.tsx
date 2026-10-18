@@ -9,7 +9,6 @@ import {
   EllipsisIcon,
   FolderOpenIcon,
   FolderPlusIcon,
-  ListFilterIcon,
   LockIcon,
   LockOpenIcon,
   MapPinIcon,
@@ -25,7 +24,6 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -349,7 +347,6 @@ function UnitsTab({
   const [hideEmpty, setHideEmpty] = useState(false)
   const [hideWithdrawn, setHideWithdrawn] = useState(false)
   const [adding, setAdding] = useState(false)
-  const filtered = hideEmpty || hideWithdrawn
   const duplicates = duplicateCallsigns(operation.units)
 
   const q = query.trim().toLowerCase()
@@ -367,43 +364,31 @@ function UnitsTab({
           value={query}
           onChange={setQuery}
           focusKey
-          placeholder="Suche nach Streife, Beschreibung oder Person…"
           aria-label="Streifen durchsuchen"
-          className="min-w-0"
+          filtered={hideEmpty || hideWithdrawn}
+          filters={
+            <>
+              <DropdownMenuCheckboxItem
+                checked={hideEmpty}
+                onCheckedChange={setHideEmpty}
+                onSelect={(e) => e.preventDefault()}
+              >
+                Leere ausblenden
+              </DropdownMenuCheckboxItem>
+              <DropdownMenuCheckboxItem
+                checked={hideWithdrawn}
+                onCheckedChange={setHideWithdrawn}
+                onSelect={(e) => e.preventDefault()}
+              >
+                Abgezogene ausblenden
+              </DropdownMenuCheckboxItem>
+            </>
+          }
         />
-        <DropdownMenu>
-          <Hint label="Filter">
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="relative" aria-label="Filter">
-                <ListFilterIcon />
-                {filtered && <span aria-hidden className="absolute top-1 right-1 size-1.5 rounded-full bg-foreground" />}
-              </Button>
-            </DropdownMenuTrigger>
-          </Hint>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel>Filter</DropdownMenuLabel>
-            <DropdownMenuCheckboxItem
-              checked={hideEmpty}
-              onCheckedChange={setHideEmpty}
-              onSelect={(e) => e.preventDefault()}
-            >
-              Leere ausblenden
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={hideWithdrawn}
-              onCheckedChange={setHideWithdrawn}
-              onSelect={(e) => e.preventDefault()}
-            >
-              Abgezogene ausblenden
-            </DropdownMenuCheckboxItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
         {!locked && (
-          <Hint label="Streife hinzufügen">
-            <Button size="icon" onClick={() => setAdding(true)} aria-label="Streife hinzufügen">
-              <PlusIcon />
-            </Button>
-          </Hint>
+          <Button onClick={() => setAdding(true)}>
+            <PlusIcon /> Neue Streife
+          </Button>
         )}
       </div>
 

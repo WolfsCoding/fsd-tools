@@ -333,6 +333,47 @@ export function TabsProvider({ children }: { children: ReactNode }) {
     navigate(active.split)
   }, [tabs, activeId, updateActive, navigate])
 
+  const splitWith = useCallback(
+    (id: string, side: "left" | "right") => {
+      const dragged = tabs.find((t) => t.id === id)
+      const targetId =
+        activeId !== id ? activeId : recent?.find((r) => r !== id && tabs.some((t) => t.id === r))
+      const target = tabs.find((t) => t.id === targetId)
+      if (!dragged || !target) return
+      const merged: Tab =
+        side === "left"
+          ? { ...target, path: dragged.path, split: target.split ?? target.path }
+          : { ...target, split: dragged.path }
+      // Pages that no longer fit stay open where the dragged tab was.
+      const displaced = target.split === undefined ? undefined : side === "left" ? target.path : target.split
+      const leftovers = [dragged.split, displaced]
+        .filter((p): p is string => p !== undefined)
+        .map((path, i): Tab => (i === 0 ? { ...dragged, path, split: undefined } : { id: crypto.randomUUID(), path }))
+      update((s) =>
+        withActive(
+          withTabs(
+            s,
+            pinnedFirst(
+              s.tabs.flatMap((t) => (t.id === target.id ? [merged] : t.id === dragged.id ? leftovers : [t])),
+            ),
+          ),
+          target.id,
+        ),
+      )
+      navigate(merged.path)
+    },
+    [tabs, activeId, recent, update, navigate],
+  )
+
+  const unsplit = useCallback(() => {
+    const active = tabs.find((t) => t.id === activeId)
+    if (!active?.split) return
+    const tab = { id: crypto.randomUUID(), path: active.split }
+    update((s) =>
+      withTabs(s, insertAfter(s.tabs.map((t) => (t.id === active.id ? { ...t, split: undefined } : t)), active.id, tab)),
+    )
+  }, [tabs, activeId, update])
+
   // Ctrl/⌘+click on any in-app link opens it in a new app tab instead of a
   // browser tab. Capture phase, so it runs before the router's link handler.
   useEffect(() => {
@@ -414,7 +455,10 @@ export function TabsProvider({ children }: { children: ReactNode }) {
           : { id: "tabs:split", label: "Split View öffnen", icon: Columns2Icon, onSelect: () => openSplit() },
       )
       if (active.split) {
-        actions.push({ id: "tabs:split-swap", label: "Seiten im Split View tauschen", icon: ArrowLeftRightIcon, onSelect: swapSplit })
+        actions.push(
+          { id: "tabs:split-swap", label: "Seiten im Split View tauschen", icon: ArrowLeftRightIcon, onSelect: swapSplit },
+          { id: "tabs:unsplit", label: "Split View in zwei Tabs auflösen", icon: Columns2Icon, onSelect: unsplit },
+        )
       }
     }
     if (closed.length > 0) {
@@ -454,6 +498,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
     openSplit,
     closeSplit,
     swapSplit,
+    unsplit,
     titleOf,
     featureOf,
   ])
@@ -471,6 +516,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       closeSplit,
       setSplitPath,
       swapSplit,
+      splitWith,
+      unsplit,
       activate,
       openInNewTab,
       closeTabs,
@@ -493,6 +540,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       closeSplit,
       setSplitPath,
       swapSplit,
+      splitWith,
+      unsplit,
       activate,
       openInNewTab,
       closeTabs,

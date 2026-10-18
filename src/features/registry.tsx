@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react"
-import { BookOpenIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, NotebookPenIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
+import { BookOpenIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, ListTodoIcon, NotebookPenIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
 import { CaseFilesPage } from "./case-files/case-files-page"
 import { CaseFilesSettings, MarkdownSettings, OwnPersonSettings, SnippetsSettings } from "./case-files/case-files-settings"
 import { POLICE_FILES_BASE } from "./case-files/paths"
@@ -31,6 +31,9 @@ import { NotesPage } from "./notes/notes-page"
 import { NotesSettings } from "./notes/notes-settings"
 import { NOTES_BASE } from "./notes/paths"
 import { isValidNotesData, LEGACY_PAGES_KEY, NOTES_KEY } from "./notes/use-notes"
+import { TODOS_BASE } from "./todos/paths"
+import { TodosPage } from "./todos/todos-page"
+import { isValidTodosData, TODOS_KEY } from "./todos/use-todos"
 
 export interface Feature {
   /** URL path segment, e.g. "dna-db" → /dna-db */
@@ -87,11 +90,19 @@ export const features: Feature[] = [
   {
     path: NOTES_BASE.slice(1),
     title: "Notizen",
-    description: "Einfache Textnotizen auf DIN-A4-Seiten",
+    description: "Notizen in Markdown, wie die zu Personen",
     icon: NotebookPenIcon,
     element: <NotesPage />,
     storage: { keys: [NOTES_KEY, LEGACY_PAGES_KEY], validate: isValidNotesData },
     settings: NotesSettings,
+  },
+  {
+    path: TODOS_BASE.slice(1),
+    title: "Todos",
+    description: "Aufgaben, optional mit Akten und Personen verknüpft",
+    icon: ListTodoIcon,
+    element: <TodosPage />,
+    storage: { keys: [TODOS_KEY], validate: isValidTodosData },
   },
   {
     path: FLOWCHARTS_BASE.slice(1),

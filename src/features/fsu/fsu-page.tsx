@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react"
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router"
 import { BookOpenIcon, FileTextIcon } from "lucide-react"
-import { Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
+import { Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import {
@@ -108,7 +108,7 @@ function PostList({ query, onQuery }: { query: string; onQuery: (q: string) => v
             <p className="px-1 text-xs font-medium text-muted-foreground">
               {category}
             </p>
-            <div className={EXPLORER_LIST}>
+            <div className={EXPLORER_CARDS}>
               {items.map((post) => (
                 <PostRow key={post.id} post={post} search={search} />
               ))}
@@ -127,7 +127,7 @@ function PostRow({ post, search }: { post: Post; search: string }) {
   return (
     <Link
       to={{ pathname: `${FSU_BASE}/${post.id}`, search }}
-      className={EXPLORER_ROW}
+      className={EXPLORER_CARD}
     >
       <span className="flex items-center gap-2 text-sm font-medium">
         <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />

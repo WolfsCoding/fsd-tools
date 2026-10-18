@@ -1,3 +1,5 @@
+import type { Note } from "@/features/notes/types"
+
 export const TAG_COLORS = [
   "slate",
   "red",
@@ -16,7 +18,21 @@ export interface DnaTag {
   color: TagColor
 }
 
-export interface DnaEntry {
+/** Personal details shown in the person view; all optional, as typed. */
+export const PROFILE_FIELDS = [
+  { key: "alias", label: "Alias" },
+  { key: "gender", label: "Geschlecht" },
+  { key: "birthDate", label: "Geburtsdatum" },
+  { key: "phone", label: "Telefonnummer" },
+  { key: "email", label: "E-Mail" },
+  { key: "whistle", label: "Whistle" },
+  { key: "address", label: "Adresse" },
+] as const
+
+export type ProfileKey = (typeof PROFILE_FIELDS)[number]["key"]
+
+
+export interface DnaEntry extends Partial<Record<ProfileKey, string>> {
   id: string
   name: string
   dnaId: string
@@ -25,8 +41,12 @@ export interface DnaEntry {
   tags?: DnaTag[]
   /** Numbers of the case files the entry belongs to, as typed; missing on older entries. */
   caseNumbers?: string[]
+  notes?: Note[]
   createdAt: string
   updatedAt: string
 }
 
-export type DnaEntryInput = Pick<DnaEntry, "name" | "dnaId" | "fingerprintId" | "tags" | "caseNumbers">
+export type DnaEntryInput = Pick<
+  DnaEntry,
+  "name" | "dnaId" | "fingerprintId" | "tags" | "caseNumbers" | "notes" | ProfileKey
+>

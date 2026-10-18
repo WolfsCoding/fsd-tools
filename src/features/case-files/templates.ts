@@ -21,6 +21,7 @@ import {
   section,
   SUSPECT_MIRANDA,
   table,
+  TEMPLATE_ME,
   titleComment,
   WITNESS_CAUTION,
 } from "./markdown"
@@ -72,7 +73,7 @@ export const GROUP_OFFERS: Record<SuggestionGroup, SuggestionGroup[]> = {
 
 export interface TextField extends BaseField {
   type: "text"
-  /** Written when the field is empty; defaults to "XXX". */
+  /** Written when the field is empty; defaults to "N/A". */
   fallback?: string
   /** Prefilled with the own name from the settings; empty also writes it. */
   me?: boolean
@@ -280,6 +281,8 @@ export interface Template<Id extends string = TemplateId> {
   sections: Section[]
   /** Values of a new document, e.g. prefilled table rows. */
   initial?: Values
+  /** Placeholder values of the empty template (e.g. "XXX" rows), so it shows how it's filled in; defaults to `initial`. */
+  sample?: Values
   /** Who or what the document is about, e.g. the suspect's name; "" while unknown. */
   subject: (r: Reader) => string
   /**
@@ -290,6 +293,8 @@ export interface Template<Id extends string = TemplateId> {
   /** Suggested page title in the editor. */
   pageTitle?: (r: Reader) => string
   render: (r: Reader) => string
+  /** The empty template under its own title, as kept in the editor; enables "Vorlage kopieren". */
+  blank?: (r: Reader) => string
 }
 
 /** Reads a document's values for rendering, filling in what wasn't entered. */
@@ -299,6 +304,11 @@ export interface Reader {
   /** The own department from the settings. */
   department: string
   colors: Colors
+  /**
+   * Reads for the empty template (see `blankMarkdown`): tables and lists with nothing entered
+   * get one placeholder row or point, so every part of the document shows.
+   */
+  blank: boolean
   /** `text` with the `{{ME}}` and `{{DEPARTMENT}}` placeholders replaced. */
   fill: (text: string) => string
   /** The entered text, or "" if there is none. */
@@ -324,6 +334,7 @@ export function createReader(
   ownDepartment = DEFAULT_DEPARTMENT,
   /** The DNA database; traces and looked up cells show the names and IDs it has. */
   entries: DnaEntry[] = [],
+  blank = false,
 ): Reader {
   const fields = new Map(templateFields(template).map((f) => [f.key, f]))
   const me = ownName.trim() || ME
@@ -335,6 +346,7 @@ export function createReader(
     me,
     department,
     colors,
+    blank,
     fill: withMe,
     field: (key) => fields.get(key),
     raw: (key) => values[key],
@@ -356,13 +368,15 @@ export function createReader(
       if (f?.type === "choice") return f.auto(r) ?? ""
       if (value) return value
       if (f?.type === "text" && f.me) return me
-      if (f?.type === "text") return f.fallback ?? "XXX"
-      return "XXX"
+      if (f?.type === "text") return f.fallback ?? "N/A"
+      return "N/A"
     },
     lines(key) {
       const f = fields.get(key)
       const lines = listItems(values[key]).map(withMe).filter(Boolean)
-      return lines.length || f?.type !== "list" || !f.fallback ? lines : [f.fallback]
+      if (lines.length || f?.type !== "list") return lines
+      if (f.fallback) return [f.fallback]
+      return blank ? ["N/A"] : []
     },
     checks(key) {
       const f = fields.get(key)
@@ -378,7 +392,7 @@ export function createReader(
       const f = fields.get(key)
       if (f?.type !== "table") return []
       // Rows with nothing entered beyond the prefilled cells are left out, so an unused table stays empty.
-      const rows = tableRows(values[key]).filter((row) =>
+      const entered = tableRows(values[key]).filter((row) =>
         f.columns.some((c) => {
           if (c.traces) return rowTraces(row, c.key, c.traces.kinds).length > 0
           if (c.parts) return c.parts.some((p) => row[p.key]?.trim())
@@ -386,6 +400,8 @@ export function createReader(
           return !!v && v !== c.initial && v !== c.formerInitial
         }),
       )
+      // The empty template shows a table with one row of its cells' placeholders.
+      const rows = entered.length || !blank ? entered : [{}]
       return rows.map((row) =>
         Object.fromEntries(
           f.columns.flatMap((c) => {
@@ -402,6 +418,15 @@ export function createReader(
     },
   }
   return r
+}
+
+/**
+ * The empty template as markdown, under its own title if it has one: no own name, a placeholder
+ * row or point in every table and list, and `{{now:…}}` dates left for the editor to fill in.
+ */
+export function blankMarkdown(template: Template<string>, colors?: Colors, department?: string) {
+  const r = createReader(template, template.sample ?? template.initial ?? {}, TEMPLATE_ME, colors, department, [], true)
+  return template.blank?.(r) ?? template.render(r)
 }
 
 /**
@@ -509,7 +534,7 @@ const ITEMS: TableField = {
   label: "Gegenstände",
   addLabel: "Gegenstand",
   columns: [
-    { key: "gegenstand", label: "Gegenstand", fallback: "XXX", wide: true },
+    { key: "gegenstand", label: "Gegenstand", fallback: "N/A", wide: true },
     { key: "anzahl", label: "Anzahl", fallback: "00" },
     {
       key: "verlauf",
@@ -529,13 +554,13 @@ const VEHICLES: TableField = {
   label: "Fahrzeuge",
   addLabel: "Fahrzeug",
   columns: [
-    { key: "modell", label: "Fahrzeugmodell", fallback: "XXX", autocomplete: true },
-    { key: "kennzeichen", label: "Kennzeichen", fallback: "XXX" },
-    { key: "halter", label: "Halter", fallback: "XXX", group: "person", autocomplete: true },
+    { key: "modell", label: "Fahrzeugmodell", fallback: "N/A", autocomplete: true },
+    { key: "kennzeichen", label: "Kennzeichen", fallback: "N/A" },
+    { key: "halter", label: "Halter", fallback: "N/A", group: "person", autocomplete: true },
     { key: "durchsucht", label: "Durchsucht", fallback: "✓/×", mark: true },
-    { key: "durchsuchtVon", label: "Durchsucht von", fallback: "---", group: "officer", autocomplete: true },
-    { key: "fund", label: "Fund", fallback: "---", wide: true },
-    { key: "anmerkung", label: "Anmerkung", fallback: "XXX", wide: true },
+    { key: "durchsuchtVon", label: "Durchsucht von", fallback: "N/A", group: "officer", autocomplete: true },
+    { key: "fund", label: "Fund", fallback: "N/A", wide: true },
+    { key: "anmerkung", label: "Anmerkung", fallback: "N/A", wide: true },
   ],
 }
 
@@ -546,7 +571,7 @@ const TODOS: TableField = {
   label: "Aufgaben",
   addLabel: "Aufgabe",
   columns: [
-    { key: "aufgabe", label: "Aufgabe", fallback: "XXX", wide: true },
+    { key: "aufgabe", label: "Aufgabe", fallback: "N/A", wide: true },
     { key: "zustaendig", label: "Zuständige Person", fallback: "Zuständige Person", group: "officer", autocomplete: true },
     { key: "erledigt", label: "Erledigt", fallback: "×", check: true },
   ],
@@ -567,18 +592,18 @@ const CAUTION_FIELDS: Field[] = [
     type: "text",
     key: "anwalt",
     label: "Anwesender Rechtsbeistand",
-    fallback: "---",
+    fallback: "N/A",
     suggestions: ["Nicht gewollt"],
     group: "lawyer",
     autocomplete: true,
   },
-  { type: "text", key: "kanzlei", label: "Kanzlei", fallback: "---", group: "lawFirm", autocomplete: true },
+  { type: "text", key: "kanzlei", label: "Kanzlei", fallback: "N/A", group: "lawFirm", autocomplete: true },
   { type: "text", key: "belehrtVon", label: "Belehrt von", me: true, group: "officer", autocomplete: true },
   {
     type: "text",
     key: "belehrtZeuge",
     label: "Zeuge der Belehrung",
-    fallback: "Officer XXX",
+    fallback: "N/A",
     // The second officer present, like the witness of a statement.
     group: "officer",
     autocomplete: true,
@@ -621,14 +646,14 @@ function tableOf(r: Reader, key: string) {
   )
 }
 
-/** The vehicles, with whether they were searched as a colored Ja or Nein. */
+/**
+ * The vehicles, with whether they were searched as a colored Ja or Nein. Unset, both are
+ * written, each colored, so deleting one leaves the right one.
+ */
 function vehicleTable(r: Reader) {
-  const searched = (mark: string) =>
-    mark === "✓"
-      ? `<font color="#34D399">${code("Ja")}</font>`
-      : mark === "×"
-        ? `<font color="#F87171">${code("Nein")}</font>`
-        : code("Ja/Nein")
+  const yes = `<font color="#34D399">${code("Ja")}</font>`
+  const no = `<font color="#F87171">${code("Nein")}</font>`
+  const searched = (mark: string) => (mark === "✓" ? yes : mark === "×" ? no : `${yes}/${no}`)
   return rawTable(
     VEHICLES.columns.map((c) => c.label),
     r
@@ -670,7 +695,7 @@ const criminalFile: Template = {
       title: "Allgemein",
       description: "Wo es passiert ist und wo die Abhandlung stattfand.",
       fields: [
-        { type: "text", key: "tatort", label: "Tatort", fallback: "---", required: true },
+        { type: "text", key: "tatort", label: "Tatort", fallback: "N/A", required: true },
         {
           type: "text",
           key: "abhandlung",
@@ -912,11 +937,13 @@ const collectiveFile: Template = {
 
 const reportTitle = (r: Reader) => `🔴 Beschuldigter: ${r.text("name")}`
 
-/** The suggested titles and the legend, invisible once pasted. */
-function reportComment(r: Reader) {
+/** Title of the empty template in the editor. */
+const REPORT_TEMPLATE_TITLE = "📝 Vorlage: Beschuldigten Bericht"
+
+/** A suggested title (e.g. "Titel: …") and the legend, invisible once pasted. */
+function reportComment(titleLine: string) {
   return `<!--
-    Vorlagen Titel: 📝 Vorlage: Beschuldigten Bericht
-    Titel: ${reportTitle(r)}
+    ${titleLine}
 
     Legende:
 ${LEGEND.map((l) => `    - ${code(l)}`).join("\n")}
@@ -982,22 +1009,27 @@ const report: Template = {
         },
       ],
     },
+    {
+      title: "Potentielle Strafen",
+      description: "Mögliche Straftaten aus dem Gesetzbuch mit Strafrahmen und Summe.",
+      fields: [{ type: "custom", key: "strafen", label: "Potentielle Strafen", component: ChargesInput }],
+    },
     OTHER_SECTION,
     {
       title: "Entlassen",
       description: "Ob der Beschuldigte entlassen ist.",
       fields: [{ type: "checks", key: "entlassen", label: "Entlassen", options: ["Der Beschuldigte ist entlassen worden"] }],
     },
-    {
-      title: "Potentielle Strafen",
-      description: "Mögliche Straftaten aus dem Gesetzbuch mit Strafrahmen und Summe.",
-      fields: [{ type: "custom", key: "strafen", label: "Potentielle Strafen", component: ChargesInput }],
-    },
   ],
   subject: (r) => r.filled("name"),
   pageTitle: reportTitle,
-  render: (r) =>
-    reportComment(r) +
+  render: (r) => reportMarkdown(r, `Titel: ${reportTitle(r)}`),
+  blank: (r) => reportMarkdown(r, `Vorlagen Titel: ${REPORT_TEMPLATE_TITLE}`),
+}
+
+function reportMarkdown(r: Reader, titleLine: string) {
+  return (
+    reportComment(titleLine) +
     "\n\n" +
     doc(
       banner(SUSPECT_BANNER),
@@ -1010,10 +1042,11 @@ const report: Template = {
       section(r, "2. Rechtsbeistand & Belehrung:", caution(r, MIRANDA)),
       section(r, "3. Aussage:", bullets(r.lines("aussage"))),
       section(r, "4. TO-DO:", checklist(r.checks("todos"))),
-      section(r, "5. Sonstige Informationen:", bullets(r.lines("sonstiges"))),
-      section(r, "6. Entlassen:", checklist(r.checks("entlassen"))),
-      section(r, "7. Potentielle Strafen:", chargesMarkdown(r.raw("strafen"))),
-    ),
+      section(r, "5. Potentielle Strafen:", chargesMarkdown(r.raw("strafen"), r.blank)),
+      section(r, "6. Sonstige Informationen:", bullets(r.lines("sonstiges"))),
+      section(r, "7. Entlassen:", checklist(r.checks("entlassen"))),
+    )
+  )
 }
 
 const SPEED_FINES = [
@@ -1148,7 +1181,7 @@ const witnessStatement: Template = {
           type: "text",
           key: "zeuge",
           label: "Zeuge der Aussage",
-          fallback: "Officer XXX",
+          fallback: "N/A",
           group: "officer",
           autocomplete: true,
         },
@@ -1216,7 +1249,7 @@ const officerStatement: Template = {
           remember: "name",
           ownRow: (me) => ({ name: me.name, rang: me.rank }),
           columns: [
-            { key: "name", label: "Name", fallback: "XXX", group: "officer", groupPrefix: "rang" },
+            { key: "name", label: "Name", fallback: "N/A", group: "officer", groupPrefix: "rang" },
             { key: "rang", label: "Rang", fallback: "Officer X" },
             // Empty writes the own department; other officers' departments are entered.
             { key: "department", label: "Department", fallback: DEPARTMENT, formerInitial: "El Burro Heights Police Department", wide: true },
@@ -1247,7 +1280,7 @@ const officerStatement: Template = {
             {
               key: "name",
               label: "Name",
-              fallback: "XXX",
+              fallback: "N/A",
               // Suspects for "BES", witnesses for "Zeuge", anyone else for other names.
               group: (row) => (isSuspect(row) ? "suspect" : /^zeug/i.test(row.als ?? "") ? "witness" : "person"),
               autocomplete: true,
@@ -1282,8 +1315,8 @@ const officerStatement: Template = {
         r,
         "1. Streifenbesetzung:",
         table(
-          ["#", "Name", "Rang", "Department"],
-          r.rows("streife").map((row, i) => [String(i + 1), row.name, row.rang, row.department]),
+          ["Name", "Rang", "Department"],
+          r.rows("streife").map((row) => [row.name, row.rang, row.department]),
         ),
       ),
       section(r, "2. Aussage:", bullets(r.lines("aussage"))),

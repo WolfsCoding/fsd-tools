@@ -194,7 +194,7 @@ export function OperationChat({
         {changes ? (
           <ChangeTimeline entries={shown} units={units} />
         ) : (
-          <ol className="grid gap-1.5">
+          <ol className="grid gap-1.5 *:animate-item-in">
             {shown.map((l, i) => {
               const day = formatDate(l.at)
               const newDay = i === 0 || formatDate(shown[i - 1].at) !== day

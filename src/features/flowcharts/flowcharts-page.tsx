@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react"
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router"
 import { CopyPlusIcon, EllipsisIcon, PlusIcon, SparklesIcon, Trash2Icon, WorkflowIcon } from "lucide-react"
-import { Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
-import { Hint } from "@/components/hint"
+import { Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
@@ -122,15 +121,13 @@ function ChartList({ api, actions }: { api: FlowchartsApi; actions: ListActions 
       toolbar={
         <>
           <SearchField value={query} onChange={setQuery} aria-label="Ablaufdiagramme durchsuchen" focusKey />
-          <Hint label="Neues Ablaufdiagramm">
-            <Button size="icon" onClick={() => actions.onCreate()} aria-label="Neues Ablaufdiagramm">
-              <PlusIcon />
-            </Button>
-          </Hint>
+          <Button onClick={() => actions.onCreate()}>
+            <PlusIcon /> Neues Ablaufdiagramm
+          </Button>
         </>
       }
     >
-      <nav className={EXPLORER_LIST}>
+      <nav className={EXPLORER_CARDS}>
         {shown.map((c) => {
           const steps = countNodes(c.root)
           const items = [
@@ -141,7 +138,7 @@ function ChartList({ api, actions }: { api: FlowchartsApi; actions: ListActions 
             <div key={c.id} className="group relative">
               <ContextMenu>
                 <ContextMenuTrigger asChild>
-                  <Link to={flowchartPath(c.id)} className={EXPLORER_ROW}>
+                  <Link to={flowchartPath(c.id)} className={EXPLORER_CARD}>
                     <span className="truncate text-sm font-medium">{flowchartTitle(c)}</span>
                     <span className="text-xs text-muted-foreground/70">
                       {formatRelative(c.updatedAt)} · {steps} {steps === 1 ? "Schritt" : "Schritte"}

@@ -6,7 +6,21 @@ const absolute = new Intl.DateTimeFormat("de-DE", {
   minute: "2-digit",
 })
 
-const dateOnly = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
+const long = new Intl.DateTimeFormat("de-DE", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+})
+
+/** e.g. "Sonntag, 18. Oktober 2026 um 01:01" */
+export function formatLongDateTime(iso: string | Date) {
+  return long.format(new Date(iso))
+}
+
+const dateOnly =new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" })
 
 /** e.g. "Di., 29.09., 09:00" */
 export function formatDateTime(iso: string | Date) {

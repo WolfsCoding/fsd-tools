@@ -40,3 +40,20 @@ export function templateGroups(kind: CaseFileKind) {
 export function casePath(kind: CaseFileKind, id: string) {
   return `${kind.base}/${id}`
 }
+
+/**
+ * Every template of the kind matching the search: the standalone ones in menu order, then the
+ * ones that are only attached.
+ */
+export function searchTemplates(kind: CaseFileKind, query: string) {
+  const q = query.trim().toLowerCase()
+  const all = [
+    ...templateGroups(kind).flatMap((g) => g.templates),
+    ...Object.values(kind.templates).filter((t) => !t.standalone),
+  ]
+  return q
+    ? all.filter((t) =>
+        [t.group ?? kind.title, t.label, t.menuLabel ?? "", t.description].some((s) => s.toLowerCase().includes(q)),
+      )
+    : all
+}

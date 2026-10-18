@@ -11,8 +11,7 @@ import {
   Trash2Icon,
   type LucideIcon,
 } from "lucide-react"
-import { cn } from "cn"
-import { Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
+import { Explorer, EXPLORER_CARD, EXPLORER_CARDS } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { InlineEdit } from "@/components/inline-edit"
 import { NoResults } from "@/components/no-results"
@@ -28,15 +27,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { formatDateTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
 import { CaseFileView } from "./case-file-view"
-import { casePath, standaloneTemplates, templateGroups, type CaseFileKind } from "./kind"
+import { casePath, searchTemplates, standaloneTemplates, templateGroups, type CaseFileKind } from "./kind"
 import { POLICE_FILES_KIND } from "./police-files"
 import type { CaseFile } from "./types"
 import { caseFileText, caseFileTitle, useCaseFiles, useOwnName, type CaseFilesApi } from "./use-case-files"
+import { TemplateList } from "./template-list"
 import { WithIds } from "./with-ids"
 
 /** Case files filled in from the department's templates and copied out as markdown. */
@@ -190,7 +190,97 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
     { label: "Löschen", icon: Trash2Icon, onSelect: () => onDelete(a), destructive: true },
   ]
 
-  if (api.caseFiles.length === 0) return <Home kind={kind} onCreate={onCreate} />
+  const row = (a: CaseFile<string>) => {
+    const main = kind.templates[a.docs[0].template]
+    const attached = a.docs.length - 1
+    // The list is sorted by the last change, so that's the date it shows.
+    const meta = (
+      <span className="text-xs text-muted-foreground/70">
+        {main.label} · geändert {formatDateTime(a.updatedAt)}
+        {attached > 0 && ` · +${attached} ${attached === 1 ? "Dokument" : "Dokumente"}`}
+      </span>
+    )
+    const icon = a.settled ? (
+      <CircleCheckIcon aria-label="Erledigt" className="inline size-3.5 align-[-2px] text-emerald-400" />
+    ) : (
+      <span aria-hidden>{main.emoji}</span>
+    )
+    // While renaming, the row is no link, so clicks into the field don't navigate.
+    if (renamingId === a.id)
+      return (
+        <div key={a.id} className={EXPLORER_CARD}>
+          <span className="flex items-center gap-1 text-sm font-medium">
+            {icon}
+            <InlineEdit
+              value={caseFileTitle(a, me, kind.templates)}
+              allowEmpty
+              onDone={(title) => {
+                if (title !== undefined) api.rename(a.id, title)
+                setRenamingId(undefined)
+              }}
+              placeholder={caseFileTitle({ ...a, title: "" }, me, kind.templates)}
+              aria-label={`Titel der ${kind.noun}`}
+            />
+          </span>
+          {meta}
+        </div>
+      )
+    return (
+      <div key={a.id} className="group/item relative">
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+            <Link
+              to={casePath(kind, a.id)}
+              onKeyDown={(e) => {
+                if (e.key === "F2") {
+                  e.preventDefault()
+                  setRenamingId(a.id)
+                }
+              }}
+              className={EXPLORER_CARD}
+            >
+              <WithIds text={caseFileTitle(a, me, kind.templates)} className="text-sm font-medium">
+                {icon}{" "}
+              </WithIds>
+              {meta}
+            </Link>
+          </ContextMenuTrigger>
+          {/* Not refocusing the row keeps the focus in the title field after "Umbenennen". */}
+          <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
+            {actions(a).map((x) => (
+              <ContextMenuItem key={x.label} variant={x.destructive ? "destructive" : undefined} onSelect={x.onSelect}>
+                <x.icon /> {x.label}
+              </ContextMenuItem>
+            ))}
+          </ContextMenuContent>
+        </ContextMenu>
+        {/* The same actions without a right click; shown on hover and focus. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Aktionen für „${caseFileTitle(a, me, kind.templates)}"`}
+              className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+            >
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+            {actions(a).map((x) => (
+              <DropdownMenuItem key={x.label} variant={x.destructive ? "destructive" : undefined} onSelect={x.onSelect}>
+                <x.icon /> {x.label}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    )
+  }
+
+  const open = shown.filter((a) => !a.settled)
+  const settled = shown.filter((a) => a.settled)
+  const templates = searchTemplates(kind, query)
 
   return (
     <Explorer
@@ -199,110 +289,44 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
         <>
           <SearchField value={query} onChange={setQuery} focusKey aria-label={`${kind.title} durchsuchen`} />
           <NewCaseFileMenu kind={kind} onCreate={onCreate} hint={`Neue ${kind.noun}`}>
-            <Button size="icon" aria-label={`Neue ${kind.noun}`}>
-              <PlusIcon />
+            <Button>
+              <PlusIcon /> Neue {kind.noun}
             </Button>
           </NewCaseFileMenu>
         </>
       }
     >
-      <nav className={EXPLORER_LIST}>
-        {shown.map((a) => {
-          const main = kind.templates[a.docs[0].template]
-          const attached = a.docs.length - 1
-          // The list is sorted by the last change, so that's the date it shows.
-          const meta = (
-            <span className="text-xs text-muted-foreground/70">
-              {main.label} · geändert {formatDateTime(a.updatedAt)}
-              {attached > 0 && ` · +${attached} ${attached === 1 ? "Dokument" : "Dokumente"}`}
-            </span>
-          )
-          const icon = a.settled ? (
-            <CircleCheckIcon aria-label="Erledigt" className="inline size-3.5 align-[-2px] text-emerald-400" />
-          ) : (
-            <span aria-hidden>{main.emoji}</span>
-          )
-          // While renaming, the row is no link, so clicks into the field don't navigate.
-          if (renamingId === a.id)
-            return (
-              <div key={a.id} className={EXPLORER_ROW}>
-                <span className="flex items-center gap-1 text-sm font-medium">
-                  {icon}
-                  <InlineEdit
-                    value={caseFileTitle(a, me, kind.templates)}
-                    allowEmpty
-                    onDone={(title) => {
-                      if (title !== undefined) api.rename(a.id, title)
-                      setRenamingId(undefined)
-                    }}
-                    placeholder={caseFileTitle({ ...a, title: "" }, me, kind.templates)}
-                    aria-label={`Titel der ${kind.noun}`}
-                  />
-                </span>
-                {meta}
-              </div>
-            )
-          return (
-            <div key={a.id} className="group/item relative">
-              <ContextMenu>
-                <ContextMenuTrigger asChild>
-                  <Link
-                    to={casePath(kind, a.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "F2") {
-                        e.preventDefault()
-                        setRenamingId(a.id)
-                      }
-                    }}
-                    className={cn(EXPLORER_ROW, a.settled && "opacity-60")}
-                  >
-                    <WithIds text={caseFileTitle(a, me, kind.templates)} className="text-sm font-medium">
-                      {icon}{" "}
-                    </WithIds>
-                    {meta}
-                  </Link>
-                </ContextMenuTrigger>
-                {/* Not refocusing the row keeps the focus in the title field after "Umbenennen". */}
-                <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
-                  {actions(a).map((x) => (
-                    <ContextMenuItem key={x.label} variant={x.destructive ? "destructive" : undefined} onSelect={x.onSelect}>
-                      <x.icon /> {x.label}
-                    </ContextMenuItem>
-                  ))}
-                </ContextMenuContent>
-              </ContextMenu>
-              {/* The same actions without a right click; shown on hover and focus. */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label={`Aktionen für „${caseFileTitle(a, me, kind.templates)}"`}
-                    className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-                  >
-                    <EllipsisIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-                  {actions(a).map((x) => (
-                    <DropdownMenuItem key={x.label} variant={x.destructive ? "destructive" : undefined} onSelect={x.onSelect}>
-                      <x.icon /> {x.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          )
-        })}
-      </nav>
-      {q && shown.length === 0 && <NoResults query={query} onReset={() => setQuery("")} />}
+      <div className="grid gap-4">
+        {api.caseFiles.length === 0 && <Home kind={kind} />}
+        {open.length > 0 && (
+          <section className="grid gap-1.5">
+            <ListHeading>Offen</ListHeading>
+            <nav className={EXPLORER_CARDS}>{open.map(row)}</nav>
+          </section>
+        )}
+        {settled.length > 0 && (
+          <section className="grid gap-1.5">
+            <ListHeading>Erledigt</ListHeading>
+            <nav className={EXPLORER_CARDS}>{settled.map(row)}</nav>
+          </section>
+        )}
+        <TemplateList kind={kind} templates={templates} onCreate={onCreate} />
+      </div>
+      {q && shown.length === 0 && templates.length === 0 && (
+        <NoResults query={query} onReset={() => setQuery("")} />
+      )}
     </Explorer>
   )
 }
 
-function Home({ kind, onCreate }: { kind: CaseFileKind; onCreate: (template: string) => void }) {
+function ListHeading({ children }: { children: ReactNode }) {
+  return <h3 className="px-1 text-xs font-medium text-muted-foreground">{children}</h3>
+}
+
+/** Shown above the templates while nothing was created yet. */
+function Home({ kind }: { kind: CaseFileKind }) {
   return (
-    <Empty className="flex-1">
+    <Empty className="p-6">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FolderOpenIcon />
@@ -310,28 +334,6 @@ function Home({ kind, onCreate }: { kind: CaseFileKind; onCreate: (template: str
         <EmptyTitle>{kind.empty.title}</EmptyTitle>
         <EmptyDescription>{kind.empty.description}</EmptyDescription>
       </EmptyHeader>
-      <EmptyContent className="grid max-w-2xl gap-6">
-        {templateGroups(kind).map((g) => (
-          <section key={g.label} className="grid gap-2">
-            <h3 className="text-left text-xs font-medium text-muted-foreground">{g.label}</h3>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {g.templates.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => onCreate(t.id)}
-                  className="grid gap-1 rounded-lg border p-3 text-left hover:bg-accent/60"
-                >
-                  <span className="text-sm font-medium">
-                    <span aria-hidden>{t.emoji}</span> {t.label}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{t.description}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-        ))}
-      </EmptyContent>
     </Empty>
   )
 }

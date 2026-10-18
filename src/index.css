@@ -9,17 +9,20 @@
 
 @theme inline {
     --font-heading: var(--font-sans);
-    --font-sans: 'Inter Variable', system-ui, sans-serif;
+    /* Windows' own font where it exists, Inter elsewhere. */
+    --font-sans: 'Segoe UI Variable Text', 'Segoe UI', 'Inter Variable', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
     --color-frame: var(--frame);
     --color-frame-foreground: var(--frame-foreground);
     --color-island: var(--island);
+    --color-titlebar: var(--titlebar);
+    --color-field: var(--field);
+    --color-field-hover: var(--field-hover);
     --color-selection: var(--selection);
     --color-selection-border: var(--selection-border);
     --color-link: var(--link);
     --color-tab-hover: var(--tab-hover);
     --color-tab-active: var(--tab-active);
-    --color-tab-active-border: var(--tab-active-border);
     --color-strip-foreground: var(--strip-foreground);
     --color-strip-hover: var(--strip-hover);
     --color-strip-active: var(--strip-active);
@@ -65,12 +68,29 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Colors follow JetBrains' "Islands" themes: content sits on rounded
-   islands (--island) that float on the darker/lighter window frame (--frame). */
+/* Motion is quick and quiet like the IDE's: things ease in, nothing bounces. */
+@theme {
+    --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+    --animate-item-in: item-in 240ms var(--ease-out-quint) backwards;
+
+    @keyframes item-in {
+        from {
+            opacity: 0;
+            transform: translateY(4px);
+        }
+    }
+}
+
+/* Colors follow JetBrains' "Islands" themes, laid out like Windows 11's File Explorer:
+   tabs sit in the title bar (--titlebar), the active one flows into the toolbar
+   (--frame), and the content sits on rounded islands (--island) inset in the frame. */
 :root {
     --frame: #ebecf0;
     --frame-foreground: #6c707e;
     --island: #ffffff;
+    --titlebar: #dfe1e5;
+    --field: #ffffff;
+    --field-hover: #f7f8fa;
     --background: var(--island);
     --foreground: #000000;
     --card: #f7f8fa;
@@ -88,9 +108,8 @@
     --selection: #d4e2ff;
     --selection-border: #a0bdf8;
     --link: #2e55a3;
-    --tab-hover: #dfe1e5;
-    --tab-active: #ebecf0;
-    --tab-active-border: #c9ccd6;
+    --tab-hover: #e6e7eb;
+    --tab-active: var(--frame);
     --strip-foreground: #6c707e;
     --strip-hover: #dfe1e5;
     --strip-active: #3574f0;
@@ -121,6 +140,9 @@
     --frame: #26282c;
     --frame-foreground: #9da0a8;
     --island: #191a1c;
+    --titlebar: #1e1f22;
+    --field: #33353b;
+    --field-hover: #393b40;
     --background: var(--island);
     --foreground: #dfe1e5;
     --card: #1e1f22;
@@ -138,9 +160,8 @@
     --selection: #233558;
     --selection-border: #2e4d89;
     --link: #548af7;
-    --tab-hover: #2e2f30;
-    --tab-active: #26282c;
-    --tab-active-border: #40434a;
+    --tab-hover: #292b2f;
+    --tab-active: var(--frame);
     --strip-foreground: #c3c5cb;
     --strip-hover: #494b4e;
     --strip-active: #3871e1;
@@ -192,6 +213,36 @@
   select:not(:disabled) {
     cursor: pointer;
   }
+}
+
+/* Honors the system's "reduce motion". Near zero rather than none, so Radix still
+   gets the animationend it waits for before unmounting closed content. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Children ease in one after another, the first ten staggered, the rest together. */
+@utility stagger-in {
+  & > * {
+    animation: var(--animate-item-in);
+  }
+  & > :nth-child(2) { animation-delay: 25ms; }
+  & > :nth-child(3) { animation-delay: 50ms; }
+  & > :nth-child(4) { animation-delay: 75ms; }
+  & > :nth-child(5) { animation-delay: 100ms; }
+  & > :nth-child(6) { animation-delay: 125ms; }
+  & > :nth-child(7) { animation-delay: 150ms; }
+  & > :nth-child(8) { animation-delay: 175ms; }
+  & > :nth-child(9) { animation-delay: 200ms; }
+  & > :nth-child(n + 10) { animation-delay: 225ms; }
 }
 
 /* Desktop shell: the title bar drags the window; its controls must stay clickable.
@@ -257,4 +308,25 @@
 ::-webkit-scrollbar-thumb:hover,
 ::-webkit-scrollbar-thumb:active {
   background-color: var(--scrollbar-thumb-hover);
+}
+
+/* The active tab curves out into the toolbar at its feet, like Explorer's. */
+@utility tab-flares {
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    width: 8px;
+    height: 8px;
+    pointer-events: none;
+  }
+  &::before {
+    left: -8px;
+    background: radial-gradient(circle at 0 0, transparent 7.5px, var(--tab-active) 8px);
+  }
+  &::after {
+    right: -8px;
+    background: radial-gradient(circle at 100% 0, transparent 7.5px, var(--tab-active) 8px);
+  }
 }

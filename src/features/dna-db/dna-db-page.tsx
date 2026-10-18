@@ -253,15 +253,11 @@ function EntryList() {
           value={query}
           onChange={setQuery}
           focusKey
-          placeholder="Name, ID, Tag oder Akte suchen…"
           aria-label="Name, DNA-ID, Fingerabdruck-ID, Tag oder Aktennummer suchen"
-          className="w-full max-w-sm flex-none"
         />
-        <Hint label="Eintrag hinzufügen">
-          <Button onClick={openCreate} aria-label="Eintrag hinzufügen" className="ml-auto">
-            <PlusIcon /> <span className="hidden sm:inline">Eintrag hinzufügen</span>
-          </Button>
-        </Hint>
+        <Button onClick={openCreate}>
+          <PlusIcon /> Neuer Eintrag
+        </Button>
       </div>
 
       {/* overflow-hidden clips row hover backgrounds to the rounded corners. */}
@@ -290,7 +286,7 @@ function EntryList() {
                   <TableHead>Akten</TableHead>
                 </TableRow>
               </TableHeader>
-              <TableBody ref={bodyRef}>
+              <TableBody ref={bodyRef} className="stagger-in">
                 {paged.map((entry) => (
                   <DnaEntryContextMenu
                     key={entry.id}

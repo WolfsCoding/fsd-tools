@@ -72,7 +72,10 @@ export function TaskRow({
               setEditing(true)
             }
           }}
-          className="group/task grid rounded-md hover:bg-muted/40"
+          className={cn(
+            "group/task grid rounded-md hover:bg-muted/40",
+            detailed && "rounded-lg border bg-card p-1 text-card-foreground",
+          )}
         >
           <div className="flex min-h-8 items-center gap-3 px-2 py-1">
             {/* Same box as the personnel icons; empty while open, ticked when done. */}
@@ -161,7 +164,7 @@ export function TaskRow({
             )}
           </div>
           {detailed && notesOpen && (
-            <div className="px-2 pb-2 pl-11">
+            <div className="px-2 pb-2 pl-11 animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-top-1">
               <textarea
                 value={task.note ?? ""}
                 onChange={(e) => api.setTaskNote(id, task.id, e.target.value)}

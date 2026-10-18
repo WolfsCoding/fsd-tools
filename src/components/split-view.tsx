@@ -1,4 +1,4 @@
-import { Component, useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react"
+import { Component, useEffect, useRef, useState, type DragEvent, type PointerEvent, type ReactNode } from "react"
 import {
   Link,
   MemoryRouter,
@@ -14,25 +14,18 @@ import {
   useLocation,
   useNavigate,
 } from "react-router"
-import { ArrowLeftRightIcon, ChevronDownIcon, TriangleAlertIcon, XIcon } from "lucide-react"
+import { TriangleAlertIcon } from "lucide-react"
 import { cn } from "cn"
-import { Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
+import { Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
 import { FeatureRoute } from "@/components/feature-routes"
 import { Hint } from "@/components/hint"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { features } from "@/features/registry"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { usePageTransition } from "@/hooks/use-page-transition"
 import { PaneContext } from "@/hooks/use-pane"
 import { useEnabledFeatures } from "@/hooks/use-settings"
-import { useTabs } from "@/hooks/use-tabs"
+import { TAB_DRAG_TYPE, useTabs } from "@/hooks/use-tabs"
 import { useLocalStorage } from "@/lib/local-storage"
 
 const RATIO_KEY = "layout:split-ratio"
@@ -47,7 +40,7 @@ const ISLAND = "relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-x
  * of it. The second page navigates on its own; the tab remembers where.
  */
 export function SplitLayout({ children }: { children: ReactNode }) {
-  const { tabs, activeId } = useTabs()
+  const { tabs, activeId, splitWith } = useTabs()
   const isMobile = useIsMobile()
   const active = tabs.find((t) => t.id === activeId)
   // Phones have no room for two pages; the split returns on a wider screen.
@@ -55,6 +48,40 @@ export function SplitLayout({ children }: { children: ReactNode }) {
   const [ratio, setRatio] = useLocalStorage(RATIO_KEY, DEFAULT_RATIO)
   const [resizing, setResizing] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const pageRef = useRef<HTMLDivElement>(null)
+  usePageTransition(pageRef)
+  const [dropSide, setDropSide] = useState<"left" | "right" | null>(null)
+
+  // A drag can end anywhere, e.g. cancelled with Esc or dropped back on the tab bar.
+  useEffect(() => {
+    const clear = () => setDropSide(null)
+    window.addEventListener("dragend", clear)
+    window.addEventListener("drop", clear)
+    return () => {
+      window.removeEventListener("dragend", clear)
+      window.removeEventListener("drop", clear)
+    }
+  }, [])
+
+  /** Tabs dragged onto the page merge into a split view; capture phase, so drop areas in pages don't take them. */
+  function onTabDragOver(e: DragEvent<HTMLDivElement>) {
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (isMobile || tabs.length < 2 || !rect || !e.dataTransfer.types.includes(TAB_DRAG_TYPE)) return
+    e.preventDefault()
+    e.stopPropagation()
+    e.dataTransfer.dropEffect = "move"
+    const side = e.clientX < rect.left + rect.width / 2 ? "left" : "right"
+    if (side !== dropSide) setDropSide(side)
+  }
+
+  function onTabDrop(e: DragEvent<HTMLDivElement>) {
+    const id = e.dataTransfer.getData(TAB_DRAG_TYPE)
+    if (!id || !dropSide) return
+    e.preventDefault()
+    e.stopPropagation()
+    splitWith(id, dropSide)
+    setDropSide(null)
+  }
 
   function onPointerDown(e: PointerEvent<HTMLDivElement>) {
     e.preventDefault()
@@ -70,12 +97,39 @@ export function SplitLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div ref={containerRef} className={cn("flex min-h-0 min-w-0 flex-1", resizing && "select-none")}>
+    <div
+      ref={containerRef}
+      onDragOverCapture={onTabDragOver}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropSide(null)
+      }}
+      onDropCapture={onTabDrop}
+      className={cn("relative flex min-h-0 min-w-0 flex-1", resizing && "select-none")}
+    >
+      {dropSide && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex gap-1">
+          {(["left", "right"] as const).map((side) => (
+            <div
+              key={side}
+              className={cn(
+                "flex flex-1 items-center justify-center rounded-xl border-2 border-dashed text-sm font-medium transition-colors duration-150",
+                side === dropSide
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-transparent text-transparent",
+              )}
+            >
+              {side === "left" ? "Links öffnen" : "Rechts öffnen"}
+            </div>
+          ))}
+        </div>
+      )}
       <main
         style={split ? { flex: `0 0 calc(${ratio * 100}% - 2px)` } : undefined}
         className={cn(ISLAND, "flex-1")}
       >
-        {children}
+        <div ref={pageRef} className="flex min-h-0 min-w-0 flex-1 flex-col">
+          {children}
+        </div>
       </main>
       {split !== undefined && active && (
         <>
@@ -90,7 +144,7 @@ export function SplitLayout({ children }: { children: ReactNode }) {
               onPointerUp={() => setResizing(false)}
               onPointerCancel={() => setResizing(false)}
               onDoubleClick={() => setRatio(DEFAULT_RATIO)}
-              className="group flex w-1 shrink-0 cursor-col-resize justify-center"
+              className="group flex w-1 shrink-0 cursor-col-resize justify-center animate-in fade-in-0 duration-300"
             >
               <span
                 className={cn(
@@ -109,43 +163,13 @@ export function SplitLayout({ children }: { children: ReactNode }) {
 }
 
 function SplitPane({ path }: { path: string }) {
-  const { featureOf, titleOfPath, setSplitPath, swapSplit, closeSplit } = useTabs()
-  const { enabledFeatures } = useEnabledFeatures()
-  const feature = featureOf(path)
+  const { featureOf } = useTabs()
 
   return (
-    <section aria-label="Split View" className={cn(ISLAND, "flex-1")}>
-      <header className="flex h-10 shrink-0 items-center gap-1 border-b px-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="min-w-0 justify-start">
-              {feature && <feature.icon />}
-              <span className="truncate">{feature ? titleOfPath(path) : "Bereich wählen"}</span>
-              <ChevronDownIcon className="text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-60">
-            <DropdownMenuLabel>Im Split View öffnen</DropdownMenuLabel>
-            {enabledFeatures.map((f) => (
-              <DropdownMenuItem key={f.path} onSelect={() => setSplitPath(`/${f.path}`)}>
-                <f.icon />
-                <span className="truncate">{f.title}</span>
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <div className="flex-1" />
-        <Hint label="Seiten tauschen">
-          <Button variant="ghost" size="icon-sm" onClick={swapSplit} aria-label="Seiten tauschen">
-            <ArrowLeftRightIcon />
-          </Button>
-        </Hint>
-        <Hint label="Split View schließen">
-          <Button variant="ghost" size="icon-sm" onClick={closeSplit} aria-label="Split View schließen">
-            <XIcon />
-          </Button>
-        </Hint>
-      </header>
+    <section
+      aria-label="Split View"
+      className={cn(ISLAND, "flex-1 animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6")}
+    >
       <PaneContext value="split">
         <PaneErrorBoundary key={featureOf(path)?.path}>
           <IsolatedRouter path={path}>
@@ -209,7 +233,7 @@ class PaneErrorBoundary extends Component<{ children: ReactNode }, { error: bool
             <TriangleAlertIcon />
           </EmptyMedia>
           <EmptyTitle>Seite konnte nicht angezeigt werden</EmptyTitle>
-          <EmptyDescription>Wähle oben einen anderen Bereich oder schließe den Split View.</EmptyDescription>
+          <EmptyDescription>Schließe den Split View über das Kontextmenü des Tabs.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     )
@@ -226,6 +250,8 @@ function PaneSync({ path }: { path: string }) {
   const { setSplitPath } = useTabs()
   const current = location.pathname + location.search
   const last = useRef(current)
+  const pageRef = useRef<HTMLDivElement>(null)
+  usePageTransition(pageRef)
 
   useEffect(() => {
     if (current === last.current) return
@@ -240,7 +266,7 @@ function PaneSync({ path }: { path: string }) {
   }, [path, navigate])
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div ref={pageRef} className="flex min-h-0 min-w-0 flex-1 flex-col">
       <Outlet />
     </div>
   )
@@ -251,9 +277,9 @@ function PaneHome() {
   const { enabledFeatures } = useEnabledFeatures()
   return (
     <Explorer title="Bereiche">
-      <nav className={EXPLORER_LIST}>
+      <nav className={EXPLORER_CARDS}>
         {enabledFeatures.map((f) => (
-          <Link key={f.path} to={`/${f.path}`} className={EXPLORER_ROW}>
+          <Link key={f.path} to={`/${f.path}`} className={EXPLORER_CARD}>
             <span className="flex items-center gap-2 text-sm font-medium">
               <f.icon className="size-4 shrink-0 text-muted-foreground" />
               {f.title}

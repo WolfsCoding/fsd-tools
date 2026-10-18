@@ -228,7 +228,7 @@ export function SubstancesInput({ values, onChange, onUpdate }: CustomFieldProps
               <tr key={`${row.id}-details`}>
                 <td colSpan={7} className="p-0">
                   <Collapsible open={expanded}>
-                    <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+                    <CollapsibleContent>
                       <div className="border-b border-border/60">
                         <RowDetails
                           row={row}

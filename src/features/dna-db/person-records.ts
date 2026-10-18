@@ -15,7 +15,7 @@ import { formatDate } from "@/lib/format-date"
 import { useLocalStorage } from "@/lib/local-storage"
 import { matchesWord, textKey } from "@/lib/text"
 import { caseFileMentionTitle, mentionsOf, useCaseFileMentions, type CaseFileMention } from "./case-file-mentions"
-import type { DnaEntry } from "./types"
+import { PROFILE_FIELDS, type DnaEntry } from "./types"
 import { entryName } from "./use-dna-entries"
 
 const NO_CASE_FILES: CaseFile<string>[] = []
@@ -193,6 +193,7 @@ const cell = (text: string) => text.replace(/\|/g, "\\|").replace(/\s*\n\s*/g, "
 /** Everything known about the entry as Markdown, for pasting elsewhere. */
 export function personSummary(entry: DnaEntry, { mentions, charges, statements }: PersonRecords) {
   const facts: [string, string | undefined][] = [
+    ...PROFILE_FIELDS.map(({ key, label }): [string, string | undefined] => [label, entry[key]?.trim()]),
     ["DNA-ID", entry.dnaId && code(entry.dnaId)],
     ["Fingerabdruck-ID", entry.fingerprintId && code(entry.fingerprintId)],
     ["Tags", entry.tags?.map((t) => t.name).join(", ")],

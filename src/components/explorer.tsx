@@ -5,11 +5,12 @@ import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
 
-/** Rows of an explorer, one item per line across the whole width, like a file explorer's list view. */
-export const EXPLORER_LIST = "grid content-start divide-y overflow-hidden rounded-lg border"
+/** Items of an explorer, one per line across the whole width, each standing apart as a card of its own. */
+export const EXPLORER_CARDS = "grid content-start gap-2 stagger-in"
 
-/** One item of `EXPLORER_LIST`; leaves room on the right for a ⋯ button. */
-export const EXPLORER_ROW = "grid gap-0.5 px-3 py-2.5 pr-10 outline-none hover:bg-accent/60 focus-visible:bg-accent/60"
+/** One item of `EXPLORER_CARDS`; leaves room on the right for a ⋯ button. */
+export const EXPLORER_CARD =
+  "grid gap-0.5 rounded-lg border px-3 py-2.5 pr-10 outline-none transition-colors hover:bg-accent/60 focus-visible:bg-accent/60"
 
 /**
  * A page's items (notes, posts, …) across the whole page, like a file explorer. Opening an

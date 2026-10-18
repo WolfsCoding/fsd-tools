@@ -56,15 +56,7 @@ export function PenaltyCatalog({ query, terms, onQuery }: { query: string; terms
           <p className="text-sm text-muted-foreground">
             Alle Straftaten aus Criminal und Ticket Offenses mit ihrem Strafmaß. Ein Klick öffnet den Paragraphen.
           </p>
-          <div className="max-w-md">
-            <SearchField
-              value={query}
-              onChange={onQuery}
-              focusKey
-              placeholder="Straftat, § 4 CO, Waffe…"
-              aria-label="Strafkatalog durchsuchen"
-            />
-          </div>
+          <SearchField value={query} onChange={onQuery} focusKey aria-label="Strafkatalog durchsuchen" />
           <nav aria-label="Kapitel" className="flex flex-wrap gap-1.5">
             {all.map((g) => {
               const shown = offenses.filter((o) => o.chapter === g.chapter).length

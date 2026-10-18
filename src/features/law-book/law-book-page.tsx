@@ -2,7 +2,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, type ReactNode } from "r
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router"
 import { CalculatorIcon, ListIcon, ScaleIcon, StarIcon, StarOffIcon } from "lucide-react"
 import { cn } from "cn"
-import { BackButton, Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
+import { BackButton, Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
@@ -133,7 +133,6 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
           value={query}
           onChange={onQuery}
           focusKey
-          placeholder="§ 5, Diebstahl, Geldstrafe…"
           aria-label="Gesetzbücher durchsuchen"
         />
       }
@@ -144,7 +143,7 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
         <div className="grid gap-4">
           <ExplorerSection title="Bücher">
             {books.map((b) => (
-              <Link key={b.id} to={lawBookPath(b.id)} className={EXPLORER_ROW}>
+              <Link key={b.id} to={lawBookPath(b.id)} className={EXPLORER_CARD}>
                 <span className="flex items-center gap-2 text-sm font-medium">
                   <span className="w-7 shrink-0 text-xs font-semibold text-amber-400">{b.abbreviation}</span>
                   <span className="truncate">{b.title}</span>
@@ -156,14 +155,14 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
             ))}
           </ExplorerSection>
           <ExplorerSection title="Werkzeuge">
-            <Link to={catalogPath()} className={EXPLORER_ROW}>
+            <Link to={catalogPath()} className={EXPLORER_CARD}>
               <span className="flex items-center gap-2 text-sm font-medium">
                 <ListIcon className="size-4 shrink-0 text-muted-foreground" />
                 Strafkatalog
               </span>
               <span className="text-xs text-muted-foreground/70">Alle Straftaten aus CO und TO mit Strafmaß</span>
             </Link>
-            <Link to={calculatorPath()} className={EXPLORER_ROW}>
+            <Link to={calculatorPath()} className={EXPLORER_CARD}>
               <span className="flex items-center gap-2 text-sm font-medium">
                 <CalculatorIcon className="size-4 shrink-0 text-muted-foreground" />
                 Strafrechner
@@ -175,7 +174,7 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
             <ExplorerSection title="Favoriten">
               {bookmarks.bookmarks.map(({ id, book, paragraph }) => (
                 <div key={id} className="group/bookmark relative">
-                  <Link to={lawBookPath(book.id, paragraph.number)} className={EXPLORER_ROW}>
+                  <Link to={lawBookPath(book.id, paragraph.number)} className={EXPLORER_CARD}>
                     <span className="flex items-center gap-2 text-sm font-medium">
                       <ParagraphNumber number={paragraph.number} className="shrink-0 text-xs" />
                       <span className="shrink-0 text-xs text-muted-foreground">{book.abbreviation}</span>
@@ -207,7 +206,7 @@ function ExplorerSection({ title, children }: { title: string; children: ReactNo
   return (
     <section className="grid gap-1.5">
       <h2 className="px-1 text-xs font-medium text-muted-foreground">{title}</h2>
-      <nav aria-label={title} className={EXPLORER_LIST}>
+      <nav aria-label={title} className={EXPLORER_CARDS}>
         {children}
       </nav>
     </section>

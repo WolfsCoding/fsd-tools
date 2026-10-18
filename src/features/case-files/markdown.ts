@@ -7,6 +7,8 @@ export const NOW = "{{now:DD.MM.YYYY HH:mm}}"
 export const DATE_UHR = "DD.MM.YYYY - HH:mm"
 /** Placeholder for the own name; used while no name is set in the settings. */
 export const ME = "{{ME}}"
+/** The own name in a copied empty template, which is filled in by whoever uses it. */
+export const TEMPLATE_ME = "Officer XXX"
 /** Placeholder for the own department; may be typed anywhere and follows the settings. */
 export const DEPARTMENT = "{{DEPARTMENT}}"
 /** The department while none is set in the settings. */
@@ -82,7 +84,7 @@ export function checklist(items: { label: string; checked: boolean }[]) {
   return items.map((i) => `> - [${i.checked ? "x" : " "}] ${i.label}`).join("\n")
 }
 
-/** A quoted table; every cell is inline code. */
+/** A quoted table with its rows numbered under "#"; every cell is inline code. */
 export function table(headers: string[], rows: string[][]) {
   return rawTable(headers, rows.map((cells) => cells.map(cell)))
 }
@@ -92,10 +94,13 @@ export function cell(text: string) {
   return code(text.replace(/\|/g, "\\|"))
 }
 
-/** A quoted table whose cells are already formatted. */
+/** A quoted table whose cells are already formatted; every table numbers its rows from 1 under "#". */
 export function rawTable(headers: string[], rows: string[][]) {
   const line = (cells: string[]) => `> | ${cells.join(" | ")} |`
-  return [line(headers), line(headers.map(() => "---")), ...rows.map(line)].join("\n")
+  const all = ["#", ...headers]
+  return [line(all), line(all.map(() => "---")), ...rows.map((cells, i) => line([code(String(i + 1)), ...cells]))].join(
+    "\n",
+  )
 }
 
 export function legend(style: { colors: Colors }, title: string) {

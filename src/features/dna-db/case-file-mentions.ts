@@ -82,6 +82,27 @@ export function useCaseFileMentions(entries: DnaEntry[]) {
   }, [caseFiles, entries, me])
 }
 
+export interface CaseFileSummary extends CaseFileMention {
+  createdAt: string
+  settled: boolean
+}
+
+/** Every Akte with its title as the case files show it, by id. */
+export function useCaseFileSummaries() {
+  const [caseFiles] = useLocalStorage(POLICE_FILES_KEY, NO_CASE_FILES)
+  const me = useOwnName()
+  return useMemo(
+    () =>
+      new Map<string, CaseFileSummary>(
+        caseFiles.map((c) => [
+          c.id,
+          { id: c.id, title: caseFileMentionTitle(c, me), createdAt: c.createdAt, settled: !!c.settled },
+        ]),
+      ),
+    [caseFiles, me],
+  )
+}
+
 /** The mentions of one entry from `useCaseFileMentions`. */
 export function mentionsOf(mentions: Map<string, CaseFileMention[]>, entry: DnaEntry) {
   return mentions.get(entry.id) ?? NO_MENTIONS

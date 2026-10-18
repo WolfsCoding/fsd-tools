@@ -264,7 +264,7 @@ function TextInput({ field, values, reader, onChange, suggestions, docId }: Fiel
   const ownName = reader.me === ME ? "" : reader.me
   // Own-name fields show the name until they're edited; clearing one still writes the name.
   const value = field.me && values[field.key] === undefined ? ownName : str(values[field.key])
-  const placeholder = field.me ? reader.me : (field.fallback ?? "XXX")
+  const placeholder = field.me ? reader.me : (field.fallback ?? "N/A")
   const options = unique<ComboboxOption>([...(field.suggestions ?? []), ...groupOptions(field, suggestions, docId)])
   return (
     <Labeled id={id} label={field.label} hint={field.hint} required={field.required} className={SHORT}>
@@ -823,7 +823,7 @@ function ChecksInput(props: FieldProps<ChecksField>) {
             <div
               key={option}
               {...reorder.row(i)}
-              className={cn("group flex items-stretch hover:bg-accent/20", reorder.rowClass(i))}
+              className={cn("group flex items-stretch animate-in duration-200 fade-in-0 hover:bg-accent/20", reorder.rowClass(i))}
             >
               <CheckHandle
                 id={`${id}-${i}`}
@@ -1043,8 +1043,8 @@ function TableInput({
   function cellInput(row: Row, i: number, c: Column) {
     const value = row[c.key] ?? ""
     const label = `${c.label} (${cards ? field.addLabel : "Zeile"} ${i + 1})`
-    // The generic "XXX" isn't worth showing as a hint.
-    const placeholder = c.fallback === "XXX" ? undefined : reader.fill(c.fallback)
+    // The generic "N/A" isn't worth showing as a hint.
+    const placeholder = c.fallback === "N/A" ? undefined : reader.fill(c.fallback)
     const set = (v: string) => setCell(i, c.key, v)
     const choices = c.mark ? MARKS : c.choices
     if (c.counter)

@@ -3,7 +3,7 @@
 
 import { banner, bullets, cell, code, DEPARTMENT, doc, facts, formatLocalDateTime, rawTable, section, table, titleComment } from "@/features/case-files/markdown"
 import { PERSON, tableRows, type Field, type Reader, type Section, type TableField, type Template } from "@/features/case-files/templates"
-import { rowTraces } from "@/features/case-files/traces"
+import { rowTraces, storeTraces } from "@/features/case-files/traces"
 import type { Row, Values } from "@/features/case-files/types"
 import { SubstancesInput } from "./substances-input"
 import { foundRows, randomizeSubstances, SUBSTANCES_KEY, substanceOf, toxSections } from "./tox"
@@ -26,7 +26,7 @@ function headSection(): Section {
     title: "Allgemein",
     description: "Fallnummer, Zeitpunkt, Forensiker und Auftraggeber.",
     fields: [
-      { type: "text", key: "fallnummer", label: "Akten-/Fallnummer", fallback: "XXXX", required: true },
+      { type: "text", key: "fallnummer", label: "Akten-/Fallnummer", fallback: "N/A", required: true },
       { type: "datetime", key: "datum", label: "Datum & Uhrzeit" },
       { type: "text", key: "forensiker", label: "Forensiker", me: true, group: "officer", autocomplete: true },
       { type: "text", key: "auftrag", label: "Übergeben/in Auftrag von", group: "officer", autocomplete: true },
@@ -71,14 +71,21 @@ function remarks(r: Reader) {
 /** New analyses start with the evidence room as their first remark; it can be edited or removed like any other. */
 const INITIAL = { bemerkungen: [EVIDENCE_ROOM] }
 
-/** Rows of a table numbered from 1, with the given cells; "" while none were entered. */
+/** Placeholders of the case facts in the empty templates. */
+const SAMPLE_HEAD = { fallnummer: "XXX", auftrag: "Rang Name / Department" }
+/** One trace of an unknown person, written as "XXX" under both DNA and fingerprints. */
+const SAMPLE_TRACES = storeTraces([{ id: "sample", dna: "", fa: "", name: "XXX", ort: "" }])
+
+/** The empty template's values: the case facts, `extra` and the remarks, the evidence room last. */
+function sample(extra: Values, remarks: string[] = []): Values {
+  return { ...SAMPLE_HEAD, ...extra, bemerkungen: [...remarks, EVIDENCE_ROOM] }
+}
+
+/** Rows of a table (numbered from 1, like every table), with the given cells; "" while none were entered. */
 function numbered(r: Reader, key: string, cells: (row: Row) => string[], headers: string[]) {
   const rows = r.rows(key)
   if (!rows.length) return ""
-  return table(
-    ["#", ...headers],
-    rows.map((row, i) => [String(i + 1), ...cells(row)]),
-  )
+  return table(headers, rows.map(cells))
 }
 
 /**
@@ -107,20 +114,40 @@ const SUSPECT = { group: "suspect", autocomplete: true, lookup: PERSON } as cons
 /** The suspect an item was taken from; the form shows just their name. */
 const TAKEN_FROM = { ...SUSPECT, lookup: { ...PERSON, nameOnly: true } } as const
 
+const POSITIVE = "Positiv"
+const NEGATIVE = "Negativ"
+
+const RESIDUE_CHOICES = [
+  { value: POSITIVE, className: "text-emerald-400" },
+  { value: NEGATIVE, className: "text-red-400" },
+]
+
+const POSITIVE_CELL = `<font color="#34D399">${code(POSITIVE)}</font>`
+const NEGATIVE_CELL = `<font color="#F87171">${code(NEGATIVE)}</font>`
+/** Both results, each colored, so deleting one leaves the right one. */
+const EITHER_RESULT = `${POSITIVE_CELL}/${NEGATIVE_CELL}`
+
+/** A residue result as a table cell: green when positive, red when negative. */
+function residueResult(value: string, fallback: string) {
+  if (value === POSITIVE) return POSITIVE_CELL
+  if (value === NEGATIVE) return NEGATIVE_CELL
+  return value ? cell(value) : fallback
+}
+
 const WEAPONS: TableField = {
   type: "table",
   key: "waffen",
   label: "Waffen",
   addLabel: "Waffe",
   columns: [
-    { key: "abgenommen", label: "Abgenommen von (BES)", fallback: "XXX", ...TAKEN_FROM },
-    { key: "modell", label: "Modell", fallback: "XXX", autocomplete: true },
+    { key: "abgenommen", label: "Abgenommen von (BES)", fallback: "N/A", ...TAKEN_FROM },
+    { key: "modell", label: "Modell", fallback: "N/A", autocomplete: true },
     // Left out of the document when unknown.
     { key: "seriennummer", label: "Seriennummer", fallback: "" },
-    { key: "waffenId", label: "Waffen-ID", fallback: "XX" },
+    { key: "waffenId", label: "Waffen-ID", fallback: "N/A" },
     { key: "spuren", label: "DNA & Fingerabdrücke", fallback: "Keine", traces: { kinds: PAIRS, spots: GUN_SPOTS } },
-    { key: "schmauch", label: "Schmauchspuren", fallback: "XXX", suggestions: ["Positiv", "Negativ", "Keine"] },
-    { key: "munition", label: "Munition", fallback: "XX", formerKey: "schuss" },
+    { key: "schmauch", label: "Schmauchspuren", fallback: "N/A", choices: [...RESIDUE_CHOICES, { value: "Keine" }] },
+    { key: "munition", label: "Munition", fallback: "N/A", formerKey: "schuss" },
     { key: "huelsen", label: "Hülsen", fallback: "0", counter: true },
     { key: "projektile", label: "Projektile", fallback: "0", counter: true },
   ],
@@ -131,9 +158,6 @@ const weaponIds = (values: Values) =>
   tableRows(values.waffen)
     .map((w) => w.waffenId?.trim() ?? "")
     .filter(Boolean)
-
-const POSITIVE = "Positiv"
-const NEGATIVE = "Negativ"
 
 const GUNSHOT_RESIDUE: TableField = {
   type: "table",
@@ -147,33 +171,23 @@ const GUNSHOT_RESIDUE: TableField = {
       label: "Ergebnis",
       fallback: "",
       initial: POSITIVE,
-      choices: [
-        { value: POSITIVE, className: "text-emerald-400" },
-        { value: NEGATIVE, className: "text-red-400" },
-      ],
+      choices: RESIDUE_CHOICES,
     },
     // Read off the test, never rolled.
-    { key: "staerke", label: "Stärke (%)", fallback: "XX" },
-    { key: "konfidenz", label: "Konfidenz (%)", fallback: "XX" },
-    { key: "anmerkung", label: "Anmerkungen", fallback: "---", wide: true },
+    { key: "staerke", label: "Stärke (%)", fallback: "N/A" },
+    { key: "konfidenz", label: "Konfidenz (%)", fallback: "N/A" },
+    { key: "anmerkung", label: "Anmerkungen", fallback: "N/A", wide: true },
   ],
 }
 
 /** A test as a table row: colored result, and strength and confidence only when positive. */
-function residueRow(row: Row, i: number) {
+function residueRow(row: Row) {
   const percent = (v: string) => cell(v.replace(/\s*%$/, ""))
-  const none = cell("---")
-  const result =
-    row.ergebnis === POSITIVE
-      ? `<font color="#34D399">${code(POSITIVE)}</font>`
-      : row.ergebnis === NEGATIVE
-        ? `<font color="#F87171">${code(NEGATIVE)}</font>`
-        : code("Positiv/Negativ")
+  const none = cell("N/A")
   const positive = row.ergebnis === POSITIVE
   return [
-    code(String(i + 1)),
     cell(row.name),
-    result,
+    residueResult(row.ergebnis, EITHER_RESULT),
     positive ? percent(row.staerke) : none,
     positive ? percent(row.konfidenz) : none,
     cell(row.anmerkung),
@@ -210,7 +224,7 @@ function quantities(row: Row) {
   return `${code(row.projektile)} / ${code(row.huelsen)}`
 }
 
-const ballisticsTitle ="📝 [F-BA] Ballistische Analyse - Schusswaffen & Schmauchspuren"
+const ballisticsTitle ="📝 [FAST-BA] Ballistische Analyse - Schusswaffen & Schmauchspuren"
 
 const ballistics: Template<ForensicsTemplateId> = {
   id: "ballistik",
@@ -261,11 +275,11 @@ const ballistics: Template<ForensicsTemplateId> = {
             {
               key: "person",
               label: "Tatverdächtiger (DNA/Name)",
-              fallback: "XXX",
+              fallback: "N/A",
               ...SUSPECT,
               wide: true,
             },
-            { key: "waffenId", label: "Waffen-ID", fallback: "XXX", options: weaponIds },
+            { key: "waffenId", label: "Waffen-ID", fallback: "N/A", options: weaponIds },
             // Older analyses stored one quantity for both ("1", "2", "mehrere").
             { key: "projektile", label: "Projektile", fallback: "0", counter: true, formerKey: "menge" },
             { key: "huelsen", label: "Hülsen", fallback: "0", counter: true, formerKey: "menge" },
@@ -278,6 +292,36 @@ const ballistics: Template<ForensicsTemplateId> = {
     ),
   ],
   initial: INITIAL,
+  sample: sample(
+    {
+      // The rest of the findings follow from the rows below.
+      fundarten: ["Blutspuren"],
+      waffen: [1, 2].map(() => ({
+        abgenommen: "XXX",
+        modell: "XXX",
+        seriennummer: "XXX",
+        waffenId: "XX",
+        spuren: SAMPLE_TRACES,
+        schmauch: "XXX",
+        munition: "xx Schuss + x geladen",
+        huelsen: "X",
+        projektile: "X",
+      })),
+      schmauch: [POSITIVE, POSITIVE, NEGATIVE, NEGATIVE].map((ergebnis) => ({
+        name: "Name",
+        ergebnis,
+        staerke: "XX",
+        konfidenz: "XX",
+      })),
+      huelsen: [1, 2, 3].map(() => ({ person: "XXX", waffenId: "XXX", projektile: "X", huelsen: "X" })),
+    },
+    [
+      "z. B.: Seriennummer passt nicht zum Halter der Waffe = Geklaut = Meldepflicht",
+      "z. B.: Projektile wurden in dem pinken SUV (`20 xxxxxx`) gefunden",
+      "z. B.: Der beschlagnahmten Waffe mit der Waffen-ID `xxxxx` von `xxxx` wurden `xxxx` Patronenhülsen und `xxx` Projektile zugewiesen",
+      "Die DNA `xxxx` wurde an einer Tasernadel/einem Schlagstock/etc. festgestellt.",
+    ],
+  ),
   subject: () => "",
   caseSubject: noCaseSubject,
   pageTitle: () => ballisticsTitle,
@@ -300,36 +344,36 @@ const ballistics: Template<ForensicsTemplateId> = {
           ],
           [
             "Waffen",
-            numbered(
-              r,
-              "waffen",
-              (w) => [
-                w.abgenommen,
-                w.seriennummer ? `${w.modell} (${w.seriennummer})` : w.modell,
-                w.waffenId,
-                w.dna,
-                w.fa,
-                w.schmauch,
-                w.munition,
-                `${w.huelsen} Hülsen und ${w.projektile} Projektile`,
-              ],
-              [
-                "Abgenommen von (BES)",
-                "Modell (Seriennummer)",
-                "Waffen-ID",
-                "DNA von/wo",
-                "Fingerabdrücke von/wo",
-                "Schmauchspuren",
-                "Munition",
-                "Hülsen und Projektile",
-              ],
-            ),
+            r.rows("waffen").length
+              ? rawTable(
+                  [
+                    "Abgenommen von (BES)",
+                    "Modell (Seriennummer)",
+                    "Waffen-ID",
+                    "DNA von/wo",
+                    "Fingerabdrücke von/wo",
+                    "Schmauchspuren",
+                    "Munition",
+                    "Hülsen und Projektile",
+                  ],
+                  r.rows("waffen").map((w) => [
+                    cell(w.abgenommen),
+                    cell(w.seriennummer ? `${w.modell} (${w.seriennummer})` : w.modell),
+                    cell(w.waffenId),
+                    cell(w.dna),
+                    cell(w.fa),
+                    residueResult(w.schmauch, cell("N/A")),
+                    cell(w.munition),
+                    cell(`${w.huelsen} Hülsen und ${w.projektile} Projektile`),
+                  ]),
+                )
+              : "",
           ],
           [
             "Schmauchspuren",
             r.rows("schmauch").length
               ? rawTable(
-                  ["#", "Name", "Ergebnis", "Stärke (%)", "Konfidenz (%)", "Anmerkungen"],
+                  ["Name", "Ergebnis", "Stärke (%)", "Konfidenz (%)", "Anmerkungen"],
                   r.rows("schmauch").map(residueRow),
                 )
               : "",
@@ -338,8 +382,8 @@ const ballistics: Template<ForensicsTemplateId> = {
             "Hülsen und Projektile",
             r.rows("huelsen").length
               ? rawTable(
-                  ["#", "Tatverdächtiger (DNA/Name)", "Waffen-ID", "Projektile / Hülsen"],
-                  r.rows("huelsen").map((h, i) => [code(String(i + 1)), cell(h.person), cell(h.waffenId), quantities(h)]),
+                  ["Tatverdächtiger (DNA/Name)", "Waffen-ID", "Projektile / Hülsen"],
+                  r.rows("huelsen").map((h) => [cell(h.person), cell(h.waffenId), quantities(h)]),
                 )
               : "",
           ],
@@ -353,7 +397,7 @@ const ballistics: Template<ForensicsTemplateId> = {
 /* 2. Blood. */
 
 const BLOOD_GROUPS = ["A+", "A−", "B+", "B−", "AB+", "AB−", "0+", "0−"]
-const bloodTitle = "📝 [F-FA] Forensische Analyse - Blut"
+const bloodTitle = "📝 [FAST-FA] Forensische Analyse - Blut"
 
 const blood: Template<ForensicsTemplateId> = {
   id: "blut",
@@ -376,14 +420,14 @@ const blood: Template<ForensicsTemplateId> = {
             {
               key: "person",
               label: "Person",
-              fallback: "XXX",
+              fallback: "N/A",
               group: "person",
               autocomplete: true,
               lookup: { field: "name", fill: { dna: "dna" } },
             },
-            { key: "blutgruppe", label: "Blutgruppe", fallback: "XXX", choices: BLOOD_GROUPS.map((value) => ({ value })) },
-            { key: "dna", label: "DNA", fallback: "XXX", lookup: { field: "dna", fill: { name: "person" } } },
-            { key: "fundort", label: "Fundort/Asservat", fallback: "XXX", wide: true },
+            { key: "blutgruppe", label: "Blutgruppe", fallback: "N/A", choices: BLOOD_GROUPS.map((value) => ({ value })) },
+            { key: "dna", label: "DNA", fallback: "N/A", lookup: { field: "dna", fill: { name: "person" } } },
+            { key: "fundort", label: "Fundort/Asservat", fallback: "N/A", wide: true },
           ],
         },
       ],
@@ -391,6 +435,10 @@ const blood: Template<ForensicsTemplateId> = {
     remarksSection(),
   ],
   initial: INITIAL,
+  sample: sample(
+    { blut: [1, 2].map(() => ({ person: "XXX", blutgruppe: "XX", dna: "XXX", fundort: "XXX" })) },
+    ["z. B.: Die Blutspur `X` wurde an/in `XXX` gesichert"],
+  ),
   subject: () => "",
   caseSubject: noCaseSubject,
   pageTitle: () => bloodTitle,
@@ -411,7 +459,7 @@ const blood: Template<ForensicsTemplateId> = {
 
 /* 3. Edged and blunt weapons. */
 
-const edgedWeaponsTitle = "📝 [F-FA] Forensische Analyse - Hieb & Stichwaffen"
+const edgedWeaponsTitle = "📝 [FAST-FA] Forensische Analyse - Hieb & Stichwaffen"
 
 const edgedWeapons: Template<ForensicsTemplateId> = {
   id: "stichwaffen",
@@ -431,11 +479,11 @@ const edgedWeapons: Template<ForensicsTemplateId> = {
           label: "Waffen",
           addLabel: "Waffe",
           columns: [
-            { key: "abgenommen", label: "Abgenommen von", fallback: "XXX", ...TAKEN_FROM },
+            { key: "abgenommen", label: "Abgenommen von", fallback: "N/A", ...TAKEN_FROM },
             {
               key: "tatwaffe",
               label: "Waffe",
-              fallback: "XXX",
+              fallback: "N/A",
               autocomplete: true,
               suggestions: ["Messer", "Klappmesser", "Machete", "Schlagstock", "Baseballschläger", "Schlagring"],
             },
@@ -448,6 +496,10 @@ const edgedWeapons: Template<ForensicsTemplateId> = {
     remarksSection(),
   ],
   initial: INITIAL,
+  sample: sample(
+    { tatwaffen: [1, 2].map(() => ({ abgenommen: "XXX", tatwaffe: "XXX", spuren: SAMPLE_TRACES, blut: SAMPLE_TRACES })) },
+    ["z. B.: Die DNA `xxxx` wurde an der Klinge des Messers festgestellt."],
+  ),
   subject: () => "",
   caseSubject: noCaseSubject,
   pageTitle: () => edgedWeaponsTitle,
@@ -476,7 +528,7 @@ const edgedWeapons: Template<ForensicsTemplateId> = {
 
 const toxTitle = (r: Reader) => {
   const names = foundRows(r.raw("substanzen")).map((row) => substanceOf(row).name)
-  return `📝 [F-TA] Toxikologische Analyse - ${r.filled("betreff") || names.join(", ") || "XXX"}`
+  return `📝 [FAST-TA] Toxikologische Analyse - ${r.filled("betreff") || names.join(", ") || "N/A"}`
 }
 
 const TOX_DATE = "DD.MM.YYYY - HH:mm"
@@ -523,6 +575,8 @@ const tox: Template<ForensicsTemplateId> = {
     remarksSection(),
   ],
   initial: INITIAL,
+  // The substances' placeholders come from `toxSections`.
+  sample: sample({}),
   subject: (r) =>
     foundRows(r.raw("substanzen"))
       .map((row) => substanceOf(row).name)
@@ -530,7 +584,7 @@ const tox: Template<ForensicsTemplateId> = {
   caseSubject: noCaseSubject,
   pageTitle: toxTitle,
   render: (r) => {
-    const { sections: results, next } = toxSections(r.raw("substanzen"), r)
+    const { sections: results, next } = toxSections(r.raw("substanzen"), r, r.blank)
     return (
       titleComment(toxTitle(r)) +
       "\n\n" +

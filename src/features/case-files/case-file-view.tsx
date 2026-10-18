@@ -7,6 +7,7 @@ import {
   DicesIcon,
   EllipsisIcon,
   EyeIcon,
+  FileTextIcon,
   HeadingIcon,
   PanelRightIcon,
   PencilIcon,
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -40,7 +42,7 @@ import { removedToast } from "@/lib/undo"
 import { DocForm, MeHint } from "./doc-form"
 import { withNow } from "./markdown"
 import type { CaseFileKind } from "./kind"
-import { canRandomize, createReader, missingRequired, randomized } from "./templates"
+import { blankMarkdown, canRandomize, createReader, missingRequired, randomized } from "./templates"
 import type { CaseFile, Doc } from "./types"
 import {
   caseFileTitle,
@@ -148,6 +150,11 @@ export function CaseFileView({
       ),
     )
   }
+  /** The empty template of the open document, without the own name; its `{{now:…}}` dates stay for the editor to fill in. */
+  const copyBlank = () => {
+    if (!template.blank) return
+    copy(blankMarkdown(template, colors, identity.department), "Vorlage")
+  }
   const showTabs = caseFile.docs.length > 1 || !!main.attachable
 
   // Alt+Shift+C copies the page title, with or without the preview open.
@@ -248,17 +255,6 @@ export function CaseFileView({
               </Hint>
             )}
           </div>
-          <Hint label={caseFile.settled ? "Wieder als offen markieren" : "Als erledigt markieren"}>
-            <Button
-              variant="outline"
-              size="sm"
-              aria-pressed={!!caseFile.settled}
-              onClick={() => api.setSettled(caseFile.id, !caseFile.settled)}
-              className={cn(caseFile.settled && "text-emerald-400 hover:text-emerald-300")}
-            >
-              <CircleCheckIcon /> Erledigt
-            </Button>
-          </Hint>
           {canRandomize(template) && (
             <Hint label="Alle Werte mit Spanne zufällig innerhalb der Spanne neu würfeln">
               <Button variant="outline" size="sm" onClick={randomize}>
@@ -266,17 +262,13 @@ export function CaseFileView({
               </Button>
             </Hint>
           )}
-          <Hint label={previewSide ? "Vorschau neben dem Formular ausblenden" : "Vorschau neben dem Formular zeigen"}>
-            <Button
-              variant="outline"
-              size="sm"
-              aria-pressed={previewSide}
-              onClick={() => setPreviewSide(!previewSide)}
-              className="hidden xl:inline-flex"
-            >
-              <PanelRightIcon /> Vorschau
-            </Button>
-          </Hint>
+          {template.blank && (
+            <Hint label="Das leere Template mit dem Vorlagen-Titel kopieren">
+              <Button variant="outline" size="sm" onClick={copyBlank}>
+                <FileTextIcon /> Vorlage kopieren
+              </Button>
+            </Hint>
+          )}
           <Button size="sm" onClick={copyMarkdown}>
             <ClipboardCopyIcon /> Kopieren
           </Button>
@@ -286,11 +278,17 @@ export function CaseFileView({
                 <EllipsisIcon />
               </Button>
             </DropdownMenuTrigger>
-            {/* Not refocusing the trigger keeps the focus in the title field after "Umbenennen". */}
-            <DropdownMenuContent align="end" className="w-60" onCloseAutoFocus={(e) => e.preventDefault()}>
+            <DropdownMenuContent align="end" className="w-60">
               <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
                 <EyeIcon /> Vorschau
               </DropdownMenuItem>
+              <DropdownMenuCheckboxItem
+                checked={previewSide}
+                onCheckedChange={setPreviewSide}
+                className="hidden xl:flex"
+              >
+                <PanelRightIcon /> Vorschau neben dem Formular
+              </DropdownMenuCheckboxItem>
               {pageTitle && (
                 <DropdownMenuItem onSelect={() => copy(pageTitle, "Titel")}>
                   <HeadingIcon /> Seitentitel kopieren
@@ -305,21 +303,6 @@ export function CaseFileView({
               <DropdownMenuItem onSelect={() => api.setSettled(caseFile.id, !caseFile.settled)}>
                 <CircleCheckIcon /> {caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setRenaming("caseFile")}>
-                <PencilIcon /> {kind.noun} umbenennen
-              </DropdownMenuItem>
-              {caseFile.docs.length > 1 && (
-                <DropdownMenuItem onSelect={() => setRenaming(current.id)}>
-                  <PencilIcon /> Dokument umbenennen
-                </DropdownMenuItem>
-              )}
-              {attachItems && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Dokument hinzufügen</DropdownMenuLabel>
-                  {attachItems}
-                </>
-              )}
               <DropdownMenuSeparator />
               {docIndex > 0 && (
                 <DropdownMenuItem variant="destructive" onSelect={() => removeDoc(current)}>
@@ -370,7 +353,7 @@ export function CaseFileView({
                           }
                         }}
                         className={cn(
-                          "relative max-w-60 shrink-0 truncate px-3 pt-1.5 pb-2.5 text-sm text-muted-foreground hover:text-foreground",
+                          "relative max-w-60 shrink-0 truncate px-3 pt-1.5 pb-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground",
                           d.id === current.id &&
                             "text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:rounded-full after:bg-foreground",
                         )}
@@ -405,13 +388,8 @@ export function CaseFileView({
               <DropdownMenu>
                 <Hint label="Dokument hinzufügen">
                   <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      className="mb-1 ml-1 shrink-0 text-muted-foreground"
-                      aria-label="Dokument hinzufügen"
-                    >
-                      <PlusIcon />
+                    <Button variant="ghost" size="xs" className="mb-1 ml-1 shrink-0 text-muted-foreground">
+                      <PlusIcon /> Neues Dokument
                     </Button>
                   </DropdownMenuTrigger>
                 </Hint>
@@ -429,21 +407,26 @@ export function CaseFileView({
         <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6">
           <div className="grid gap-4">
             <MeHint me={reader.me} />
-            <DocForm
-              key={current.id}
-              template={template}
-              values={current.values}
-              reader={reader}
-              onChange={(key, value) => api.setValue(caseFile.id, current.id, key, value)}
-              onUpdate={(key, fn) => api.updateValue(caseFile.id, current.id, key, fn)}
-              suggestions={suggestions}
-              docId={current.id}
-            />
+            {/* Keyed by document, so switching documents fades the new one in. */}
+            <div key={current.id} className="animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
+              <DocForm
+                template={template}
+                values={current.values}
+                reader={reader}
+                onChange={(key, value) => api.setValue(caseFile.id, current.id, key, value)}
+                onUpdate={(key, fn) => api.updateValue(caseFile.id, current.id, key, fn)}
+                suggestions={suggestions}
+                docId={current.id}
+              />
+            </div>
           </div>
         </main>
         {/* Next to the form only where there is room; narrower screens open the preview as a dialog. */}
         {previewSide && (
-          <aside aria-label="Vorschau" className="hidden w-[42%] max-w-3xl shrink-0 flex-col border-l xl:flex">
+          <aside
+            aria-label="Vorschau"
+            className="hidden w-[42%] max-w-3xl shrink-0 flex-col border-l animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6 xl:flex"
+          >
             <div className="flex h-11 shrink-0 items-center gap-2 border-b pr-2 pl-4 text-xs text-muted-foreground">
               <span className="min-w-0 flex-1 truncate">
                 Vorschau · {preview.split("\n").length.toLocaleString("de-DE")} Zeilen Markdown
@@ -493,7 +476,7 @@ export function CaseFileView({
 }
 
 /** The markdown as it will be pasted. */
-function MarkdownText({ text }: { text: string }) {
+export function MarkdownText({ text }: { text: string }) {
   return (
     <pre className="min-h-0 flex-1 overflow-y-auto px-3 py-2.5 font-mono text-xs/relaxed break-words whitespace-pre-wrap text-muted-foreground">
       {text}
@@ -501,7 +484,7 @@ function MarkdownText({ text }: { text: string }) {
   )
 }
 
-function Shortcut({ keys, children }: { keys: string[]; children: string }) {
+export function Shortcut({ keys, children }: { keys: string[]; children: string }) {
   return (
     <span className="flex shrink-0 items-center gap-2 font-medium">
       <KbdGroup>

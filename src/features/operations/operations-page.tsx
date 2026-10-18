@@ -2,8 +2,7 @@ import { useMemo, useState, type ReactNode } from "react"
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router"
 import { PencilIcon, PlusIcon, SirenIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
-import { Explorer, EXPLORER_LIST, EXPLORER_ROW } from "@/components/explorer"
-import { Hint } from "@/components/hint"
+import { Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
 import { InlineEdit } from "@/components/inline-edit"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
@@ -130,7 +129,7 @@ function OperationList({ api, actions }: { api: Api; actions: ListActions }) {
   const item = (e: Operation) =>
     actions.renamingId === e.id ? (
       // Edited outside the link, so clicking into the field doesn't follow it.
-      <div key={e.id} className={cn(EXPLORER_ROW, "bg-accent")}>
+      <div key={e.id} className={cn(EXPLORER_CARD, "bg-accent")}>
         <span className="flex items-center gap-2">
           {dot(e)}
           <InlineEdit
@@ -160,7 +159,7 @@ function OperationList({ api, actions }: { api: Api; actions: ListActions }) {
                 actions.onRename(e.id)
               }
             }}
-            className={EXPLORER_ROW}
+            className={EXPLORER_CARD}
           >
             <span className="flex items-center gap-2">
               {dot(e)}
@@ -187,11 +186,9 @@ function OperationList({ api, actions }: { api: Api; actions: ListActions }) {
       toolbar={
         <>
           <SearchField value={query} onChange={setQuery} focusKey aria-label="Einsätze durchsuchen" />
-          <Hint label="Neuer Einsatz">
-            <Button size="icon" onClick={actions.onCreate} aria-label="Neuer Einsatz">
-              <PlusIcon />
-            </Button>
-          </Hint>
+          <Button onClick={actions.onCreate}>
+            <PlusIcon /> Neuer Einsatz
+          </Button>
         </>
       }
     >
@@ -199,13 +196,13 @@ function OperationList({ api, actions }: { api: Api; actions: ListActions }) {
         {running.length > 0 && (
           <section className="grid gap-1.5">
             <ListHeading>Laufend</ListHeading>
-            <div className={EXPLORER_LIST}>{running.map(item)}</div>
+            <div className={EXPLORER_CARDS}>{running.map(item)}</div>
           </section>
         )}
         {ended.length > 0 && (
           <section className="grid gap-1.5">
             <ListHeading>Beendet</ListHeading>
-            <div className={EXPLORER_LIST}>{ended.map(item)}</div>
+            <div className={EXPLORER_CARDS}>{ended.map(item)}</div>
           </section>
         )}
       </nav>

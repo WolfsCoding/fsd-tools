@@ -1,13 +1,6 @@
 import { useEffect, useRef, useState, type DragEvent } from "react"
 import { cn } from "cn"
-import {
-  Columns2Icon,
-  CopyIcon,
-  PinIcon,
-  PinOffIcon,
-  PlusIcon,
-  XIcon,
-} from "lucide-react"
+import { PinIcon, PinOffIcon, PlusIcon, XIcon } from "lucide-react"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -21,27 +14,27 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Hint } from "@/components/hint"
 import { MainMenu } from "@/components/main-menu"
 import { useEnabledFeatures } from "@/hooks/use-settings"
-import { useTabs, type Tab } from "@/hooks/use-tabs"
+import { TAB_DRAG_TYPE, useTabs, type Tab } from "@/hooks/use-tabs"
 
 type DropTarget = { id: string; side: "before" | "after" }
 
-const ICON_BUTTON =
-  "flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-tab-hover hover:text-foreground focus-visible:bg-tab-hover"
-
-/** WebStorm-like editor tabs in their own island above the page. */
+/**
+ * Tabs in the title bar like Windows 11's File Explorer: the active one is joined to
+ * the toolbar below, the others sit flat on the frame. The free space drags the
+ * window in a desktop shell.
+ */
 export function TabBar() {
-  const { tabs, activeId, openInNewTab, titleOf, move } =
-    useTabs()
+  const { tabs, activeId, openInNewTab, titleOf, move } = useTabs()
   const { enabledFeatures } = useEnabledFeatures()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null)
+  const activeIndex = tabs.findIndex((t) => t.id === activeId)
 
   useEffect(() => {
     scrollRef.current
@@ -66,33 +59,35 @@ export function TabBar() {
   }
 
   return (
-    <div className="flex h-11 shrink-0 items-center gap-1 rounded-xl bg-island px-1.5">
+    <div className="flex h-11 shrink-0 items-end bg-titlebar pl-1 app-drag md:pl-0">
       {/* Desktop has the menu on the tool strip. */}
-      <div className="md:hidden">
+      <div className="self-center app-no-drag md:hidden">
         <MainMenu />
       </div>
       <div
         ref={scrollRef}
         role="tablist"
         aria-label="Offene Tabs"
-        // Vertical wheel scrolls the strip sideways, like in the IDE.
+        // Vertical wheel scrolls the strip sideways.
         onWheel={(e) => {
           if (scrollRef.current && e.deltaY) {
             scrollRef.current.scrollLeft += e.deltaY
           }
         }}
-        className="flex min-w-0 items-center gap-1 no-scrollbar overflow-x-auto"
+        // px-2 leaves room for the active tab's flares.
+        className="flex h-full min-w-0 items-end no-scrollbar overflow-x-auto px-2 app-no-drag"
       >
-        {tabs.map((tab) => (
+        {tabs.map((tab, i) => (
           <TabItem
             key={tab.id}
             tab={tab}
-            active={tab.id === activeId}
+            active={i === activeIndex}
             dragging={tab.id === dragId}
             dropSide={dropTarget?.id === tab.id ? dropTarget.side : undefined}
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = "move"
               e.dataTransfer.setData("text/plain", titleOf(tab))
+              e.dataTransfer.setData(TAB_DRAG_TYPE, tab.id)
               setDragId(tab.id)
             }}
             onDragOver={(e) => onDragOver(e, tab.id)}
@@ -107,8 +102,12 @@ export function TabBar() {
       </div>
       <DropdownMenu>
         <Hint label="Neuer Tab">
-          <DropdownMenuTrigger aria-label="Neuer Tab" className={ICON_BUTTON}>
-            <PlusIcon className="size-4" />
+          <DropdownMenuTrigger
+            aria-label="Neuer Tab"
+            // Small like the tabs' close button and centered on the tabs' height.
+            className="mb-1 ml-0.5 flex h-6 w-7 shrink-0 items-center justify-center rounded-md text-strip-foreground outline-none app-no-drag transition-[background-color,scale] hover:bg-strip-hover active:scale-90 focus-visible:ring-2 focus-visible:ring-ring aria-expanded:bg-strip-hover [&_svg]:size-3.5"
+          >
+            <PlusIcon />
           </DropdownMenuTrigger>
         </Hint>
         <DropdownMenuContent align="start" className="w-60">
@@ -124,78 +123,7 @@ export function TabBar() {
           ))}
         </DropdownMenuContent>
       </DropdownMenu>
-      <SplitButton />
     </div>
-  )
-}
-
-/** Opens the split view of the active tab with a page to pick, or closes it. Not on phones. */
-function SplitButton() {
-  const { tabs, activeId, openSplit, closeSplit, titleOf } = useTabs()
-  const { enabledFeatures } = useEnabledFeatures()
-  const active = tabs.find((t) => t.id === activeId)
-  if (!active) return null
-
-  if (active.split !== undefined) {
-    return (
-      <Hint label="Split View schließen">
-        <button
-          type="button"
-          onClick={closeSplit}
-          aria-label="Split View schließen"
-          aria-pressed
-          className={cn(ICON_BUTTON, "ml-auto hidden bg-tab-hover text-foreground md:flex")}
-        >
-          <Columns2Icon className="size-4" />
-        </button>
-      </Hint>
-    )
-  }
-
-  const others = tabs.filter((t) => t.id !== activeId)
-  return (
-    <DropdownMenu>
-      <Hint label="Split View öffnen">
-        <DropdownMenuTrigger aria-label="Split View öffnen" className={cn(ICON_BUTTON, "ml-auto hidden md:flex")}>
-          <Columns2Icon className="size-4" />
-        </DropdownMenuTrigger>
-      </Hint>
-      <DropdownMenuContent align="end" className="w-60">
-        <DropdownMenuLabel>Rechts daneben öffnen</DropdownMenuLabel>
-        <DropdownMenuItem onSelect={() => openSplit()}>
-          <CopyIcon />
-          <span className="truncate">Diese Seite</span>
-        </DropdownMenuItem>
-        {others.length > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel>Offene Tabs</DropdownMenuLabel>
-            {others.map((t) => (
-              <TabOption key={t.id} tab={t} title={titleOf(t)} onSelect={() => openSplit(t.path)} />
-            ))}
-          </>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Bereiche</DropdownMenuLabel>
-        {enabledFeatures.map((f) => (
-          <DropdownMenuItem key={f.path} onSelect={() => openSplit(`/${f.path}`)}>
-            <f.icon />
-            <span className="truncate">{f.title}</span>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-function TabOption({ tab, title, onSelect }: { tab: Tab; title: string; onSelect: () => void }) {
-  const { featureOf } = useTabs()
-  const feature = featureOf(tab.path)
-  return (
-    <DropdownMenuItem onSelect={onSelect}>
-      {feature && <feature.icon />}
-      <span className="truncate">{title}</span>
-    </DropdownMenuItem>
   )
 }
 
@@ -232,8 +160,12 @@ function TabItem({
     activeId,
     openSplit,
     closeSplit,
+    splitWith,
+    unsplit,
+    swapSplit,
   } = useTabs()
   const feature = featureOf(tab.path)
+  const splitFeature = tab.split ? featureOf(tab.split) : undefined
   const title = titleOf(tab)
   const index = tabs.indexOf(tab)
   const hasUnpinned = tabs.some((t) => !t.pinned)
@@ -268,15 +200,25 @@ function TabItem({
             onDrop={onDrop}
             onDragEnd={onDragEnd}
             className={cn(
-              "group relative flex h-7 max-w-56 shrink-0 cursor-pointer items-center gap-1.5 rounded-md border border-transparent pr-1 pl-2 text-[13px] text-foreground/80 outline-none select-none hover:bg-tab-hover hover:text-foreground focus-visible:border-ring",
-              active &&
-                "border-tab-active-border bg-tab-active text-foreground hover:bg-tab-active",
+              // Opened tabs rise out of the frame; hover fades like the IDE's.
+              "group relative flex h-8 min-w-28 shrink cursor-pointer items-center gap-2 rounded-t-lg pr-1 pl-3 text-xs text-foreground outline-none select-none animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-2 transition-[background-color,opacity] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+              active
+                ? "z-10 bg-tab-active font-semibold tab-flares"
+                : "hover:bg-tab-hover",
+              // A split view fits both titles instead of the fixed width.
+              tab.split ? "max-w-[30rem]" : "w-60",
               dragging && "opacity-50",
             )}
           >
-            {feature && <feature.icon className="size-3.5 shrink-0" />}
+            {feature && <feature.icon className="size-4 shrink-0" />}
             <span className="truncate">{title}</span>
-            {tab.split && <Columns2Icon aria-label="Split View" className="size-3.5 shrink-0 text-muted-foreground" />}
+            {tab.split && (
+              <>
+                <span aria-hidden className="h-4 w-px shrink-0 bg-foreground/20" />
+                {splitFeature && <splitFeature.icon className="size-4 shrink-0" />}
+                <span className="truncate">{titleOfPath(tab.split)}</span>
+              </>
+            )}
             <button
               type="button"
               tabIndex={-1}
@@ -286,10 +228,7 @@ function TabItem({
                 if (tab.pinned) togglePin(tab.id)
                 else closeTabs(tab.id)
               }}
-              className={cn(
-                "flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-foreground/10 hover:text-foreground [&_svg]:size-3.5",
-                !tab.pinned && !active && "opacity-0 group-hover:opacity-100",
-              )}
+              className="ml-auto flex size-6 shrink-0 items-center justify-center rounded-sm text-foreground/80 transition-colors hover:bg-foreground/10 hover:text-foreground [&_svg]:size-3.5"
             >
               {tab.pinned ? (
                 <>
@@ -303,9 +242,8 @@ function TabItem({
             {dropSide && (
               <span
                 className={cn(
-                  "absolute inset-y-1 w-0.5 rounded-full bg-primary",
-                  // Centered in the gap-1 between tabs.
-                  dropSide === "before" ? "-left-[3.5px]" : "-right-[3.5px]",
+                  "absolute top-1 bottom-2 w-0.5 rounded-full bg-primary animate-in duration-150 fade-in-0",
+                  dropSide === "before" ? "-left-px" : "-right-px",
                 )}
               />
             )}
@@ -354,13 +292,17 @@ function TabItem({
         <ContextMenuSeparator />
         {active ? (
           tab.split ? (
-            <ContextMenuItem onSelect={closeSplit}>Split View schließen</ContextMenuItem>
+            <>
+              <ContextMenuItem onSelect={swapSplit}>Seiten tauschen</ContextMenuItem>
+              <ContextMenuItem onSelect={unsplit}>In zwei Tabs auflösen</ContextMenuItem>
+              <ContextMenuItem onSelect={closeSplit}>Split View schließen</ContextMenuItem>
+            </>
           ) : (
             <ContextMenuItem onSelect={() => openSplit()}>Split View öffnen</ContextMenuItem>
           )
         ) : (
-          // Shows this tab's page next to the active one.
-          <ContextMenuItem disabled={!activeId} onSelect={() => openSplit(tab.path)}>
+          // Merges this tab into the active one, like dropping it on the right half.
+          <ContextMenuItem disabled={!activeId} onSelect={() => splitWith(tab.id, "right")}>
             Rechts neben aktivem Tab öffnen
           </ContextMenuItem>
         )}

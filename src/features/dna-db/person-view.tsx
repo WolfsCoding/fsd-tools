@@ -1,19 +1,16 @@
 import { useMemo, useState, type ReactNode } from "react"
-import {
-  ClipboardCopyIcon,
-  FileTextIcon,
-  FolderIcon,
-  MessageSquareQuoteIcon,
-  PencilIcon,
-  ScaleIcon,
-  TriangleAlertIcon,
-  UserIcon,
-} from "lucide-react"
-import { Link, Navigate, useParams } from "react-router"
+import { ClipboardCopyIcon, EllipsisIcon, FilePlus2Icon, PencilIcon, PlusIcon, TriangleAlertIcon, UserIcon } from "lucide-react"
+import { Link, Navigate, useParams, useSearchParams } from "react-router"
 import { BackButton } from "@/components/explorer"
 import { Hint } from "@/components/hint"
 import { EmptyList } from "@/components/no-results"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Table,
   TableBody,
@@ -22,12 +19,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { caseFilePath } from "@/features/case-files/paths"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { copy } from "@/lib/clipboard"
 import { formatDate } from "@/lib/format-date"
+import { useCaseFileSummaries, type CaseFileMention, type CaseFileSummary } from "./case-file-mentions"
 import { DnaEntryDialog } from "./dna-entry-dialog"
 import { IdChip } from "./id-chip"
+import { TodoPanel } from "@/features/todos/todo-panel"
+import { useTodos } from "@/features/todos/use-todos"
+import { NoteList } from "@/features/notes/note-list"
 import { DNA_DB_BASE } from "./paths"
 import {
   chargePenalty,
@@ -42,8 +44,12 @@ import {
 } from "./person-records"
 import { TagBadge } from "./tag-badge"
 import { collectTags } from "./tags"
-import type { DnaEntry } from "./types"
+import type { DnaEntry, DnaEntryInput, ProfileKey } from "./types"
 import { entryName, useDnaEntries } from "./use-dna-entries"
+
+const TABS = ["akten", "straftaten", "aussagen", "todos", "notizen"] as const
+type Tab = (typeof TABS)[number]
+const isTab = (value: string | null): value is Tab => TABS.includes(value as Tab)
 
 /** `/dna-db/person/:entryId`; back to the list for an entry that doesn't exist (anymore). */
 export function PersonRoute() {
@@ -54,7 +60,7 @@ export function PersonRoute() {
   return <PersonView entry={entry} entries={entries} onUpdate={(input) => updateEntry(entry.id, input)} />
 }
 
-/** One person: their entry and everything the Akten record about them. */
+/** One person: their details, and tabs with the Akten, what they record, todos and notes. */
 function PersonView({
   entry,
   entries,
@@ -62,106 +68,143 @@ function PersonView({
 }: {
   entry: DnaEntry
   entries: DnaEntry[]
-  onUpdate: Parameters<typeof DnaEntryDialog>[0]["onSubmit"]
+  onUpdate: (input: Partial<DnaEntryInput> | ((entry: DnaEntry) => Partial<DnaEntryInput>)) => void
 }) {
   const [editing, setEditing] = useState(false)
+  const [creatingNote, setCreatingNote] = useState(false)
+  // In the URL, so coming back from an Akte opens the same tab.
+  const [params, setParams] = useSearchParams()
+  const tab = isTab(params.get("tab")) ? (params.get("tab") as Tab) : "akten"
   const knownTags = useMemo(() => collectTags(entries), [entries])
+  const caseFiles = useCaseFileSummaries()
   const records = usePersonRecords(entry)
   const { mentions, charges, statements } = records
+  const todosApi = useTodos()
+  const todos = useMemo(
+    () => todosApi.todos.filter((t) => t.personIds?.includes(entry.id)),
+    [todosApi.todos, entry.id],
+  )
   const name = entryName(entry)
   useTabTitle(name)
 
+  const profile = (key: ProfileKey) => entry[key]?.trim() || undefined
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <header className="border-b px-6 py-4">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+      <header className="grid gap-3 border-b bg-card px-6 py-4">
         <div className="flex items-center gap-3">
           <BackButton to={DNA_DB_BASE} label="Zur DNA-DB" />
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <UserIcon className="size-5" />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <UserIcon className="size-4" />
           </span>
-          <div className="grid min-w-0 flex-1 gap-0.5">
-            <p className="truncate text-xs text-muted-foreground">
-              Personenansicht · {mentions.length} {mentions.length === 1 ? "Akte" : "Akten"}
-            </p>
-            <h1 className={entry.name.trim() ? "truncate text-xl font-semibold" : "truncate text-xl font-semibold text-muted-foreground italic"}>
-              {name}
-            </h1>
-          </div>
+          <h1
+            className={
+              entry.name.trim()
+                ? "min-w-0 flex-1 truncate text-xl font-semibold"
+                : "min-w-0 flex-1 truncate text-xl font-semibold text-muted-foreground italic"
+            }
+          >
+            {name}
+          </h1>
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
             <PencilIcon /> <span className="hidden sm:inline">Bearbeiten</span>
           </Button>
-          <Hint label="Eintrag, Akten, Straftaten und Aussagen als Markdown kopieren">
-            <Button size="sm" onClick={() => copy(personSummary(entry, records), "Zusammenfassung")}>
-              <ClipboardCopyIcon /> <span className="hidden sm:inline">Zusammenfassung kopieren</span>
-            </Button>
-          </Hint>
+          <DropdownMenu>
+            <Hint label="Weitere Aktionen">
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon-sm" aria-label="Weitere Aktionen">
+                  <EllipsisIcon />
+                </Button>
+              </DropdownMenuTrigger>
+            </Hint>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem onSelect={() => copy(personSummary(entry, records), "Zusammenfassung")}>
+                <ClipboardCopyIcon /> Zusammenfassung kopieren
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+
+        <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <Fact label="Alias">{profile("alias")}</Fact>
+          <Fact label="Geschlecht">{profile("gender")}</Fact>
+          <Fact label="Geburtsdatum">{profile("birthDate")}</Fact>
+          <Fact label="Telefonnummer">{profile("phone") && <Copyable value={profile("phone")!} label="Telefonnummer" />}</Fact>
+          <Fact label="E-Mail">{profile("email") && <Copyable value={profile("email")!} label="E-Mail" />}</Fact>
+          <Fact label="Whistle">{profile("whistle")}</Fact>
+          <Fact label="Adresse">{profile("address")}</Fact>
+          <Fact label="Aktennummern">{entry.caseNumbers?.length ? entry.caseNumbers.join(", ") : undefined}</Fact>
+          <Fact label="Fingerabdruck-ID">
+            {entry.fingerprintId && <IdChip value={entry.fingerprintId} label="Fingerabdruck-ID" />}
+          </Fact>
+          <Fact label="DNA-ID">{entry.dnaId && <IdChip value={entry.dnaId} label="DNA-ID" />}</Fact>
+          <div className="flex min-w-0 flex-wrap items-center gap-1.5 lg:col-span-2">
+            <dt className="text-muted-foreground">Tags:</dt>
+            <dd className="flex flex-wrap items-center gap-1">
+              {entry.tags?.length ? (
+                entry.tags.map((tag) => <TagBadge key={tag.name} tag={tag} />)
+              ) : (
+                <span className="text-muted-foreground italic">Keine</span>
+              )}
+              <Hint label="Tags bearbeiten">
+                <Button variant="outline" size="icon-xs" aria-label="Tags bearbeiten" onClick={() => setEditing(true)}>
+                  <PlusIcon />
+                </Button>
+              </Hint>
+            </dd>
+          </div>
+        </dl>
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
-        <div className="mx-auto grid max-w-5xl gap-4">
-          <Card title="Eintrag" icon={UserIcon}>
-            <dl className="grid gap-x-6 gap-y-3 px-4 pb-4 text-sm sm:grid-cols-[max-content_1fr]">
-              <Fact label="DNA-ID">
-                <IdChip value={entry.dnaId} label="DNA-ID" />
-              </Fact>
-              <Fact label="Fingerabdruck-ID">
-                <IdChip value={entry.fingerprintId} label="Fingerabdruck-ID" />
-              </Fact>
-              <Fact label="Tags">
-                {entry.tags?.length ? (
-                  <div className="flex flex-wrap gap-1">
-                    {entry.tags.map((tag) => (
-                      <TagBadge key={tag.name} tag={tag} />
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">---</span>
-                )}
-              </Fact>
-              <Fact label="Aktennummern">
-                {entry.caseNumbers?.length ? (
-                  <div className="flex flex-wrap gap-1">
-                    {entry.caseNumbers.map((n) => (
-                      <span key={n} className="inline-flex items-center gap-1.5 rounded-md border bg-muted/60 px-2 py-0.5 text-xs">
-                        <FolderIcon className="size-3.5" /> {n}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-muted-foreground">---</span>
-                )}
-              </Fact>
-            </dl>
-          </Card>
+      <main className="px-6 py-6">
+        <Tabs
+          value={tab}
+          onValueChange={(value) =>
+            setParams(
+              (prev) => {
+                const next = new URLSearchParams(prev)
+                next.set("tab", value)
+                return next
+              },
+              { replace: true },
+            )
+          }
+          className="gap-0 overflow-hidden rounded-xl border bg-card"
+        >
+          {/* The bottom line is a shadow inside the header, so the active tab's line (inside
+              the scrolling list) lies right on it instead of being clipped. */}
+          <div className="flex items-center gap-2 pr-3 shadow-[inset_0_-1px_0_var(--color-border)]">
+            <TabsList variant="line" className="h-auto! min-w-0 flex-1 justify-start gap-0 overflow-x-auto p-0 px-3">
+              <PersonTab value="akten">Akten</PersonTab>
+              <PersonTab value="straftaten">Straftaten</PersonTab>
+              <PersonTab value="aussagen">Aussagen</PersonTab>
+              <PersonTab value="todos">Todos</PersonTab>
+              <PersonTab value="notizen">Notizen</PersonTab>
+            </TabsList>
+            {tab === "notizen" && (
+              <Button size="sm" variant="outline" onClick={() => setCreatingNote(true)}>
+                <FilePlus2Icon /> Notiz hinzufügen
+              </Button>
+            )}
+          </div>
 
-          <Card title="Erwähnt in Akten" icon={FileTextIcon} count={mentions.length}>
+          <TabsContent value="akten" className="p-4">
             {mentions.length ? (
-              <ul className="grid gap-px px-2 pb-2">
-                {mentions.map((m) => (
-                  <li key={m.id}>
-                    <Link
-                      to={caseFilePath(m.id)}
-                      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                    >
-                      <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="truncate">{m.title}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <CaseFilesTable mentions={mentions} caseFiles={caseFiles} />
             ) : (
               <EmptyList>Keine Akte nennt die DNA-ID, Fingerabdruck-ID oder den Namen.</EmptyList>
             )}
-          </Card>
-
-          <Card title="Straftaten" icon={ScaleIcon} count={charges.length}>
-            {charges.length ? <ChargesTable charges={charges} /> : <EmptyList>Keine Straftaten in den Akten erfasst.</EmptyList>}
-          </Card>
-
-          <Card title="Aussagen" icon={MessageSquareQuoteIcon} count={statements.length}>
+          </TabsContent>
+          <TabsContent value="straftaten" className="p-4">
+            {charges.length ? (
+              <ChargesTable charges={charges} />
+            ) : (
+              <EmptyList>Keine Straftaten in den Akten erfasst.</EmptyList>
+            )}
+          </TabsContent>
+          <TabsContent value="aussagen" className="p-4">
             {statements.length ? (
-              <ul className="grid gap-2 px-4 pb-4">
+              <ul className="grid gap-2">
                 {statements.map((s) => (
                   <StatementItem key={`${s.path}:${s.role}`} statement={s} />
                 ))}
@@ -169,8 +212,26 @@ function PersonView({
             ) : (
               <EmptyList>Keine Aussagen von oder über diese Person.</EmptyList>
             )}
-          </Card>
-        </div>
+          </TabsContent>
+          <TabsContent value="todos" className="p-4">
+            <TodoPanel
+              todos={todos}
+              api={todosApi}
+              preset={{ personIds: [entry.id] }}
+              empty="Noch keine Todos für diese Person."
+            />
+          </TabsContent>
+          {/* On the page's background, so the notes look as they do under "Notizen". */}
+          <TabsContent value="notizen" className="bg-background p-4">
+            <NoteList
+              notes={entry.notes ?? []}
+              onUpdate={(change) => onUpdate((e) => ({ notes: change(e.notes ?? []) }))}
+              creating={creatingNote}
+              onCreatingChange={setCreatingNote}
+              empty={<EmptyList>Noch keine Notizen zu dieser Person.</EmptyList>}
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
       <DnaEntryDialog
@@ -187,35 +248,88 @@ function PersonView({
   )
 }
 
-function Card({
-  title,
-  icon: Icon,
-  count,
-  children,
-}: {
-  title: string
-  icon: typeof UserIcon
-  count?: number
-  children: ReactNode
-}) {
+function PersonTab({ value, children }: { value: Tab; children: ReactNode }) {
   return (
-    // overflow-hidden clips row hover backgrounds to the rounded corners.
-    <section className="overflow-hidden rounded-xl border bg-card">
-      <h2 className="flex items-center gap-2 px-4 pt-3.5 pb-2.5 text-sm font-medium">
-        <Icon className="size-4 text-muted-foreground" /> {title}
-        {count !== undefined && <span className="text-muted-foreground">{count}</span>}
-      </h2>
+    <TabsTrigger
+      value={value}
+      className="h-12 flex-none px-3 text-[0.95rem] after:bottom-0! data-active:text-primary! group-data-[variant=line]/tabs-list:after:bg-primary"
+    >
       {children}
-    </section>
+    </TabsTrigger>
   )
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+/** "Label: value"; empty values show nothing after the label. */
+function Fact({ label, children }: { label: string; children?: ReactNode }) {
   return (
-    <>
-      <dt className="text-muted-foreground sm:pt-0.5">{label}</dt>
-      <dd>{children}</dd>
-    </>
+    <div className="flex min-w-0 items-baseline gap-1.5">
+      <dt className="shrink-0 text-muted-foreground">{label}:</dt>
+      <dd className="min-w-0 truncate">{children}</dd>
+    </div>
+  )
+}
+
+/** A detail that copies itself on click, e.g. the phone number. */
+function Copyable({ value, label }: { value: string; label: string }) {
+  return (
+    <Hint label={`${label} kopieren`}>
+      <button
+        type="button"
+        onClick={() => copy(value, label)}
+        className="max-w-full cursor-pointer truncate rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        {value}
+      </button>
+    </Hint>
+  )
+}
+
+const TABLE_HEAD = "[&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase"
+
+function CaseFilesTable({
+  mentions,
+  caseFiles,
+}: {
+  mentions: CaseFileMention[]
+  caseFiles: Map<string, CaseFileSummary>
+}) {
+  return (
+    <div className="overflow-hidden rounded-lg border">
+      <Table className={TABLE_HEAD}>
+        <TableHeader>
+          <TableRow className="bg-muted/50 hover:bg-muted/50">
+            <TableHead>Titel</TableHead>
+            <TableHead>Datum</TableHead>
+            <TableHead>Status</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {mentions.map((m) => {
+            const c = caseFiles.get(m.id)
+            return (
+              <TableRow key={m.id}>
+                <TableCell className="max-w-0 w-full">
+                  <Link
+                    to={caseFilePath(m.id)}
+                    className="block truncate text-sky-300 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    {m.title}
+                  </Link>
+                </TableCell>
+                <TableCell className="text-muted-foreground tabular-nums">{c ? formatDate(c.createdAt) : "--"}</TableCell>
+                <TableCell>
+                  {c?.settled ? (
+                    <span className="text-muted-foreground">Abgeschlossen</span>
+                  ) : (
+                    <span className="text-emerald-300">Laufend</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+    </div>
   )
 }
 
@@ -236,8 +350,8 @@ function SourceLink({ source }: { source: RecordSource }) {
 function ChargesTable({ charges }: { charges: PersonCharge[] }) {
   const total = chargesTotal(charges)
   return (
-    <>
-      <Table className="[&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase">
+    <div className="overflow-hidden rounded-lg border">
+      <Table className={TABLE_HEAD}>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
             <TableHead>Datum</TableHead>
@@ -278,7 +392,7 @@ function ChargesTable({ charges }: { charges: PersonCharge[] }) {
           <span className="text-muted-foreground">Gesamt:</span> <span className="font-medium tabular-nums">{total}</span>
         </p>
       )}
-    </>
+    </div>
   )
 }
 

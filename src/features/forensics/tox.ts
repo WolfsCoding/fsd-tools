@@ -129,31 +129,36 @@ function resultLines(row: Row, colors: Colors) {
     p: (key) => {
       const p = param(key)
       const v = row[key]?.trim()
-      if (!p) return "XXX"
+      if (!p) return "N/A"
       return v ? withUnit(v, p.range.unit) : (p.fallback ?? rangePlaceholder(p.range))
     },
-    rest: restOf(row) || (restParam ? restPlaceholder(restParam.range) : "XXX"),
+    rest: restOf(row) || (restParam ? restPlaceholder(restParam.range) : "N/A"),
     agents: agents.length ? joinAnd(agents) : `[ XX ${s.agents?.options.join(", ") ?? "XXX"} XX ]`,
   })
   return lines.map(([title, text]) => `> - <font color=${colors.heading}><b>${title}:</b></font> ${text}`).join("\n")
 }
 
-/** Section 0 (the overview), one numbered section per substance, `next` numbers what follows. */
-export function toxSections(value: Value | undefined, style: { colors: Colors }) {
-  const rows = foundRows(value)
+const OVERVIEW_HEADERS = ["Produkt", "Menge", "Stichprobe (10%)", "Einheit", "Anmerkung"]
+
+/**
+ * Section 0 (the overview), one numbered section per substance, `next` numbers what follows. The
+ * empty template (`blank`) shows every substance of the catalog with placeholders.
+ */
+export function toxSections(value: Value | undefined, style: { colors: Colors }, blank = false) {
+  const found = foundRows(value)
+  const rows: Row[] = !found.length && blank ? SUBSTANCES.map((s) => ({ ...newSubstanceRow(s), einheit: "" })) : found
   // Without substances there's nothing to give an overview of.
   if (!rows.length) return { sections: [], next: 1 }
   const overview = table(
-    ["#", "Produkt", "Menge", "Stichprobe (10%)", "Einheit", "Anmerkung"],
-    rows.map((row, i) => {
+    OVERVIEW_HEADERS,
+    rows.map((row) => {
       const s = substanceOf(row)
       return [
-        String(i + 1),
         s.name,
         row.menge?.trim() || "x",
         sampleOf(row) || "x",
         row.einheit?.trim() || s.units.join("/"),
-        row.anmerkung?.trim() || "---",
+        row.anmerkung?.trim() || "N/A",
       ]
     }),
   )

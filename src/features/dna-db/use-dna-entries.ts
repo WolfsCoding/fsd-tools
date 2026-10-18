@@ -1,8 +1,9 @@
 import { useCallback, useEffect } from "react"
 import { useLocalStorage } from "@/lib/local-storage"
 import { sameText } from "@/lib/text"
+import { isNote } from "@/features/notes/use-notes"
 import { isTagColor, sameTag } from "./tags"
-import type { DnaEntry, DnaEntryInput, DnaTag } from "./types"
+import { PROFILE_FIELDS, type DnaEntry, type DnaEntryInput, type DnaTag } from "./types"
 
 export const DNA_ENTRIES_KEY = "dna-db:entries"
 const EMPTY: DnaEntry[] = []
@@ -31,7 +32,9 @@ function isDnaEntry(value: unknown): value is DnaEntry {
     ) &&
     (v.tags === undefined || (Array.isArray(v.tags) && v.tags.every(isDnaTag))) &&
     (v.caseNumbers === undefined ||
-      (Array.isArray(v.caseNumbers) && v.caseNumbers.every((n) => typeof n === "string")))
+      (Array.isArray(v.caseNumbers) && v.caseNumbers.every((n) => typeof n === "string"))) &&
+    PROFILE_FIELDS.every((f) => v[f.key] === undefined || typeof v[f.key] === "string") &&
+    (v.notes === undefined || (Array.isArray(v.notes) && v.notes.every(isNote)))
   )
 }
 
@@ -55,14 +58,25 @@ export function isDuplicate(a: DnaEntry, b: DnaEntry) {
   return sharesId && fits(a.name, b.name) && fits(a.dnaId, b.dnaId) && fits(a.fingerprintId, b.fingerprintId)
 }
 
-/** `into` with what only `from` has: empty fields filled, tags and case numbers of both. */
+/** Items of `a`, then those of `b` with an id `a` doesn't have; undefined while there are none. */
+function byId<T extends { id: string }>(a: T[] = [], b: T[] = []) {
+  const all = [...a, ...b.filter((x) => !a.some((y) => y.id === x.id))]
+  return all.length ? all : undefined
+}
+
+/** `into` with what only `from` has: empty fields filled, tags, case numbers and notes of both. */
 function merge(into: DnaEntry, from: DnaEntry): DnaEntry {
   const tags = [...(into.tags ?? [])]
   for (const tag of from.tags ?? []) if (!tags.some((t) => sameTag(t.name, tag.name))) tags.push(tag)
   const caseNumbers = [...(into.caseNumbers ?? [])]
   for (const n of from.caseNumbers ?? []) if (!caseNumbers.some((c) => sameText(c, n))) caseNumbers.push(n)
+  const profile = Object.fromEntries(
+    PROFILE_FIELDS.map(({ key }) => [key, into[key]?.trim() || from[key]]).filter(([, v]) => v),
+  )
   return {
     ...into,
+    ...profile,
+    notes: byId(into.notes, from.notes),
     name: into.name.trim() || from.name,
     dnaId: into.dnaId || from.dnaId,
     fingerprintId: into.fingerprintId || from.fingerprintId,

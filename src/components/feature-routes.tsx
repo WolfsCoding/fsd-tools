@@ -46,8 +46,10 @@ export function HomeRoute() {
       // m-auto centers the content but still lets it scroll when it overflows.
       <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="m-auto flex flex-col items-center py-10">
-          <img src="/favicon.svg" alt="" className="mb-8 size-24" />
-          <Disclaimer />
+          <img src="/favicon.svg" alt="" className="mb-8 size-24 animate-in duration-500 ease-out-quint fade-in-0 zoom-in-90" />
+          <div className="animate-in duration-500 ease-out-quint fade-in-0 slide-in-from-bottom-2 fill-mode-backwards delay-100">
+            <Disclaimer />
+          </div>
         </div>
       </div>
     )
