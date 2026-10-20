@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react"
 import { readKeys, useLocalStorage } from "@/lib/local-storage"
 import type { Note } from "./types"
+import { FOLDERS_KEY, isValidFoldersData } from "./folders"
 import type { UpdateNotes } from "./note-list"
 
 export const NOTES_KEY = "notes:notes"
@@ -17,7 +18,10 @@ type StoredNote = Note | (Omit<Note, "content"> & { pages: string[]; pageBreaks?
 /** Checks imported data before it replaces the stored notes. */
 export function isValidNotesData(data: Record<string, unknown>) {
   const notes = data[NOTES_KEY]
-  return notes === undefined || (Array.isArray(notes) && notes.every((n) => isNote(n) || isPagedNote(n)))
+  return (
+    (notes === undefined || (Array.isArray(notes) && notes.every((n) => isNote(n) || isPagedNote(n)))) &&
+    isValidFoldersData(data[FOLDERS_KEY])
+  )
 }
 
 export function isNote(value: unknown): value is Note {
@@ -25,7 +29,9 @@ export function isNote(value: unknown): value is Note {
   const v = value as Record<string, unknown>
   return (
     ["id", "title", "content", "createdAt", "updatedAt"].every((k) => typeof v[k] === "string") &&
-    (v.author === undefined || typeof v.author === "string")
+    (v.author === undefined || typeof v.author === "string") &&
+    (v.folderId === undefined || typeof v.folderId === "string") &&
+    (v.order === undefined || typeof v.order === "number")
   )
 }
 

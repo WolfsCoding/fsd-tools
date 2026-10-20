@@ -28,11 +28,11 @@ type History ={ back: string[]; forward: string[] }
  */
 export function NavBar({ onReload }: { onReload: () => void }) {
   const navigate = useNavigate()
-  const { tabs, activeId, featureOf } = useTabs()
+  const { tabs, activeId, featureOf, trailOfPath } = useTabs()
   const active = tabs.find((t) => t.id === activeId)
   const history = useTabHistory(active)
   const feature = active && featureOf(active.path)
-  const up = active && feature ? parentOf(active.path, `/${feature.path}`) : undefined
+  const up = active && feature ? (trailOfPath(active.path).at(-1)?.to ?? parentOf(active.path, `/${feature.path}`)) : undefined
 
   return (
     <div className="flex h-12 shrink-0 items-center gap-1 bg-frame px-2">
@@ -129,7 +129,7 @@ function NavButton({
  */
 function AddressBar() {
   const navigate = useNavigate()
-  const { tabs, activeId, featureOf, titleOf } = useTabs()
+  const { tabs, activeId, featureOf, titleOf, trailOfPath } = useTabs()
   const [editing, setEditing] = useState(false)
   const active = tabs.find((t) => t.id === activeId)
   const feature = active && featureOf(active.path)
@@ -139,6 +139,7 @@ function AddressBar() {
   const crumbs: { label: string; to?: string }[] = [
     { label: "FSD Tools" },
     ...(feature ? [{ label: feature.title, to: `/${feature.path}` }] : []),
+    ...(active && feature ? trailOfPath(active.path) : []),
     ...(pageTitle ? [{ label: pageTitle }] : []),
   ]
 

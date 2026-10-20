@@ -30,6 +30,7 @@ import { FSU_BASE } from "./fsu/paths"
 import { NotesPage } from "./notes/notes-page"
 import { NotesSettings } from "./notes/notes-settings"
 import { NOTES_BASE } from "./notes/paths"
+import { FOLDERS_KEY } from "./notes/folders"
 import { isValidNotesData, LEGACY_PAGES_KEY, NOTES_KEY } from "./notes/use-notes"
 import { TODOS_BASE } from "./todos/paths"
 import { TodosPage } from "./todos/todos-page"
@@ -93,7 +94,7 @@ export const features: Feature[] = [
     description: "Notizen in Markdown, wie die zu Personen",
     icon: NotebookPenIcon,
     element: <NotesPage />,
-    storage: { keys: [NOTES_KEY, LEGACY_PAGES_KEY], validate: isValidNotesData },
+    storage: { keys: [NOTES_KEY, FOLDERS_KEY, LEGACY_PAGES_KEY], validate: isValidNotesData },
     settings: NotesSettings,
   },
   {

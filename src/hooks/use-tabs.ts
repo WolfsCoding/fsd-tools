@@ -51,6 +51,15 @@ export interface TabsContextValue {
   /** Activates the tab `offset` places away, wrapping around. */
   cycle: (offset: number) => void
   setTitle: (path: string, title: string | undefined) => void
+  /** Pages between the feature and `path`, set by its page via `useTabTrail`. */
+  trailOfPath: (path: string) => Crumb[]
+  setTrail: (path: string, trail: Crumb[]) => void
+}
+
+/** A page in the address bar, leading to `to`. */
+export interface Crumb {
+  label: string
+  to: string
 }
 
 /** A tab's route without its query, e.g. "/dna-db?q=x" → "/dna-db"; titles are keyed by it. */
@@ -78,4 +87,16 @@ export function useTabTitle(title: string | undefined) {
   const { pathname } = useLocation()
   const { setTitle } = useTabs()
   useEffect(() => setTitle(pathname, title), [pathname, title, setTitle])
+}
+
+/**
+ * Pages between the feature and the current route, shown in the address bar before
+ * its title, e.g. the folders around the open one. "Nach oben" leads to the last.
+ */
+export function useTabTrail(trail: Crumb[]) {
+  const { pathname } = useLocation()
+  const { setTrail } = useTabs()
+  // Compared by content, so a new array with the same crumbs changes nothing.
+  const key = JSON.stringify(trail)
+  useEffect(() => setTrail(pathname, JSON.parse(key) as Crumb[]), [pathname, key, setTrail])
 }

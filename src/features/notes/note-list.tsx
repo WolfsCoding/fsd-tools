@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react"
-import { ChevronRightIcon, PencilIcon, Trash2Icon } from "lucide-react"
+import { PencilIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
 import {
   Dialog,
   DialogContent,
@@ -18,11 +19,28 @@ import { useOwnIdentity } from "@/features/case-files/use-case-files"
 import { useFullscreen } from "@/hooks/use-fullscreen"
 import { formatLongDateTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
+import { byPosition, useArrangeRow, type Arrange } from "./arrange"
+import { DragHandle, FolderItem, ParentItem, ROW } from "./folder-list"
+import { useAfterMenuClose } from "./use-after-menu-close"
 import { MarkdownEditor, NoteMarkdown } from "./markdown-editor"
-import type { Note } from "./types"
+import type { Note, NoteFolder } from "./types"
+import { noteTitle } from "./use-notes"
 
 /** Changes the stored notes to what `change` returns for them as stored by then. */
 export type UpdateNotes = (change: (notes: Note[]) => Note[]) => void
+
+/** Folders shown among the notes, with what to do with them. */
+export interface FolderRows {
+  items: NoteFolder[]
+  /** What is inside, e.g. "1 Ordner · 3 Notizen". */
+  describe: (folder: NoteFolder) => string
+  /** Id of the folder whose name is being edited in place. */
+  renaming: string | null
+  onRename: (folder: NoteFolder) => void
+  /** The new name, or undefined to keep the old one. */
+  onRenameDone: (folder: NoteFolder, name: string | undefined) => void
+  onRemove: (folder: NoteFolder) => void
+}
 
 const NEW = "new"
 const now = () => new Date().toISOString()
@@ -38,6 +56,10 @@ export function NoteList({
   onCreatingChange,
   empty,
   reveal,
+  folderId,
+  folders,
+  parent,
+  onArrange,
 }: {
   /** The notes to list; changes go to all stored ones through `onUpdate`. */
   notes: Note[]
@@ -48,12 +70,19 @@ export function NoteList({
   empty: ReactNode
   /** Note to fold open and scroll to, e.g. when opened from the command palette. */
   reveal?: string
+  /** Folder new notes go into. */
+  folderId?: string
+  /** Folders listed among the notes. */
+  folders?: FolderRows
+  /** Leads up to this folder (the top level when its id is undefined) with a ".." row first. */
+  parent?: { id: string | undefined }
+  /** Lets notes and folders be dragged into another place or folder by their handles. */
+  onArrange?: Arrange
 }) {
   const { identity } = useOwnIdentity()
   // Id of the note being edited in place; one at a time.
   const [editing, setEditing] = useState<string | null>(null)
-  // Newest first.
-  const notes = [...shown].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const entries = [...shown, ...(folders?.items ?? [])].sort(byPosition)
   // All folded at the start; each folds open on click.
   const [open, setOpen] = useState(() => new Set<string>())
   const toggle = (id: string, isOpen: boolean) =>
@@ -78,6 +107,7 @@ export function NoteList({
         title,
         content,
         ...(identity.full ? { author: identity.full } : {}),
+        ...(folderId ? { folderId } : {}),
         createdAt: at,
         updatedAt: at,
       }
@@ -105,25 +135,39 @@ export function NoteList({
 
   return (
     <div className="grid gap-3">
-      {notes.length ? (
+      {(entries.length > 0 || parent) && (
         <ul className="divide-y overflow-hidden rounded-lg border stagger-in">
-          {notes.map((note) => (
-            <NoteItem
-              key={note.id}
-              note={note}
-              open={open.has(note.id) || editing === note.id}
-              editing={editing === note.id}
-              onOpenChange={(isOpen) => toggle(note.id, isOpen)}
-              onEdit={() => setEditing(note.id)}
-              onSave={(title, content) => save(note.id, title, content)}
-              onCancel={() => setEditing(null)}
-              onRemove={() => remove(note)}
-            />
-          ))}
+          {parent && <ParentItem parentId={parent.id} onArrange={onArrange} />}
+          {entries.map((entry) =>
+            "title" in entry ? (
+              <NoteItem
+                key={entry.id}
+                note={entry}
+                open={open.has(entry.id) || editing === entry.id}
+                editing={editing === entry.id}
+                onOpenChange={(isOpen) => toggle(entry.id, isOpen)}
+                onEdit={() => setEditing(entry.id)}
+                onSave={(title, content) => save(entry.id, title, content)}
+                onCancel={() => setEditing(null)}
+                onRemove={() => remove(entry)}
+                onArrange={onArrange}
+              />
+            ) : (
+              <FolderItem
+                key={entry.id}
+                folder={entry}
+                description={folders!.describe(entry)}
+                renaming={folders!.renaming === entry.id}
+                onRename={() => folders!.onRename(entry)}
+                onRenameDone={(name) => folders!.onRenameDone(entry, name)}
+                onRemove={() => folders!.onRemove(entry)}
+                onArrange={onArrange}
+              />
+            ),
+          )}
         </ul>
-      ) : (
-        empty
       )}
+      {!entries.length && empty}
 
       <NewNoteDialog
         open={creating}
@@ -144,6 +188,7 @@ function NoteItem({
   onSave,
   onCancel,
   onRemove,
+  onArrange,
 }: {
   note: Note
   open: boolean
@@ -153,13 +198,19 @@ function NoteItem({
   onSave: (title: string, content: string) => void
   onCancel: () => void
   onRemove: () => void
+  onArrange?: Arrange
 }) {
+  const drag = useArrangeRow({ item: { kind: "note", id: note.id }, onArrange })
+  const menu = useAfterMenuClose()
   return (
     <Collapsible asChild open={open} onOpenChange={(o) => !editing && onOpenChange(o)}>
-      <li id={`note-${note.id}`} className="scroll-mt-4">
-        <div className="flex items-center gap-2 bg-card px-3 py-2.5">
+      <li {...drag.row} id={`note-${note.id}`} className={cn("scroll-mt-4", drag.rowClassName)}>
+        {/* "Bearbeiten" and "Löschen" on right click. */}
+        <ContextMenu>
+          <ContextMenuTrigger asChild>
+          <div className={ROW}>
+          {drag.handle && <DragHandle label={`„${noteTitle(note)}“ verschieben`} {...drag.handle} />}
           <CollapsibleTrigger className="group/note flex min-w-0 flex-1 items-center gap-2.5 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]/note:rotate-90" />
             <span className="grid min-w-0">
               <span className={cn("truncate text-lg font-semibold", !note.title.trim() && "text-muted-foreground italic")}>
                 {note.title.trim() || "Ohne Titel"}
@@ -169,13 +220,17 @@ function NoteItem({
               </span>
             </span>
           </CollapsibleTrigger>
-          <Button variant="ghost" size="sm" onClick={onEdit} disabled={editing}>
-            <PencilIcon /> <span className="hidden sm:inline">Bearbeiten</span>
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onRemove}>
-            <Trash2Icon /> <span className="hidden sm:inline">Löschen</span>
-          </Button>
-        </div>
+          </div>
+          </ContextMenuTrigger>
+          <ContextMenuContent onCloseAutoFocus={menu.onCloseAutoFocus}>
+            <ContextMenuItem onSelect={menu.later(onEdit)} disabled={editing}>
+              <PencilIcon /> Bearbeiten
+            </ContextMenuItem>
+            <ContextMenuItem variant="destructive" onSelect={onRemove}>
+              <Trash2Icon /> Löschen
+            </ContextMenuItem>
+          </ContextMenuContent>
+        </ContextMenu>
         {/* No background, so the note reads like a page under its header. */}
         <CollapsibleContent className="border-t">
           {editing ? (

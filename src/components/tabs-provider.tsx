@@ -24,6 +24,7 @@ import {
   routeOf,
   TabsContext,
   type CloseScope,
+  type Crumb,
   type Tab,
   type TabsContextValue,
 } from "@/hooks/use-tabs"
@@ -36,6 +37,8 @@ interface TabsState {
   activeId: string | null
   /** Page titles by path, so inactive tabs keep their names. */
   titles: Record<string, string>
+  /** Pages between the feature and each path, like `titles`; missing in older states. */
+  trails?: Record<string, Crumb[]>
   /** Tab ids, most recently used first; closing a tab returns to the previous one. */
   recent: string[]
 }
@@ -43,6 +46,7 @@ interface TabsState {
 // null until the first tab opens; lets `/` tell "new user" from "closed all tabs".
 const NO_STATE: TabsState | null = null
 const EMPTY: TabsState = { tabs: [], activeId: null, titles: {}, recent: [] }
+const NO_TRAIL: Crumb[] = []
 
 function withActive(state: TabsState, id: string | null): TabsState {
   if (!id) return { ...state, activeId: null }
@@ -69,7 +73,10 @@ function withTabs(state: TabsState, tabs: Tab[]): TabsState {
   const titles = Object.fromEntries(
     Object.entries(state.titles).filter(([path]) => paths.has(path)),
   )
-  return { ...state, tabs, titles }
+  const trails = Object.fromEntries(
+    Object.entries(state.trails ?? {}).filter(([path]) => paths.has(path)),
+  )
+  return { ...state, tabs, titles, trails }
 }
 
 function isEditable(target: EventTarget | null) {
@@ -307,6 +314,20 @@ export function TabsProvider({ children }: { children: ReactNode }) {
   )
   const titleOf = useCallback((tab: Tab) => titleOfPath(tab.path), [titleOfPath])
 
+  const setTrail = useCallback(
+    (path: string, trail: Crumb[]) =>
+      update((s) => {
+        const trails = { ...s.trails }
+        if (JSON.stringify(trails[path] ?? []) === JSON.stringify(trail)) return s
+        if (trail.length) trails[path] = trail
+        else delete trails[path]
+        return { ...s, trails }
+      }),
+    [update],
+  )
+
+  const trailOfPath = useCallback((path: string) => state.trails?.[routeOf(path)] ?? NO_TRAIL, [state.trails])
+
   /** Changes the active tab with `fn`; without an active tab nothing happens. */
   const updateActive = useCallback(
     (fn: (tab: Tab) => Tab) =>
@@ -528,8 +549,12 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       move,
       cycle,
       setTitle,
+      trailOfPath,
+      setTrail,
     }),
     [
+      trailOfPath,
+      setTrail,
       tabs,
       activeId,
       stored,
