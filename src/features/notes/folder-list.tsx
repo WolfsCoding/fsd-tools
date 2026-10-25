@@ -106,10 +106,13 @@ export function ParentItem({ parentId, onArrange }: { parentId: string | undefin
   const drag = useArrangeRow({ into: { id: parentId }, onArrange })
   return (
     <li {...drag.row} className={cn(ROW, drag.rowClassName)}>
+      {/* Keeps the icon in line with the rows that have a grip. */}
+      {drag.handle && <span className="-ml-1 w-5 shrink-0" />}
+      {/* As tall as a name with a line below it, like the other rows. */}
       <Link
         to={folderPath(parentId)}
         aria-label="Zurück zum übergeordneten Ordner"
-        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <CornerLeftUpIcon className="size-4 shrink-0 text-muted-foreground" />
         <span className="text-lg font-semibold tracking-widest">...</span>

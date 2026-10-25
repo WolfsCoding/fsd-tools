@@ -2,7 +2,7 @@
 // Built from the same fields as the Akten.
 
 import { banner, bullets, cell, code, DEPARTMENT, doc, facts, formatLocalDateTime, rawTable, section, table, titleComment } from "@/features/case-files/markdown"
-import { PERSON, tableRows, type Field, type Reader, type Section, type TableField, type Template } from "@/features/case-files/templates"
+import { headerImage, PERSON, tableRows, type Field, type Reader, type Section, type TableField, type Template } from "@/features/case-files/templates"
 import { rowTraces, storeTraces } from "@/features/case-files/traces"
 import type { Row, Values } from "@/features/case-files/types"
 import { SubstancesInput } from "./substances-input"
@@ -34,8 +34,7 @@ function headSection(): Section {
   }
 }
 
-const BANNER =
-  "https://s3.homestate.eu/user-content/public/76b975d4-9ef5-4f9a-80a3-caef2d54baef/5a578624-428c-453a-9aad-e49118820c20.webp"
+const BANNER = headerImage("Forensik")
 
 /** The FSD banner and the case facts. */
 function bannerHead(r: Reader, date = r.text("datum")) {

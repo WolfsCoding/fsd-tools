@@ -520,13 +520,18 @@ export function tableRows(value: Value | undefined): Row[] {
 
 /* Field groups and blocks several templates share. */
 
-const IMAGES = "https://s3.homestate.eu/user-content/public"
-const CRIMINAL_BANNER = `${IMAGES}/76b975d4-9ef5-4f9a-80a3-caef2d54baef/5d519e1f-ea98-4ffb-a471-cf391c50bd08.webp`
-const COLLECTIVE_BANNER = `${IMAGES}/76b975d4-9ef5-4f9a-80a3-caef2d54baef/681ed034-9ea3-4ce6-8c44-b988e08c18e8.webp`
-const INVESTIGATION_BANNER = `${IMAGES}/76b975d4-9ef5-4f9a-80a3-caef2d54baef/eab71764-e3e9-46a0-8fd0-2a631504cc86.webp`
-const SPEEDING_BANNER = `${IMAGES}/76b975d4-9ef5-4f9a-80a3-caef2d54baef/e29af3dc-ead6-480b-af79-c27c5ccbdceb.webp`
-const SUSPECT_BANNER = `${IMAGES}/76b975d4-9ef5-4f9a-80a3-caef2d54baef/3642b101-da73-4866-8266-cf90e2665ec7.webp`
-const STATEMENT_BANNER = `${IMAGES}/76b975d4-9ef5-4f9a-80a3-caef2d54baef/7187ef9e-d747-409a-913e-0063c6a2e2b6.webp`
+/** A VPD header from the hosted header API. */
+export function headerImage(title: string) {
+  const params = new URLSearchParams({ title, subtitle: "Vinewood Police Department", logo: "vpd", scale: "2" })
+  return `https://hs-headers.poyixq.app/?${params.toString().replaceAll("+", "%20")}`
+}
+
+const CRIMINAL_BANNER = headerImage("Strafakte")
+const COLLECTIVE_BANNER = headerImage("Sammelakte")
+const INVESTIGATION_BANNER = headerImage("Ermittlung")
+const SPEEDING_BANNER = headerImage("Speedingticket")
+const SUSPECT_BANNER = headerImage("Beschuldigter")
+const STATEMENT_BANNER = headerImage("Aussage")
 
 const ITEMS: TableField = {
   type: "table",
