@@ -30,6 +30,7 @@ import { chargesMarkdown } from "./charges"
 import { ChargesInput } from "./charges-input"
 import { roll, type Range } from "./range"
 import type { DnaEntry } from "@/features/dna-db/types"
+import { HEADER_API } from "@/features/headers/paths"
 import { formatTraces, lookupLabel, rowLookup, rowTraces, type DbField, type TraceKind } from "./traces"
 import type { Row, Value, Values } from "./types"
 
@@ -523,7 +524,7 @@ export function tableRows(value: Value | undefined): Row[] {
 /** A VPD header from the hosted header API. */
 export function headerImage(title: string) {
   const params = new URLSearchParams({ title, subtitle: "Vinewood Police Department", logo: "vpd", scale: "2" })
-  return `https://hs-headers.poyixq.app/?${params.toString().replaceAll("+", "%20")}`
+  return `${HEADER_API}?${params.toString().replaceAll("+", "%20")}`
 }
 
 const CRIMINAL_BANNER = headerImage("Strafakte")

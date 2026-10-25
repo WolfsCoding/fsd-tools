@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react"
-import { CopyIcon, ImageDownIcon, ImageIcon, RotateCcwIcon, SlidersHorizontalIcon, UploadIcon } from "lucide-react"
+import { ChevronDownIcon, CodeIcon, CopyIcon, ImageDownIcon, ImageIcon, LinkIcon, RotateCcwIcon, SlidersHorizontalIcon, UploadIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +18,7 @@ import {
   DEFAULT_DESIGN,
   drawHeader,
   headerPng,
+  headerUrl,
   HEIGHT,
   loadFonts,
   loadImage,
@@ -30,6 +33,11 @@ import {
 import { HEADER_KEY, HEADER_SCALE_KEY } from "./storage"
 
 const DEFAULT_SCALE = 1
+
+/** The header as an `<img>` at its 800 px width; a 2× link then stays sharp. */
+function imgTag(url: string) {
+  return `<img src="${url.replaceAll("&", "&amp;")}" width="${WIDTH}">`
+}
 
 /** Header images for case files: title, subtitle and seal on the navy band, exported as PNG. */
 export function HeadersPage() {
@@ -287,6 +295,17 @@ function Preview({ design, scale, onScale }: { design: HeaderDesign; scale: numb
     if (ready && canvasRef.current) drawHeader(canvasRef.current, design, logo, Math.max(2, window.devicePixelRatio || 1))
   })
 
+  const url = headerUrl(design, scale)
+
+  async function copyLink(text: string, success: string) {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success(success)
+    } catch {
+      toast.error("Kopieren nicht möglich")
+    }
+  }
+
   async function exportPng(mode: "copy" | "download") {
     setBusy(true)
     try {
@@ -362,6 +381,45 @@ function Preview({ design, scale, onScale }: { design: HeaderDesign; scale: numb
           />
         </div>
       </CardContent>
+
+      <div className="border-t px-6 py-3">
+        {url ? (
+          <ButtonGroup className="w-full">
+            <ButtonGroupText className="border-input bg-transparent text-muted-foreground dark:bg-input/30">
+              <LinkIcon />
+            </ButtonGroupText>
+            <Input
+              value={url}
+              readOnly
+              onFocus={(e) => e.target.select()}
+              spellCheck={false}
+              aria-label="Link zur Header-API"
+              className="h-8 min-w-0 font-mono text-xs"
+            />
+            <Button variant="outline" size="sm" onClick={() => copyLink(url, "Link kopiert")}>
+              <CopyIcon /> Link
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon-sm" aria-label="Weitere Kopieroptionen">
+                  <ChevronDownIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-auto">
+                <DropdownMenuItem onSelect={() => copyLink(imgTag(url), "HTML kopiert")}>
+                  <CodeIcon /> Als &lt;img&gt; kopieren
+                  <span className="ml-auto pl-4 text-xs text-muted-foreground">{WIDTH} px</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ButtonGroup>
+        ) : (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <LinkIcon className="size-4 shrink-0" />
+            Mit eigenem Logo gibt es keinen Link – die Header-API kennt nur VPD und FAST.
+          </p>
+        )}
+      </div>
     </Card>
   )
 }

@@ -1,6 +1,7 @@
 import "@fontsource-variable/source-serif-4/opsz.css"
 import fastLogo from "./logos/logo-fast.webp"
 import vpdLogo from "./logos/logo-vpd.webp"
+import { HEADER_API } from "./paths"
 
 // The case file header of scripts/case-header/header.html, drawn on a canvas.
 export const WIDTH = 800
@@ -219,6 +220,23 @@ export async function logoDataUrl(file: File) {
   } finally {
     URL.revokeObjectURL(url)
   }
+}
+
+/**
+ * The link of the same header on the hosted API; like its own designer, only options that differ
+ * from the defaults go in. Undefined for an own logo, since the API only takes https URLs.
+ */
+export function headerUrl(design: HeaderDesign, scale: number) {
+  if (design.logo === "custom") return undefined
+  const params = new URLSearchParams({ title: design.title })
+  if (design.subtitle !== DEFAULT_DESIGN.subtitle) params.set("subtitle", design.subtitle)
+  if (design.note?.trim()) params.set("note", design.note)
+  if (design.logo !== "vpd") params.set("logo", design.logo)
+  if (design.band !== DEFAULT_DESIGN.band) params.set("band", design.band.slice(1))
+  if (design.accent !== DEFAULT_DESIGN.accent) params.set("accent", design.accent.slice(1))
+  if (!design.watermark) params.set("watermark", "0")
+  if (scale !== 1) params.set("scale", String(scale))
+  return `${HEADER_API}?${params.toString().replaceAll("+", "%20")}`
 }
 
 /** "header-strafakte.png", like the files of scripts/case-header. */
