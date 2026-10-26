@@ -235,6 +235,8 @@ export interface Column {
   /** What older documents prefilled the cell with; like `initial`, it doesn't count as entered. */
   formerInitial?: string
   wide?: boolean
+  /** In cards, a heading in front of the column that starts a group of them, e.g. "Datensicherung". */
+  heading?: string
 }
 
 export interface TableField extends BaseField {

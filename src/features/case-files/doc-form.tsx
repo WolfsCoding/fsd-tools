@@ -1210,11 +1210,18 @@ function TableInput({
                 <RemoveCell label={`${field.addLabel} ${i + 1} entfernen`} onRemove={() => remove(i)} />
               </div>
               <div className="flex flex-wrap gap-x-3 gap-y-4 p-4">
-                {columns.map((c) => (
-                  <div key={c.key} className={cn("grid content-start gap-1.5", c.wide ? FULL : SHORT)}>
-                    <span className="text-xs font-medium text-muted-foreground">{c.label}</span>
-                    {cellInput(row, i, c)}
-                  </div>
+                {columns.map((c, j) => (
+                  <Fragment key={c.key}>
+                    {c.heading && (
+                      <span className={cn(FULL, "text-sm font-medium", j > 0 && "mt-2 border-t border-border/60 pt-4")}>
+                        {c.heading}
+                      </span>
+                    )}
+                    <div className={cn("grid content-start gap-1.5", c.wide ? FULL : SHORT)}>
+                      <span className="text-xs font-medium text-muted-foreground">{c.label}</span>
+                      {cellInput(row, i, c)}
+                    </div>
+                  </Fragment>
                 ))}
               </div>
             </div>
