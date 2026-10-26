@@ -26,7 +26,6 @@ import {
   WITNESS_CAUTION,
 } from "./markdown"
 import type { Colors } from "./markdown"
-import { chargesMarkdown } from "./charges"
 import { ChargesInput } from "./charges-input"
 import { roll, type Range } from "./range"
 import type { DnaEntry } from "@/features/dna-db/types"
@@ -1012,13 +1011,9 @@ const report: Template = {
           key: "todos",
           label: "TO-DO",
           options: ["Fingerabdrücke nehmen", "DNA Probe nehmen", "Schmauchspurentest nehmen", "Aussage aufnehmen"],
+          custom: "Weiteres Todo hinzufügen…",
         },
       ],
-    },
-    {
-      title: "Potentielle Strafen",
-      description: "Mögliche Straftaten aus dem Gesetzbuch mit Strafrahmen und Summe.",
-      fields: [{ type: "custom", key: "strafen", label: "Potentielle Strafen", component: ChargesInput }],
     },
     OTHER_SECTION,
     {
@@ -1048,9 +1043,8 @@ function reportMarkdown(r: Reader, titleLine: string) {
       section(r, "2. Rechtsbeistand & Belehrung:", caution(r, MIRANDA)),
       section(r, "3. Aussage:", bullets(r.lines("aussage"))),
       section(r, "4. TO-DO:", checklist(r.checks("todos"))),
-      section(r, "5. Potentielle Strafen:", chargesMarkdown(r.raw("strafen"), r.blank)),
-      section(r, "6. Sonstige Informationen:", bullets(r.lines("sonstiges"))),
-      section(r, "7. Entlassen:", checklist(r.checks("entlassen"))),
+      section(r, "5. Sonstige Informationen:", bullets(r.lines("sonstiges"))),
+      section(r, "6. Entlassen:", checklist(r.checks("entlassen"))),
     )
   )
 }
