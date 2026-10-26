@@ -295,13 +295,14 @@ const ballistics: Template<ForensicsTemplateId> = {
     {
       // The rest of the findings follow from the rows below.
       fundarten: ["Blutspuren"],
-      waffen: [1, 2].map(() => ({
+      // One weapon with positive, one with negative residue, like the tests below.
+      waffen: [POSITIVE, NEGATIVE].map((schmauch) => ({
         abgenommen: "XXX",
         modell: "XXX",
         seriennummer: "XXX",
         waffenId: "XX",
         spuren: SAMPLE_TRACES,
-        schmauch: "XXX",
+        schmauch,
         munition: "xx Schuss + x geladen",
         huelsen: "X",
         projektile: "X",
