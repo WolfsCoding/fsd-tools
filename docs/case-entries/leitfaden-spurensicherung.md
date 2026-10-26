@@ -12,7 +12,7 @@
 
 ---
 
-> <font color=#5882FA><b>1. Wofür ist dieser Leitfaden?</b></font>
+> <font color=#5882FA><b>`1.` `Wofür ist dieser Leitfaden?`</b></font>
 
 > - Lies ihn **vor der Schulung** einmal durch, damit du die Begriffe und Abläufe schon kennst.
 > - Nimm ihn **nach der Schulung** und im Dienst zur Hand, wenn du nicht mehr weißt, wie etwas geht.
@@ -20,7 +20,7 @@
 
 ---
 
-> <font color=#5882FA><b>2. Grundlagen:</b></font>
+> <font color=#5882FA><b>`2.` `Grundlagen:`</b></font>
 
 > **Was ist ein Tatort?**
 >
@@ -52,20 +52,20 @@
 
 ---
 
-> <font color=#5882FA><b>3. Der Ablauf am Tatort - Schritt für Schritt:</b></font>
+> <font color=#5882FA><b>`3.` `Der Ablauf am Tatort - Schritt für Schritt:`</b></font>
 
-> **Schritt 1 - Lage klären & Verletzte versorgen**
+> **`1.` `Lage klären & Verletzte versorgen`**
 >
 > - Verschaff dir einen ersten Überblick.
 > - Verletzte werden **zuerst** behandelt. Bis dahin beginnt keine Spurensicherung.
 >
-> **Schritt 2 - Tatort absperren**
+> **`2.` `Tatort absperren`**
 >
 > - Sperr den Tatort mit Absperrmaterial ab. Lieber etwas großzügiger als zu knapp, damit keine Spuren außerhalb liegen.
 > - Schick alle Personen weg, die nicht gebraucht werden.
 > - Ab jetzt betritt nur noch, wer am Tatort arbeitet, und das so wenig wie möglich.
 >
-> **Schritt 3 - Spuren suchen & markieren**
+> **`3.` `Spuren suchen & markieren`**
 >
 > - Zieh **Handschuhe** an, bevor du irgendetwas anfasst.
 > - Such den Tatort ruhig und systematisch ab.
@@ -73,13 +73,13 @@
 > - Blutspuren, die man nicht sieht, kannst du mit **Luminol** sichtbar machen.
 > - Fingerabdrücke machst du mit Pulver und Pinsel sichtbar: **Rußpulver** und **Eisenoxidpulver** sind für helle bzw. dunkle Oberflächen gedacht.
 >
-> **Schritt 4 - Tatortfotos machen**
+> **`4.` `Tatortfotos machen`**
 >
 > - Fotografiere den Tatort, **nachdem** die Spuren markiert sind und **bevor** du etwas aufnimmst.
 > - Gute Tatortfotos sind **so übersichtlich wie möglich** und **so aussagekräftig wie möglich**.
 > - Fotografier bestenfalls **keine einzelnen Spuren**, sondern den Tatort im Zusammenhang, so dass die Markierungen zu sehen sind.
 >
-> **Schritt 5 - Spuren sichern**
+> **`5.` `Spuren sichern`**
 >
 > - Nimm Spuren mit der **Pinzette** auf und pack sie in ein **Beweismitteltütchen**.
 > - Flüssige Spuren kommen in einen **Behälter**.
@@ -87,7 +87,7 @@
 > - Fingerabdrücke nimmst du mit **Gelfolie** ab: schwarze bzw. weiße Folie, je nach heller oder dunkler Oberfläche.
 > - Pro Spur ein eigenes Tütchen, damit nichts vermischt wird.
 >
-> **Schritt 6 - Beschriften & dokumentieren**
+> **`6.` `Beschriften & dokumentieren`**
 >
 > - Beschrifte jede Spur **direkt** mit dem Aktenzeichen im Format `Az.: XXXX`.
 > - Bei Fingerabdruckkarten, DNA-Proben und Schmauchspurentests kommt zusätzlich der **Name der Person** dazu, von der sie stammen.
@@ -99,46 +99,46 @@
 >     - Name der Person, die die Beweismittel übergeben hat
 >     - Name der Person, die die Beweismittel angenommen hat
 >
-> **Schritt 7 - Spuren von Personen abnehmen** (falls nötig)
+> **`7.` `Spuren von Personen abnehmen`** (falls nötig)
 >
 > - `Fingerabdrücke` - Jeden Finger einzeln ins **Stempelkissen** drücken und anschließend einzeln auf die **Spurenkarte** drücken. Danach beschriften.
 > - `Speichelprobe (DNA)` - Mit dem **Wattestäbchen** über die Wangeninnenseiten fahren und es ins **Röhrchen** packen. Danach beschriften.
 > - `Schmauchspurentest` - Den **Gelroller** über Handaußenseiten, Unterarme, Oberarme und Oberkörper führen. Danach beschriften.
 > - Danach Hände und Material mit **Desinfektionsmittel** bzw. **Alkoholtüchern** reinigen.
 >
-> **Schritt 8 - Übergabe**
+> **`8.` `Übergabe`**
 >
 > - Übergib die gesicherten Spuren, z.B. an die Forensik-Einsatzleitung, wenn eine vor Ort ist.
 > - Halt fest, **wer an wen** übergeben hat (siehe Schritt 6).
 >
-> **Schritt 9 - Tatortfreigabe**
+> **`9.` `Tatortfreigabe`**
 >
 > - Erst wenn alles gesichert ist, wird der Tatort freigegeben. Bei größeren Einsätzen entscheidet das die Forensik-Einsatzleitung.
 
 ---
 
-> <font color=#5882FA><b>4. Der Spurensicherungskoffer:</b></font>
+> <font color=#5882FA><b>`4.` `Der Spurensicherungskoffer:`</b></font>
 
 > | # | Material | Wofür? |
 > | --- | --- | --- |
-> | `1` | `Handschuhe` | `Schutz vor Kontamination, immer zuerst anziehen` |
-> | `2` | `Pinsel` | `Auftragen von Pulver` |
-> | `3` | `Pinzette` | `Aufnehmen von Spuren` |
-> | `4` | `Markierungskarten` | `Markieren von Spuren am Tatort` |
-> | `5` | `Beweismitteltütchen` | `Sichern und Beschriften von Spuren` |
-> | `6` | `Behälter` | `Aufnahme weiterer (flüssiger) Spuren` |
-> | `7` | `Stempelkissen & Papier` | `Fingerabdrücke von Personen` |
-> | `8` | `Wattestäbchen & Röhrchen` | `Speichelproben (DNA) von Personen` |
-> | `9` | `Gelroller` | `Schmauchspurentests` |
-> | `10` | `Luminol` | `Sichtbarmachen von Blutspuren` |
-> | `11` | `Destilliertes Wasser` | `Lösen eingetrockneter Spuren` |
-> | `12` | `Desinfektionsmittel & Alkoholtücher` | `Reinigung` |
-> | `13` | `Rußpulver & Eisenoxidpulver` | `Sichtbarmachen von Fingerabdrücken auf hellen und dunklen Oberflächen` |
-> | `14` | `Schwarze & weiße Gelfolie` | `Abnahme von Abdrücken auf hellen und dunklen Oberflächen` |
+> | `#1` | `Handschuhe` | `Schutz vor Kontamination, immer zuerst anziehen` |
+> | `#2` | `Pinsel` | `Auftragen von Pulver` |
+> | `#3` | `Pinzette` | `Aufnehmen von Spuren` |
+> | `#4` | `Markierungskarten` | `Markieren von Spuren am Tatort` |
+> | `#5` | `Beweismitteltütchen` | `Sichern und Beschriften von Spuren` |
+> | `#6` | `Behälter` | `Aufnahme weiterer (flüssiger) Spuren` |
+> | `#7` | `Stempelkissen & Papier` | `Fingerabdrücke von Personen` |
+> | `#8` | `Wattestäbchen & Röhrchen` | `Speichelproben (DNA) von Personen` |
+> | `#9` | `Gelroller` | `Schmauchspurentests` |
+> | `#10` | `Luminol` | `Sichtbarmachen von Blutspuren` |
+> | `#11` | `Destilliertes Wasser` | `Lösen eingetrockneter Spuren` |
+> | `#12` | `Desinfektionsmittel & Alkoholtücher` | `Reinigung` |
+> | `#13` | `Rußpulver & Eisenoxidpulver` | `Sichtbarmachen von Fingerabdrücken auf hellen und dunklen Oberflächen` |
+> | `#14` | `Schwarze & weiße Gelfolie` | `Abnahme von Abdrücken auf hellen und dunklen Oberflächen` |
 
 ---
 
-> <font color=#5882FA><b>5. Größere Einsätze - Forensik-EL & FSU:</b></font>
+> <font color=#5882FA><b>`5.` `Größere Einsätze - Forensik-EL & FSU:`</b></font>
 
 > **Die Forensische Einsatzleitung (Forensik-EL)**
 >
@@ -164,7 +164,7 @@
 
 ---
 
-> <font color=#5882FA><b>6. Kurz-Checkliste für den Einsatz:</b></font>
+> <font color=#5882FA><b>`6.` `Kurz-Checkliste für den Einsatz:`</b></font>
 
 > - [ ] Verletzte versorgt?
 > - [ ] Tatort abgesperrt, unnötige Personen weggeschickt?
@@ -179,7 +179,7 @@
 
 ---
 
-> <font color=#5882FA><b>7. Häufige Fragen:</b></font>
+> <font color=#5882FA><b>`7.` `Häufige Fragen:`</b></font>
 
 > **Ein Verletzter liegt mitten in den Spuren. Was nun?**
 >

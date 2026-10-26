@@ -141,7 +141,7 @@ function resultLines(row: Row, colors: Colors) {
 const OVERVIEW_HEADERS = ["Produkt", "Menge", "Stichprobe (10%)", "Einheit", "Anmerkung"]
 
 /**
- * Section 0 (the overview), one numbered section per substance, `next` numbers what follows. The
+ * Step 1 (the overview), then a section per substance numbered as an item (`#1`); `next` numbers the step that follows. The
  * empty template (`blank`) shows every substance of the catalog with placeholders.
  */
 export function toxSections(value: Value | undefined, style: { colors: Colors }, blank = false) {
@@ -164,12 +164,12 @@ export function toxSections(value: Value | undefined, style: { colors: Colors },
   )
   return {
     sections: [
-      section(style, "0. Übersicht der Asservate:", overview),
+      section(style, "1. Übersicht der Asservate:", overview),
       ...rows.map((row, i) =>
-        section(style, `${i + 1}. Analyseergebnisse (${substanceOf(row).heading}):`, resultLines(row, style.colors)),
+        section(style, `#${i + 1} Analyseergebnisse (${substanceOf(row).heading}):`, resultLines(row, style.colors)),
       ),
     ],
-    /** Number of the section after the results. */
-    next: rows.length + 1,
+    /** Number of the step after the overview; the results are items (`#1`), not steps. */
+    next: 2,
   }
 }

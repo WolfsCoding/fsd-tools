@@ -280,7 +280,7 @@ function RowDetails({
     <div className="grid gap-4 border-l-2 border-primary/40 bg-background/40 p-4">
       <div className="flex items-center gap-3">
         <span className="min-w-0 flex-1 truncate text-sm font-medium">
-          {s ? `${number ? `${number}. ` : ""}Analyseergebnisse (${s.heading})` : "Analyseergebnisse"}
+          {s ? `${number ? `#${number} ` : ""}Analyseergebnisse (${s.heading})` : "Analyseergebnisse"}
         </span>
         {s && canRoll(s) && (
           <Button variant="outline" size="xs" onClick={onRoll}>

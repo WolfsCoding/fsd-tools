@@ -60,9 +60,18 @@ export function titleComment(title: string) {
   return `<!-- Titel: ${title} -->`
 }
 
-/** A numbered section: colored heading, then the body. */
+/** A section: colored heading, then the body. */
 export function section({ colors }: { colors: Colors }, title: string, body: string) {
-  return `> <font color=${colors.heading}><b>${title}</b></font>\n\n${body}`
+  return `> <font color=${colors.heading}><b>${numbered(title)}</b></font>\n\n${body}`
+}
+
+/**
+ * A numbered title as two code spans, the number and the name: "1. Tathergang:" as
+ * "`1.` `Tathergang:`", a step, or "#1 Kokain:" as "`#1` `Kokain:`", an item. Others stay as they are.
+ */
+export function numbered(title: string) {
+  const m = /^(#\d+|\d+\.)\s+(.+)$/.exec(title.trim())
+  return m ? `${code(m[1])} ${code(m[2])}` : title
 }
 
 /** Text as inline code; backticks and line breaks would end it early. */
@@ -94,11 +103,11 @@ export function cell(text: string) {
   return code(text.replace(/\|/g, "\\|"))
 }
 
-/** A quoted table whose cells are already formatted; every table numbers its rows from 1 under "#". */
+/** A quoted table whose cells are already formatted; every table numbers its rows `#1`, `#2`, … under "#". */
 export function rawTable(headers: string[], rows: string[][]) {
   const line = (cells: string[]) => `> | ${cells.join(" | ")} |`
   const all = ["#", ...headers]
-  return [line(all), line(all.map(() => "---")), ...rows.map((cells, i) => line([code(String(i + 1)), ...cells]))].join(
+  return [line(all), line(all.map(() => "---")), ...rows.map((cells, i) => line([code(`#${i + 1}`), ...cells]))].join(
     "\n",
   )
 }

@@ -13,17 +13,17 @@
 
 ---
 
-> <font color=#5882FA><b>1. Teilnehmer:</b></font>
+> <font color=#5882FA><b>`1.` `Teilnehmer:`</b></font>
 
 > | # | Name | Rang | Department | Bestanden |
 > | --- | --- | --- | --- | --- |
-> | `1` | `N/A` | `N/A` | `N/A` | `✓/×` |
-> | `2` | `N/A` | `N/A` | `N/A` | `✓/×` |
-> | `3` | `N/A` | `N/A` | `N/A` | `✓/×` |
+> | `#1` | `N/A` | `N/A` | `N/A` | `✓/×` |
+> | `#2` | `N/A` | `N/A` | `N/A` | `✓/×` |
+> | `#3` | `N/A` | `N/A` | `N/A` | `✓/×` |
 
 ---
 
-> <font color=#5882FA><b>2. Vorbereitung:</b></font>
+> <font color=#5882FA><b>`2.` `Vorbereitung:`</b></font>
 
 > - [ ] "Tatort" vorbereitet (z.B. Schüsse auf den Boden)
 > - [ ] Absperrmaterial bereitgestellt
@@ -31,7 +31,7 @@
 
 ---
 
-> <font color=#5882FA><b>3. Behandelte Themen:</b></font>
+> <font color=#5882FA><b>`3.` `Behandelte Themen:`</b></font>
 
 > - [ ] Grundlagen (Tatort, Grundsätze, Spurenarten, Einflüsse)
 > - [ ] Tatortabsperrung (Praxis)
@@ -44,7 +44,7 @@
 
 ---
 
-> <font color=#5882FA><b>4. Sonstige Informationen:</b></font>
+> <font color=#5882FA><b>`4.` `Sonstige Informationen:`</b></font>
 
 > - N/A
 
