@@ -1,6 +1,4 @@
-import { useEffect, useRef } from "react"
-import { RefreshCwIcon, RotateCcwIcon } from "lucide-react"
-import { toast } from "sonner"
+import { DownloadIcon, RefreshCwIcon, RotateCcwIcon } from "lucide-react"
 import {
   SettingsRow,
   SettingsSection,
@@ -19,7 +17,7 @@ function describe(state: UpdateState | undefined) {
     case "checking":
       return "Suche nach Updates …"
     case "available":
-      return `Version ${state.version} gefunden, wird geladen …`
+      return `Version ${state.version} ist verfügbar.`
     case "downloading":
       return `Version ${state.version ?? ""} wird geladen (${state.percent ?? 0} %)`
     case "ready":
@@ -27,18 +25,19 @@ function describe(state: UpdateState | undefined) {
     case "latest":
       return "Du hast die neueste Version."
     case "error":
-      return `Fehler beim Suchen: ${state.error}`
+      return `Fehler beim Update: ${state.error}`
     case "unsupported":
       return "Updates gibt es nur in der installierten App."
     default:
-      return "Sucht beim Start und jede Stunde automatisch."
+      return "Sucht beim Start und jede Stunde. Geladen und installiert wird nur auf Klick."
   }
 }
 
 export function UpdateSettings() {
   const version = useAppVersion()
   const state = useUpdateState()
-  const busy = state?.status === "checking" || state?.status === "available" || state?.status === "downloading"
+  const busy = state?.status === "checking" || state?.status === "downloading"
+  const canDownload = state?.status === "available" || (state?.status === "error" && !!state.version)
 
   return (
     <SettingsSection title="Updates">
@@ -49,6 +48,10 @@ export function UpdateSettings() {
         {state?.status === "ready" ? (
           <Button onClick={() => desktop?.updates.install()}>
             <RotateCcwIcon /> Neu starten
+          </Button>
+        ) : canDownload ? (
+          <Button onClick={() => desktop?.updates.download()}>
+            <DownloadIcon /> Update laden
           </Button>
         ) : (
           <Button
@@ -62,22 +65,4 @@ export function UpdateSettings() {
       </SettingsRow>
     </SettingsSection>
   )
-}
-
-/** Offers a restart once an update is downloaded. Renders nothing. */
-export function UpdateNotifier() {
-  const state = useUpdateState()
-  const shown = useRef<string>(undefined)
-
-  useEffect(() => {
-    if (state?.status !== "ready" || shown.current === state.version) return
-    shown.current = state.version
-    toast(`Update ${state.version} ist bereit`, {
-      description: "Ein Neustart installiert es.",
-      duration: Infinity,
-      action: { label: "Neu starten", onClick: () => desktop?.updates.install() },
-    })
-  }, [state])
-
-  return null
 }

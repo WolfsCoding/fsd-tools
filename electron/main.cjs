@@ -1,6 +1,6 @@
 // Desktop shell: serves the built app from `dist/` under `app://fsd-tools` and keeps it up to date
 // from the GitHub releases (see .github/workflows/release.yml).
-const { app, BrowserWindow, ipcMain, net, protocol, shell } = require("electron")
+const { app, BrowserWindow, ipcMain, Menu, net, protocol, shell, Tray } = require("electron")
 const { autoUpdater } = require("electron-updater")
 const fs = require("node:fs")
 const path = require("node:path")
@@ -81,6 +81,7 @@ let updateState = { status: app.isPackaged ? "idle" : "unsupported" }
 function setUpdateState(next) {
   updateState = next
   win?.webContents.send("updates:state", updateState)
+  updateTrayMenu()
 }
 
 function checkForUpdates() {
@@ -89,34 +90,100 @@ function checkForUpdates() {
   autoUpdater.checkForUpdates().catch(() => {})
 }
 
+function downloadUpdate() {
+  if (!updateState.version || (updateState.status !== "available" && updateState.status !== "error")) return
+  setUpdateState({ status: "downloading", version: updateState.version, percent: 0 })
+  autoUpdater.downloadUpdate().catch(() => {})
+}
+
+function installUpdate() {
+  if (updateState.status === "ready") autoUpdater.quitAndInstall()
+}
+
 function setupUpdates() {
-  autoUpdater.autoDownload = true
-  autoUpdater.autoInstallOnAppQuit = true
-  autoUpdater.on("checking-for-update", () => setUpdateState({ status: "checking" }))
+  // Nothing happens without the user: the sidebar offers the download, then the restart.
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = false
+  // The hourly check keeps a found update offered instead of flashing "checking".
+  autoUpdater.on("checking-for-update", () => {
+    if (updateState.status !== "available") setUpdateState({ status: "checking" })
+  })
   autoUpdater.on("update-available", (info) => setUpdateState({ status: "available", version: info.version }))
   autoUpdater.on("update-not-available", () => setUpdateState({ status: "latest" }))
   autoUpdater.on("download-progress", (p) =>
     setUpdateState({ status: "downloading", version: updateState.version, percent: Math.round(p.percent) }),
   )
   autoUpdater.on("update-downloaded", (info) => setUpdateState({ status: "ready", version: info.version }))
-  autoUpdater.on("error", (err) => setUpdateState({ status: "error", error: String(err?.message ?? err) }))
+  // Keeps the version of a failed download so it can be tried again.
+  autoUpdater.on("error", (err) =>
+    setUpdateState({ status: "error", version: updateState.version, error: String(err?.message ?? err) }),
+  )
 
   ipcMain.handle("app:version", () => app.getVersion())
   ipcMain.handle("updates:get", () => updateState)
   ipcMain.handle("updates:check", () => checkForUpdates())
-  ipcMain.handle("updates:install", () => {
-    if (updateState.status === "ready") autoUpdater.quitAndInstall()
-  })
+  ipcMain.handle("updates:download", () => downloadUpdate())
+  ipcMain.handle("updates:install", () => installUpdate())
 
   checkForUpdates()
   setInterval(checkForUpdates, UPDATE_INTERVAL)
 }
 
-app.on("second-instance", () => {
-  if (!win) return
+// --- Tray ------------------------------------------------------------------
+
+/** Kept here so it isn't garbage collected, which would remove the icon. @type {Tray | null} */
+let tray = null
+
+function showWindow() {
+  if (!win) return createWindow()
   if (win.isMinimized()) win.restore()
+  win.show()
   win.focus()
-})
+}
+
+/** The update entry of the tray menu, like the update button in the tool strip. */
+function updateMenuItem() {
+  const { status, version, percent } = updateState
+  switch (status) {
+    case "available":
+      return { label: `Update ${version} laden`, click: downloadUpdate }
+    case "downloading":
+      return { label: `Update ${version ?? ""} wird geladen (${percent ?? 0} %)`, enabled: false }
+    case "ready":
+      return { label: `Neu starten, um ${version} zu installieren`, click: installUpdate }
+    case "error":
+      return version
+        ? { label: `Update ${version} erneut laden`, click: downloadUpdate }
+        : { label: "Nach Updates suchen", click: checkForUpdates }
+    case "checking":
+      return { label: "Suche nach Updates …", enabled: false }
+    case "unsupported":
+      return { label: "Updates nur in der installierten App", enabled: false }
+    default:
+      return { label: "Nach Updates suchen", click: checkForUpdates }
+  }
+}
+
+function updateTrayMenu() {
+  tray?.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: "FSD Tools öffnen", click: showWindow },
+      { type: "separator" },
+      updateMenuItem(),
+      { type: "separator" },
+      { label: "Beenden", click: () => app.quit() },
+    ]),
+  )
+}
+
+function createTray() {
+  tray = new Tray(path.join(__dirname, "..", "build", "icon.ico"))
+  tray.setToolTip("FSD Tools")
+  tray.on("click", showWindow)
+  updateTrayMenu()
+}
+
+app.on("second-instance", showWindow)
 
 // The app sets the Windows buttons' colors to follow its theme and darken under dialogs.
 ipcMain.on("window:title-bar", (_, { color, symbolColor }) => {
@@ -127,6 +194,7 @@ app.whenReady().then(() => {
   serveDist()
   setupUpdates()
   createWindow()
+  createTray()
   startApi(() => win)
 })
 

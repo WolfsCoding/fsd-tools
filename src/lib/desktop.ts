@@ -12,6 +12,8 @@ interface DesktopApi {
   updates: {
     get: () => Promise<UpdateState>
     check: () => Promise<void>
+    /** Downloads the found update; nothing is downloaded without this. */
+    download: () => Promise<void>
     install: () => Promise<void>
     subscribe: (listener: (state: UpdateState) => void) => () => void
   }

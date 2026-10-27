@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld("desktop", {
   updates: {
     get: () => ipcRenderer.invoke("updates:get"),
     check: () => ipcRenderer.invoke("updates:check"),
+    download: () => ipcRenderer.invoke("updates:download"),
     install: () => ipcRenderer.invoke("updates:install"),
     /** Calls `listener` on every change; returns the unsubscribe. */
     subscribe: (listener) => {

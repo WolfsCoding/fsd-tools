@@ -3,7 +3,6 @@ import { AppLayout } from "@/components/app-layout"
 import { FeatureRoute, HomeRoute } from "@/components/feature-routes"
 import { Toaster } from "@/components/ui/sonner"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { UpdateNotifier } from "@/components/update-settings"
 import { POLICE_FILES_BASE } from "@/features/case-files/paths"
 import { features } from "@/features/registry"
 
@@ -34,7 +33,6 @@ export default function App() {
     <TooltipProvider>
       <RouterProvider router={router} />
       <Toaster />
-      <UpdateNotifier />
     </TooltipProvider>
   )
 }

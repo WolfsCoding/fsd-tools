@@ -9,6 +9,8 @@ npmRebuild: false
 files:
   - dist/**
   - electron/**
+  # The tray icon.
+  - build/icon.ico
   - package.json
 win:
   target: nsis
