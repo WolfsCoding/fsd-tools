@@ -23,6 +23,9 @@ if (!app.requestSingleInstanceLock()) app.quit()
 
 /** @type {BrowserWindow | null} */
 let win = null
+/** Set once the app quits, so closing the window no longer just hides it. */
+let quitting = false
+app.on("before-quit", () => (quitting = true))
 
 function createWindow() {
   win = new BrowserWindow({
@@ -56,6 +59,12 @@ function createWindow() {
   win.webContents.on("before-input-event", (_, input) => {
     if (input.type === "keyDown" && (input.key === "F12" || (input.control && input.shift && input.key === "I")))
       win?.webContents.toggleDevTools()
+  })
+  // The X hides the window to the tray; only "Beenden" there (or an update restart) quits.
+  win.on("close", (event) => {
+    if (quitting) return
+    event.preventDefault()
+    win?.hide()
   })
   win.on("closed", () => (win = null))
 

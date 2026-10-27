@@ -9,7 +9,7 @@ bun dev          # the same in the browser, http://localhost:5173
 bun run dist     # builds the installer into release/
 ```
 
-The shell is in `electron/`. It serves `dist/` under `app://fsd-tools` (a fixed origin, so the data survives updates) and falls back to `index.html` for the app's paths (`/fsu/...`). Links to other sites open in the browser. F12 opens the DevTools.
+The shell is in `electron/`. It serves `dist/` under `app://fsd-tools` (a fixed origin, so the data survives updates) and falls back to `index.html` for the app's paths (`/fsu/...`). Links to other sites open in the browser. F12 opens the DevTools. Closing the window hides it to the tray icon; "Beenden" in its menu quits.
 
 ## Raycast
 
