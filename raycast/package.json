@@ -1,0 +1,57 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "fsd-tools",
+  "title": "FSD Tools",
+  "description": "Dokumente wie ein Speedingticket anlegen und das Gesetzbuch durchsuchen, direkt in der FSD Tools App.",
+  "icon": "icon.png",
+  "author": "WolfsCoding",
+  "license": "MIT",
+  "platforms": ["Windows"],
+  "categories": ["Productivity"],
+  "commands": [
+    {
+      "name": "speeding-ticket",
+      "title": "Speedingticket",
+      "subtitle": "FSD Tools",
+      "description": "Eine Geschwindigkeitsmessung als Akte anlegen und das Markdown kopieren.",
+      "mode": "view"
+    },
+    {
+      "name": "create-document",
+      "title": "Akte erstellen",
+      "subtitle": "FSD Tools",
+      "description": "Eine Akte aus einer Vorlage der App anlegen und das Markdown kopieren.",
+      "mode": "view"
+    },
+    {
+      "name": "search-law-book",
+      "title": "Gesetzbuch durchsuchen",
+      "subtitle": "FSD Tools",
+      "description": "Paragraphen und Strafen aus dem Gesetzbuch der App suchen.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "appPath",
+      "title": "Pfad zur App",
+      "description": "Zum Starten, falls die App nicht läuft. Leer: der Standardpfad der Installation.",
+      "type": "textfield",
+      "required": false
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.104.0",
+    "@raycast/utils": "^2.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.9.0"
+  },
+  "scripts": {
+    "postinstall": "bun scripts/link-tsc.ts",
+    "build": "bunx --bun ray build -e dist",
+    "dev": "bunx --bun ray develop"
+  }
+}

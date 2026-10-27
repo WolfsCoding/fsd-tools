@@ -1,0 +1,203 @@
+import { Action, ActionPanel, Clipboard, closeMainWindow, Form, Icon, showHUD } from "@raycast/api"
+import { showFailureToast, usePromise } from "@raycast/utils"
+import { useState } from "react"
+import { call, type CreatedDocument, type Field, type Offense, type Template } from "./api"
+
+/** Value of a suggestions dropdown that shows a text field for an own value. */
+const CUSTOM = "__custom"
+
+type Mode = "copy" | "paste" | "open" | "draft"
+
+/** The template's form, built from what the app describes; submitting creates the Akte in the app. */
+export function DocumentForm({ template }: { template: Template }) {
+  const fields = template.sections.flatMap((s) => s.fields)
+  const { data: offenses, isLoading } = usePromise(() => call<Offense[]>("/offenses"), [], {
+    execute: fields.some((f) => f.type === "charges"),
+  })
+  // Suggestions dropdowns where "Eigener Wert" is picked.
+  const [custom, setCustom] = useState<Record<string, boolean>>({})
+
+  async function submit(form: Form.Values, mode: Mode) {
+    try {
+      const doc = await call<CreatedDocument>("/documents", {
+        template: template.id,
+        values: collect(fields, form),
+        save: mode !== "draft",
+        open: mode === "open",
+      })
+      const warning = doc.missing.length ? ` (leer: ${doc.missing.join(", ")})` : ""
+      if (mode === "paste") {
+        await closeMainWindow()
+        await Clipboard.paste(doc.markdown)
+        return
+      }
+      if (mode === "open") return showHUD(`In FSD Tools geöffnet${warning}`)
+      await Clipboard.copy(doc.markdown)
+      await showHUD(mode === "draft" ? `Markdown kopiert, nicht gespeichert${warning}` : `Akte angelegt, Markdown kopiert${warning}`)
+    } catch (error) {
+      await showFailureToast(error, { title: "Akte konnte nicht erstellt werden" })
+    }
+  }
+
+  return (
+    <Form
+      navigationTitle={`${template.emoji} ${template.label}`}
+      isLoading={isLoading}
+      actions={
+        <ActionPanel>
+          <Action.SubmitForm title="Anlegen und kopieren" icon={Icon.CopyClipboard} onSubmit={(v: Form.Values) => submit(v, "copy")} />
+          <Action.SubmitForm title="Anlegen und einfügen" icon={Icon.Clipboard} onSubmit={(v: Form.Values) => submit(v, "paste")} />
+          <Action.SubmitForm
+            title="Anlegen und in App öffnen"
+            icon={Icon.AppWindow}
+            shortcut={{ modifiers: ["ctrl"], key: "o" }}
+            onSubmit={(v: Form.Values) => submit(v, "open")}
+          />
+          <Action.SubmitForm
+            title="Nur kopieren, nicht speichern"
+            icon={Icon.Document}
+            shortcut={{ modifiers: ["ctrl", "shift"], key: "c" }}
+            onSubmit={(v: Form.Values) => submit(v, "draft")}
+          />
+        </ActionPanel>
+      }
+    >
+      <Form.Description text={template.description} />
+      {template.sections.map((section) => [
+        <Form.Separator key={`${section.title}-separator`} />,
+        <Form.Description key={`${section.title}-title`} title={section.title} text={section.description} />,
+        ...section.fields.flatMap((f) => renderField(f, offenses ?? [], custom, setCustom)),
+      ])}
+    </Form>
+  )
+}
+
+const title = (f: Field) => (f.required ? `${f.label} *` : f.label)
+
+/** An option's text without the markdown's code spans; `{key}` stands for a field filled in above. */
+const optionLabel = (o: string) => o.replace(/`/g, "").replace(/\{\w+\}/g, "…")
+
+function renderField(
+  f: Field,
+  offenses: Offense[],
+  custom: Record<string, boolean>,
+  setCustom: (fn: (prev: Record<string, boolean>) => Record<string, boolean>) => void,
+): React.ReactNode[] {
+  switch (f.type) {
+    case "text":
+      if (f.suggestions?.length) {
+        return [
+          <Form.Dropdown
+            key={f.key}
+            id={f.key}
+            title={title(f)}
+            info={f.hint}
+            onChange={(v) => setCustom((prev) => ({ ...prev, [f.key]: v === CUSTOM }))}
+          >
+            <Form.Dropdown.Item value="" title="Keine Angabe" />
+            {f.suggestions.map((s) => (
+              <Form.Dropdown.Item key={s} value={s} title={s} />
+            ))}
+            <Form.Dropdown.Item value={CUSTOM} title="Eigener Wert …" />
+          </Form.Dropdown>,
+          custom[f.key] && <Form.TextField key={`${f.key}-custom`} id={`${f.key}${CUSTOM}`} title="" placeholder={f.placeholder} />,
+        ]
+      }
+      return [
+        <Form.TextField key={f.key} id={f.key} title={title(f)} info={f.hint} placeholder={f.placeholder} defaultValue={f.default} />,
+      ]
+    case "list":
+      return [<Form.TextArea key={f.key} id={f.key} title={title(f)} info={f.hint ?? "Ein Punkt pro Zeile."} placeholder={f.placeholder} />]
+    case "datetime":
+      return [
+        <Form.DatePicker
+          key={f.key}
+          id={f.key}
+          title={title(f)}
+          type={Form.DatePicker.Type.DateTime}
+          info={f.hint ?? "Leer: die Zeit des Anlegens."}
+        />,
+      ]
+    case "checks":
+      return [
+        ...f.inline.flatMap((i) => renderField(i, offenses, custom, setCustom)),
+        ...f.options.map((o, i) => (
+          <Form.Checkbox key={`${f.key}-${i}`} id={`${f.key}::${i}`} title={i === 0 ? title(f) : undefined} label={optionLabel(o)} />
+        )),
+      ]
+    case "table":
+      return [
+        <Form.TextArea
+          key={f.key}
+          id={f.key}
+          title={title(f)}
+          info={`Eine Zeile pro Eintrag, Spalten mit | trennen: ${f.columns.map((c) => c.label).join(" | ")}`}
+          placeholder={f.columns.map((c) => c.placeholder).join(" | ")}
+        />,
+      ]
+    case "charges":
+      return [
+        <Form.TagPicker key={f.key} id={f.key} title={title(f)} info={f.hint ?? "Anzahl und Betrag in der App anpassen."}>
+          {offenses.map((o) => (
+            <Form.TagPicker.Item key={o.id} value={o.id} title={`${o.ref} · ${o.title}${o.fine ? ` · ${o.fine}` : ""}`} />
+          ))}
+        </Form.TagPicker>,
+      ]
+  }
+}
+
+/** The form's values as the app stores them; empty ones are left out so the template's defaults stay. */
+function collect(fields: Field[], form: Form.Values) {
+  const values: Record<string, unknown> = {}
+  const put = (key: string, value: unknown) => {
+    if (Array.isArray(value) ? value.length : typeof value === "string" && value.trim()) values[key] = value
+  }
+  for (const f of fields) {
+    const raw = form[f.key]
+    switch (f.type) {
+      case "text":
+        put(f.key, raw === CUSTOM ? form[`${f.key}${CUSTOM}`] : raw)
+        break
+      case "list":
+        put(f.key, lines(raw))
+        break
+      case "datetime":
+        if (raw instanceof Date) put(f.key, localDateTime(raw))
+        break
+      case "checks":
+        for (const i of f.inline) put(i.key, form[i.key])
+        put(
+          f.key,
+          f.options.filter((_, i) => form[`${f.key}::${i}`]),
+        )
+        break
+      case "table":
+        put(
+          f.key,
+          lines(raw).map((line) => {
+            const cells = line.split("|").map((c) => c.trim())
+            return Object.fromEntries(f.columns.flatMap((c, i) => (cells[i] ? [[c.key, cells[i]]] : [])))
+          }),
+        )
+        break
+      case "charges":
+        put(f.key, raw)
+        break
+    }
+  }
+  return values
+}
+
+const lines = (text: unknown) =>
+  typeof text === "string"
+    ? text
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+    : []
+
+/** As a datetime-local input writes it, e.g. "2026-10-27T19:30". */
+function localDateTime(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}

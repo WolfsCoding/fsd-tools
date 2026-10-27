@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Outlet } from "react-router"
 import { AppSidebar } from "@/components/app-sidebar"
 import { CommandPaletteProvider } from "@/components/command-palette"
+import { DesktopApi } from "@/components/desktop-api"
 import { NavBar } from "@/components/nav-bar"
 import { SettingsProvider } from "@/components/settings-dialog"
 import { SplitLayout } from "@/components/split-view"
@@ -38,6 +39,7 @@ export function AppLayout() {
             </div>
             <StorageWarning />
             <DnaLink />
+            <DesktopApi />
           </SidebarProvider>
         </TabsProvider>
       </CommandPaletteProvider>

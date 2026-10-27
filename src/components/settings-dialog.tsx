@@ -8,6 +8,7 @@ import {
 import {
   ArchiveIcon,
   DownloadIcon,
+  RefreshCwIcon,
   Trash2Icon,
   TriangleAlertIcon,
   UploadIcon,
@@ -39,6 +40,7 @@ import {
 } from "@/components/ui/dialog"
 import { SearchField } from "@/components/search-field"
 import { Switch } from "@/components/ui/switch"
+import { UpdateSettings } from "@/components/update-settings"
 import {
   features,
   settingsPages,
@@ -61,6 +63,7 @@ import {
   type FeatureBackup,
   type FullBackup,
 } from "@/lib/backup"
+import { desktop } from "@/lib/desktop"
 import { formatBytes } from "@/lib/format-bytes"
 import { useLocalStorage, useStorageBytes } from "@/lib/local-storage"
 
@@ -102,6 +105,18 @@ const allPages: (SettingsPage & { keywords?: string[] })[] = [
     content: FullBackupSettings,
     keywords: ["backup", "export", "import", "json", "speicher"],
   },
+  ...(desktop
+    ? [
+        {
+          id: "updates",
+          title: "Updates",
+          description: "Version der App und neue Versionen installieren",
+          icon: RefreshCwIcon,
+          content: UpdateSettings,
+          keywords: ["version", "update", "aktualisieren", "neustart"],
+        },
+      ]
+    : []),
 ]
 
 // Terms that should find any feature page, since each one has the same data controls.

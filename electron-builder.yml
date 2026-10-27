@@ -1,0 +1,25 @@
+appId: com.wolfscoding.fsdtools
+productName: FSD Tools
+artifactName: FSD-Tools-Setup-${version}.${ext}
+directories:
+  output: release
+  buildResources: build
+# No native modules to rebuild.
+npmRebuild: false
+files:
+  - dist/**
+  - electron/**
+  - package.json
+win:
+  target: nsis
+  icon: build/icon.ico
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: always
+# The app looks for new versions in the releases of this repo, so it must be public.
+publish:
+  provider: github
+  owner: WolfsCoding
+  repo: fsd-tools
+  releaseType: release

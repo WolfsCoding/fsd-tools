@@ -1,14 +1,23 @@
 # FSD Tools
 
-Vite + React + shadcn/ui (always dark). All data lives in the browser's localStorage.
+Windows desktop app: Electron around Vite + React + shadcn/ui (always dark). All data lives in the app's localStorage.
 
 ```sh
 bun install
-bun dev        # http://localhost:5173
-bun run build
+bun run desktop  # the app on the Vite dev server, with hot reload
+bun dev          # the same in the browser, http://localhost:5173
+bun run dist     # builds the installer into release/
 ```
 
-Routes are plain paths (`/fsu/...`), so the host must serve `index.html` for unknown paths (SPA fallback).
+The shell is in `electron/`. It serves `dist/` under `app://fsd-tools` (a fixed origin, so the data survives updates) and falls back to `index.html` for the app's paths (`/fsu/...`). Links to other sites open in the browser. F12 opens the DevTools.
+
+## Raycast
+
+`raycast/` is a Raycast extension for Windows that creates Akten (e.g. a Speedingticket) and searches the Gesetzbuch through the running app. The app serves a local API for it (`electron/api.cjs`, answered by `src/components/desktop-api.tsx`); see `raycast/README.md`.
+
+## Updates
+
+Every push to `main` runs `.github/workflows/release.yml`: it builds the installer and publishes it as a GitHub release `v0.1.<run number>`. The minor and major version come from `package.json`; bump them there. Installed apps check the releases at start and every hour, download a new version in the background and offer "Neu starten" in a toast and in Einstellungen › Updates. Without a restart it installs when the app closes. The repo must be public for the app to read the releases.
 
 ## Adding a tool
 

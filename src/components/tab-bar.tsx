@@ -59,7 +59,8 @@ export function TabBar() {
   }
 
   return (
-    <div className="flex h-11 shrink-0 items-end bg-titlebar pl-1 app-drag md:pl-0">
+    // The right padding keeps clear of the window buttons in the desktop shell.
+    <div className="flex h-11 shrink-0 items-end bg-titlebar pr-[calc(100vw-env(titlebar-area-x,0px)-env(titlebar-area-width,100vw))] pl-1 app-drag md:pl-0">
       {/* Desktop has the menu on the tool strip. */}
       <div className="self-center app-no-drag md:hidden">
         <MainMenu />

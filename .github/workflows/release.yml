@@ -1,0 +1,36 @@
+# Every push to main builds the Windows app and publishes it as a GitHub release.
+# Installed apps find it there and update themselves.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - run: bun install --frozen-lockfile
+
+      # Version is the base version from package.json with the run number as patch: 0.1.0 → 0.1.<run>.
+      - name: Set version
+        run: bun -e "const p = await Bun.file('package.json').json(); p.version = p.version.split('.').slice(0, 2).join('.') + '.${{ github.run_number }}'; await Bun.write('package.json', JSON.stringify(p, null, 2) + '\n')"
+
+      - run: bun run build
+
+      - name: Build and publish
+        run: bunx --bun electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
