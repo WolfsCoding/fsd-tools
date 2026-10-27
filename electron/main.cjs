@@ -12,7 +12,10 @@ const ORIGIN = `${SCHEME}://fsd-tools`
 const DIST = path.join(__dirname, "..", "dist")
 // Set by `bun run desktop` to load the Vite dev server instead.
 const DEV_URL = process.env.ELECTRON_DEV_URL
-const UPDATE_INTERVAL = 60 * 60 * 1000
+// Like T3 Code: the first check once the app has settled, then often, so the update
+// button shows up soon after a release without searching in the settings.
+const UPDATE_STARTUP_DELAY = 15 * 1000
+const UPDATE_INTERVAL = 4 * 60 * 1000
 
 // A fixed, standard origin keeps localStorage (all the app's data) the same across updates.
 protocol.registerSchemesAsPrivileged([
@@ -139,10 +142,12 @@ function setupUpdates() {
     setUpdateState({ status: "downloading", version: updateState.version, percent: Math.round(p.percent) }),
   )
   autoUpdater.on("update-downloaded", (info) => setUpdateState({ status: "ready", version: info.version }))
-  // Keeps the version of a failed download so it can be tried again.
-  autoUpdater.on("error", (err) =>
-    setUpdateState({ status: "error", version: updateState.version, error: String(err?.message ?? err) }),
-  )
+  // A failed background check keeps a found update offered; a failed download keeps its
+  // version so it can be tried again.
+  autoUpdater.on("error", (err) => {
+    if (updateState.status === "available") return
+    setUpdateState({ status: "error", version: updateState.version, error: String(err?.message ?? err) })
+  })
 
   ipcMain.handle("app:version", () => app.getVersion())
   ipcMain.handle("updates:get", () => updateState)
@@ -150,7 +155,7 @@ function setupUpdates() {
   ipcMain.handle("updates:download", () => downloadUpdate())
   ipcMain.handle("updates:install", () => installUpdate())
 
-  checkForUpdates()
+  setTimeout(checkForUpdates, UPDATE_STARTUP_DELAY)
   setInterval(checkForUpdates, UPDATE_INTERVAL)
 }
 

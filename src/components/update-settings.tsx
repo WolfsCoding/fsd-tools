@@ -29,7 +29,7 @@ function describe(state: UpdateState | undefined) {
     case "unsupported":
       return "Updates gibt es nur in der installierten App."
     default:
-      return "Sucht beim Start und jede Stunde. Geladen und installiert wird nur auf Klick."
+      return "Sucht kurz nach dem Start und alle 4 Minuten. Geladen und installiert wird nur auf Klick."
   }
 }
 

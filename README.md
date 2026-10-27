@@ -17,7 +17,7 @@ The shell is in `electron/`. It serves `dist/` under `app://fsd-tools` (a fixed 
 
 ## Updates
 
-Every push to `main` runs `.github/workflows/release.yml`: it builds the installer and publishes it as a GitHub release `v0.1.<run number>`. The minor and major version come from `package.json`; bump them there. Installed apps check the releases at start and every hour but never update on their own: a found version shows an update button at the bottom of the tool strip (and in Einstellungen › Updates) that downloads it, then offers "Neu starten" to install it. The repo must be public for the app to read the releases.
+Every push to `main` runs `.github/workflows/release.yml`: it builds the installer and publishes it as a GitHub release `v0.1.<run number>`. The minor and major version come from `package.json`; bump them there. Installed apps check the releases 15 seconds after start and every 4 minutes but never update on their own: a found version shows an update button at the bottom of the tool strip (and in Einstellungen › Updates) that downloads it, then offers "Neu starten" to install it. The repo must be public for the app to read the releases.
 
 ## Adding a tool
 
