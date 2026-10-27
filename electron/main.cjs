@@ -105,8 +105,24 @@ function downloadUpdate() {
   autoUpdater.downloadUpdate().catch(() => {})
 }
 
+/**
+ * Like T3 Code: the window and tray go at once, the installer runs without its window
+ * and starts the new version when done.
+ */
 function installUpdate() {
-  if (updateState.status === "ready") autoUpdater.quitAndInstall()
+  if (updateState.status !== "ready") return
+  quitting = true
+  win?.hide()
+  tray?.destroy()
+  tray = null
+  try {
+    autoUpdater.quitAndInstall(true, true)
+  } catch (err) {
+    quitting = false
+    createTray()
+    showWindow()
+    setUpdateState({ status: "error", version: updateState.version, error: String(err?.message ?? err) })
+  }
 }
 
 function setupUpdates() {
