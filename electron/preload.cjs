@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld("desktop", {
       return () => ipcRenderer.removeListener("updates:state", handler)
     },
   },
+  /** Colors of the Windows buttons, `{ color, symbolColor }`. */
+  setTitleBar: (colors) => ipcRenderer.send("window:title-bar", colors),
   /** Answers the local API (electron/api.cjs) with `handler(route, body)`; returns the unsubscribe. */
   serveApi: (handler) => {
     const listener = async (_, { id, route, body }) => {

@@ -9,6 +9,7 @@ import { SplitLayout } from "@/components/split-view"
 import { StorageWarning } from "@/components/storage-warning"
 import { TabBar } from "@/components/tab-bar"
 import { TabsProvider } from "@/components/tabs-provider"
+import { TitleBarSync } from "@/components/title-bar-sync"
 import { ToolStrip } from "@/components/tool-strip"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import { DnaLink } from "@/features/case-files/dna-link"
@@ -40,6 +41,7 @@ export function AppLayout() {
             <StorageWarning />
             <DnaLink />
             <DesktopApi />
+            <TitleBarSync />
           </SidebarProvider>
         </TabsProvider>
       </CommandPaletteProvider>

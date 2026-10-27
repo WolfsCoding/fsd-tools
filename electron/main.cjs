@@ -118,6 +118,11 @@ app.on("second-instance", () => {
   win.focus()
 })
 
+// The app sets the Windows buttons' colors to follow its theme and darken under dialogs.
+ipcMain.on("window:title-bar", (_, { color, symbolColor }) => {
+  win?.setTitleBarOverlay({ color, symbolColor })
+})
+
 app.whenReady().then(() => {
   serveDist()
   setupUpdates()

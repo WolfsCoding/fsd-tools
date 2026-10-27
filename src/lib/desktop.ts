@@ -16,6 +16,8 @@ interface DesktopApi {
     subscribe: (listener: (state: UpdateState) => void) => () => void
   }
   serveApi: (handler: (route: string, body: Record<string, unknown>) => unknown) => () => void
+  /** Colors of the Windows buttons in the title bar. */
+  setTitleBar: (colors: { color: string; symbolColor: string }) => void
 }
 
 /** Thrown by an API handler to answer with that HTTP status. */
