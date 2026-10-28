@@ -123,6 +123,7 @@ export function CaseFileView({
   /** "caseFile" or the id of the document whose title is being edited. */
   const [renaming, setRenaming] = useState<string>()
   const renameAfterMenu = useRef(false)
+  const addedFromMenu = useRef(false)
   const title = caseFileTitle(caseFile, me, templates)
   useTabTitle(title)
 
@@ -236,6 +237,7 @@ export function CaseFileView({
   function addDoc(id: string) {
     const added = api.addDoc(caseFile.id, id)
     focusDoc.current = added
+    addedFromMenu.current = true
     setDocId(added)
   }
 
@@ -448,7 +450,15 @@ export function CaseFileView({
                   </DropdownMenuTrigger>
                 </Hint>
                 {/* The new document's first field keeps the focus, not the button. */}
-                <DropdownMenuContent align="start" className="w-60" onCloseAutoFocus={(e) => e.preventDefault()}>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-60"
+                  onCloseAutoFocus={(e) => {
+                    if (!addedFromMenu.current) return
+                    addedFromMenu.current = false
+                    e.preventDefault()
+                  }}
+                >
                   <DropdownMenuLabel>Zur Akte hinzufügen</DropdownMenuLabel>
                   {attachItems}
                 </DropdownMenuContent>
