@@ -1,12 +1,15 @@
 import { Action, ActionPanel, Clipboard, closeMainWindow, Form, Icon, showHUD } from "@raycast/api"
 import { showFailureToast, usePromise } from "@raycast/utils"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { call, type CreatedDocument, type Field, type Offense, type Template } from "./api"
 
 /** Value of a suggestions dropdown that shows a text field for an own value. */
 const CUSTOM = "__custom"
 
 type Mode = "copy" | "paste" | "open" | "draft"
+
+/** How long typing may pause before the app is asked for the derived fields. */
+const PREVIEW_DELAY = 300
 
 /** The template's form, built from what the app describes; submitting creates the Akte in the app. */
 export function DocumentForm({ template }: { template: Template }) {
@@ -16,6 +19,19 @@ export function DocumentForm({ template }: { template: Template }) {
   })
   // Suggestions dropdowns where "Eigener Wert" is picked.
   const [custom, setCustom] = useState<Record<string, boolean>>({})
+  // What's typed so far, by the fields' ids; the app derives the choices (e.g. the fine tier) from it.
+  const [values, setValues] = useState<Form.Values>({})
+  const [settled, setSettled] = useState(values)
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(values), PREVIEW_DELAY)
+    return () => clearTimeout(timer)
+  }, [values])
+  const { data: preview } = usePromise(
+    (form: Form.Values) => call<CreatedDocument>("/documents", { template: template.id, values: collect(fields, form), save: false }),
+    [settled],
+    { execute: fields.some((f) => f.type === "choice"), onError: () => undefined },
+  )
+  const ctx: FieldContext = { offenses: offenses ?? [], custom, setCustom, choices: preview?.choices, onChange: setValues }
 
   async function submit(form: Form.Values, mode: Mode) {
     try {
@@ -66,23 +82,29 @@ export function DocumentForm({ template }: { template: Template }) {
       {template.sections.map((section) => [
         <Form.Separator key={`${section.title}-separator`} />,
         <Form.Description key={`${section.title}-title`} title={section.title} text={section.description} />,
-        ...section.fields.flatMap((f) => renderField(f, offenses ?? [], custom, setCustom)),
+        ...section.fields.flatMap((f) => renderField(f, ctx)),
       ])}
     </Form>
   )
 }
 
-const title = (f: Field) => (f.required ? `${f.label} *` : f.label)
+const title = (f: Exclude<Field, { type: "choice" }>) => (f.required ? `${f.label} *` : f.label)
 
 /** An option's text without the markdown's code spans; `{key}` stands for a field filled in above. */
 const optionLabel = (o: string) => o.replace(/`/g, "").replace(/\{\w+\}/g, "…")
 
-function renderField(
-  f: Field,
-  offenses: Offense[],
-  custom: Record<string, boolean>,
-  setCustom: (fn: (prev: Record<string, boolean>) => Record<string, boolean>) => void,
-): React.ReactNode[] {
+interface FieldContext {
+  offenses: Offense[]
+  custom: Record<string, boolean>
+  setCustom: (fn: (prev: Record<string, boolean>) => Record<string, boolean>) => void
+  /** The app's derived choices for what's typed so far; undefined until its first answer. */
+  choices: Record<string, string> | undefined
+  onChange: (fn: (prev: Form.Values) => Form.Values) => void
+}
+
+function renderField(f: Field, ctx: FieldContext): React.ReactNode[] {
+  const { offenses, custom, setCustom, choices } = ctx
+  const track = (id: string) => (value: unknown) => ctx.onChange((prev) => ({ ...prev, [id]: value }))
   switch (f.type) {
     case "text":
       if (f.suggestions?.length) {
@@ -92,7 +114,10 @@ function renderField(
             id={f.key}
             title={title(f)}
             info={f.hint}
-            onChange={(v) => setCustom((prev) => ({ ...prev, [f.key]: v === CUSTOM }))}
+            onChange={(v) => {
+              setCustom((prev) => ({ ...prev, [f.key]: v === CUSTOM }))
+              track(f.key)(v)
+            }}
           >
             <Form.Dropdown.Item value="" title="Keine Angabe" />
             {f.suggestions.map((s) => (
@@ -100,14 +125,39 @@ function renderField(
             ))}
             <Form.Dropdown.Item value={CUSTOM} title="Eigener Wert …" />
           </Form.Dropdown>,
-          custom[f.key] && <Form.TextField key={`${f.key}-custom`} id={`${f.key}${CUSTOM}`} title="" placeholder={f.placeholder} />,
+          custom[f.key] && (
+            <Form.TextField
+              key={`${f.key}-custom`}
+              id={`${f.key}${CUSTOM}`}
+              title=""
+              placeholder={f.placeholder}
+              onChange={track(`${f.key}${CUSTOM}`)}
+            />
+          ),
         ]
       }
       return [
-        <Form.TextField key={f.key} id={f.key} title={title(f)} info={f.hint} placeholder={f.placeholder} defaultValue={f.default} />,
+        <Form.TextField
+          key={f.key}
+          id={f.key}
+          title={title(f)}
+          info={f.hint}
+          placeholder={f.placeholder}
+          defaultValue={f.default}
+          onChange={track(f.key)}
+        />,
       ]
     case "list":
-      return [<Form.TextArea key={f.key} id={f.key} title={title(f)} info={f.hint ?? "Ein Punkt pro Zeile."} placeholder={f.placeholder} />]
+      return [
+        <Form.TextArea
+          key={f.key}
+          id={f.key}
+          title={title(f)}
+          info={f.hint ?? "Ein Punkt pro Zeile."}
+          placeholder={f.placeholder}
+          onChange={track(f.key)}
+        />,
+      ]
     case "datetime":
       return [
         <Form.DatePicker
@@ -116,13 +166,20 @@ function renderField(
           title={title(f)}
           type={Form.DatePicker.Type.DateTime}
           info={f.hint ?? "Leer: die Zeit des Anlegens."}
+          onChange={track(f.key)}
         />,
       ]
     case "checks":
       return [
-        ...f.inline.flatMap((i) => renderField(i, offenses, custom, setCustom)),
+        ...f.inline.flatMap((i) => renderField(i, ctx)),
         ...f.options.map((o, i) => (
-          <Form.Checkbox key={`${f.key}-${i}`} id={`${f.key}::${i}`} title={i === 0 ? title(f) : undefined} label={optionLabel(o)} />
+          <Form.Checkbox
+            key={`${f.key}-${i}`}
+            id={`${f.key}::${i}`}
+            title={i === 0 ? title(f) : undefined}
+            label={optionLabel(o)}
+            onChange={track(`${f.key}::${i}`)}
+          />
         )),
       ]
     case "table":
@@ -133,15 +190,30 @@ function renderField(
           title={title(f)}
           info={`Eine Zeile pro Eintrag, Spalten mit | trennen: ${f.columns.map((c) => c.label).join(" | ")}`}
           placeholder={f.columns.map((c) => c.placeholder).join(" | ")}
+          onChange={track(f.key)}
         />,
       ]
     case "charges":
       return [
-        <Form.TagPicker key={f.key} id={f.key} title={title(f)} info={f.hint ?? "Anzahl und Betrag in der App anpassen."}>
+        <Form.TagPicker
+          key={f.key}
+          id={f.key}
+          title={title(f)}
+          info={f.hint ?? "Anzahl und Betrag in der App anpassen."}
+          onChange={track(f.key)}
+        >
           {offenses.map((o) => (
             <Form.TagPicker.Item key={o.id} value={o.id} title={`${o.ref} · ${o.title}${o.fine ? ` · ${o.fine}` : ""}`} />
           ))}
         </Form.TagPicker>,
+      ]
+    case "choice":
+      return [
+        <Form.Description
+          key={f.key}
+          title={f.label}
+          text={choices?.[f.key] ? optionLabel(choices[f.key]) : "– (ergibt sich aus den Angaben oben)"}
+        />,
       ]
   }
 }
@@ -182,6 +254,8 @@ function collect(fields: Field[], form: Form.Values) {
         break
       case "charges":
         put(f.key, raw)
+        break
+      case "choice":
         break
     }
   }

@@ -72,6 +72,8 @@ export type Field =
       columns: { key: string; label: string; placeholder: string; choices?: string[] }[]
     }
   | { type: "charges"; key: string; label: string; hint?: string; required?: boolean }
+  /** Worked out by the app from the other fields (e.g. the fine tier); `/documents` returns it in `choices`. */
+  | { type: "choice"; key: string; label: string; hint?: string }
 
 export interface Template {
   id: string
@@ -110,4 +112,25 @@ export interface CreatedDocument {
   markdown: string
   /** Required fields left empty. */
   missing: string[]
+  /** The derived `choice` fields; "" while the app can't tell yet. */
+  choices: Record<string, string>
+}
+
+export type PlateStatus = "offen" | "gueltig" | "ungueltig"
+export const PLATE_STATUS: Record<PlateStatus, string> = { offen: "Offen", gueltig: "Gültig", ungueltig: "Ungültig" }
+
+/** A plate seen at a scene (`/plates`); `ticket` is the markdown for a fake one. */
+export interface PlateCheck {
+  id: string
+  driver: string
+  holder: string
+  plate: string
+  model: string
+  /** As a datetime-local input writes it, e.g. "2026-10-27T19:30". */
+  date: string
+  scene: string
+  status: PlateStatus
+  ticket?: string
+  /** The Kennzeichen page in the app. */
+  path: string
 }

@@ -3,15 +3,20 @@ import { useEffect, useRef } from "react"
 import { useNavigate } from "react-router"
 import { ChargesInput } from "@/features/case-files/charges-input"
 import { casePath, templateGroups } from "@/features/case-files/kind"
-import { withNow } from "@/features/case-files/markdown"
+import { withNow, type Colors } from "@/features/case-files/markdown"
 import { POLICE_FILES_KIND, usePoliceFiles } from "@/features/case-files/police-files"
-import { createReader, missingRequired, type Field, type Template, type TextField } from "@/features/case-files/templates"
+import { createReader, missingRequired, templateFields, type Field, type Template, type TextField } from "@/features/case-files/templates"
 import type { Row, Values } from "@/features/case-files/types"
 import { caseFileTitle, useColors, useOwnIdentity } from "@/features/case-files/use-case-files"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
 import { books } from "@/features/law-book/data/books"
 import { citation, formatFine, matchesParagraph, OFFENSES, parseQuery, penaltyNotes, type Offense } from "@/features/law-book/offenses"
 import { lawBookPath } from "@/features/law-book/paths"
+import { filterChecks, isDateFilter, isStatusFilter } from "@/features/plates/filter"
+import { PLATES_BASE } from "@/features/plates/paths"
+import { renderPlateTicket } from "@/features/plates/render"
+import { PlateStatus, type PlateCheck } from "@/features/plates/types"
+import { usePlates } from "@/features/plates/use-plates"
 import { ApiError, desktop } from "@/lib/desktop"
 
 // Answers the desktop shell's local API (electron/services/LocalApi.ts), e.g. for the Raycast extension in
@@ -33,6 +38,20 @@ const DocumentsBody = Schema.Struct({
 })
 const SearchBody = Schema.Struct({ q: Schema.optional(Schema.String) })
 const OpenBody = Schema.Struct({ path: Schema.String })
+/** The filters of the Kennzeichen page: `status` offen/gueltig/ungueltig, `date` heute/woche/monat. */
+const PlatesBody = Schema.Struct({ q: Schema.optional(Schema.String), status: Schema.optional(Schema.String), date: Schema.optional(Schema.String) })
+const PlateCreateBody = Schema.Struct({
+  driver: Schema.optional(Schema.String),
+  holder: Schema.optional(Schema.String),
+  plate: Schema.optional(Schema.String),
+  model: Schema.optional(Schema.String),
+  scene: Schema.optional(Schema.String),
+  /** As a datetime-local input writes it; default now. */
+  date: Schema.optional(Schema.String),
+  status: Schema.optional(PlateStatus),
+  open: Flag,
+})
+const PlateStatusBody = Schema.Struct({ id: Schema.String, status: PlateStatus })
 
 /** The body as `schema` describes it, else a 400 naming what's wrong. */
 function decode<S extends Schema.Codec<unknown, unknown>>(schema: S, body: unknown): S["Type"] {
@@ -43,7 +62,7 @@ function decode<S extends Schema.Codec<unknown, unknown>>(schema: S, body: unkno
   }
 }
 
-/** A field as the API describes it; fields the API can't fill (automatic ones, custom inputs) are left out. */
+/** A field as the API describes it; custom inputs are left out. A `choice` is derived by the app and comes back in `choices`. */
 type ApiField =
   | { type: "text"; key: string; label: string; hint?: string; required?: boolean; placeholder: string; default?: string; suggestions?: string[] }
   | { type: "list"; key: string; label: string; hint?: string; required?: boolean; placeholder: string }
@@ -58,6 +77,7 @@ type ApiField =
       columns: { key: string; label: string; placeholder: string; choices?: string[] }[]
     }
   | { type: "charges"; key: string; label: string; hint?: string; required?: boolean }
+  | { type: "choice"; key: string; label: string; hint?: string }
 
 function describeField(f: Field, me: string): ApiField | undefined {
   const base = { key: f.key, label: f.label, hint: f.hint, required: f.required }
@@ -86,7 +106,7 @@ function describeField(f: Field, me: string): ApiField | undefined {
     case "custom":
       return f.component === ChargesInput ? { ...base, type: "charges" } : undefined
     case "choice":
-      return undefined
+      return { type: "choice", key: f.key, label: f.label, hint: f.hint }
   }
 }
 
@@ -130,6 +150,11 @@ function describeOffense(o: Offense) {
   }
 }
 
+/** A plate check with its ticket, when the plate turned out fake. */
+function describeCheck(c: PlateCheck, colors: Colors) {
+  return { ...c, holder: c.holder ?? "", ticket: c.status === "ungueltig" ? renderPlateTicket(c, colors) : undefined, path: PLATES_BASE }
+}
+
 /** The API's values as stored by the app: table rows and charges get their ids. */
 function toValues(template: Template<string>, input: unknown): Values {
   if (typeof input !== "object" || input === null) throw new ApiError(400, "`values` fehlt.")
@@ -153,11 +178,12 @@ export function DesktopApi() {
   const { identity } = useOwnIdentity()
   const { colors } = useColors()
   const { entries } = useDnaEntries()
+  const plates = usePlates()
   const navigate = useNavigate()
   // The handler is registered once and reads the latest state from here.
-  const state = useRef({ files, identity, colors, entries, navigate })
+  const state = useRef({ files, identity, colors, entries, plates, navigate })
   useEffect(() => {
-    state.current = { files, identity, colors, entries, navigate }
+    state.current = { files, identity, colors, entries, plates, navigate }
   })
 
   useEffect(() => {
@@ -175,7 +201,7 @@ export function DesktopApi() {
     })
 
     function answer(route: string, body: Record<string, unknown>): unknown {
-      const { files, identity, colors, entries, navigate } = state.current
+      const { files, identity, colors, entries, plates, navigate } = state.current
       const me = identity.full
 
       switch (route) {
@@ -193,7 +219,11 @@ export function DesktopApi() {
           const reader = createReader(template, values, me, colors, identity.department, entries)
           const markdown = withNow(template.render(reader))
           const missing = missingRequired(template, reader)
-          if (input.save === false || input.save === "false") return { markdown, missing }
+          // What the app works out from the other fields, e.g. the fine tier; "" while it can't yet.
+          const choices = Object.fromEntries(
+            templateFields(template).flatMap((f) => (f.type === "choice" ? [[f.key, reader.text(f.key)]] : [])),
+          )
+          if (input.save === false || input.save === "false") return { markdown, missing, choices }
 
           const id = files.createCaseFile(template.id, values)
           const at = new Date().toISOString()
@@ -204,7 +234,7 @@ export function DesktopApi() {
           )
           const path = casePath(kind, id)
           if (on(input.open)) navigate(path)
-          return { id, title, path, markdown, missing }
+          return { id, title, path, markdown, missing, choices }
         }
 
         case "/offenses":
@@ -228,6 +258,29 @@ export function DesktopApi() {
                 })),
             ),
           )
+        }
+
+        case "/plates": {
+          const { q, status, date } = decode(PlatesBody, body)
+          if (status !== undefined && !isStatusFilter(status)) throw new ApiError(400, `Unbekannter Status: ${status}`)
+          if (date !== undefined && !isDateFilter(date)) throw new ApiError(400, `Unbekannter Zeitraum: ${date}`)
+          return filterChecks(plates.checks, { query: q, status, date }).map((c) => describeCheck(c, colors))
+        }
+
+        case "/plates/create": {
+          const { status, open, ...input } = decode(PlateCreateBody, body)
+          const defined = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined))
+          const check = plates.addCheck(defined, status)
+          if (on(open)) navigate(PLATES_BASE)
+          return describeCheck(check, colors)
+        }
+
+        case "/plates/status": {
+          const { id, status } = decode(PlateStatusBody, body)
+          const check = plates.checks.find((c) => c.id === id)
+          if (!check) throw new ApiError(404, `Unbekannte Abfrage: ${id}`)
+          plates.setStatus(id, status)
+          return describeCheck({ ...check, status }, colors)
         }
 
         case "/open": {
