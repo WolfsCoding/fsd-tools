@@ -34,6 +34,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
+import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { copy } from "@/lib/clipboard"
 import { formatRelative } from "@/lib/format-date"
@@ -164,6 +165,30 @@ export function CaseFileView({
     copy(blankMarkdown(template, colors, identity.department), "Vorlage")
   }
   const showTabs = caseFile.docs.length > 1 || !!main.attachable
+
+  // The palette runs the latest actions, but registers its entries again only when their labels change.
+  const latest = useRef({ copyMarkdown, copyAll })
+  useEffect(() => {
+    latest.current = { copyMarkdown, copyAll }
+  })
+  const several = caseFile.docs.length > 1
+  const name = docName(current, me, templates, caseFile.docs)
+  const commandGroups = useMemo<CommandGroupDef[]>(
+    () => [
+      {
+        heading: title,
+        items: [
+          { id: `${kind.id}:open:copy`, label: `${name} kopieren`, icon: ClipboardCopyIcon, onSelect: () => latest.current.copyMarkdown() },
+          { id: `${kind.id}:open:preview`, label: `Vorschau: ${name}`, icon: EyeIcon, onSelect: () => setPreviewOpen(true) },
+          ...(several
+            ? [{ id: `${kind.id}:open:copy-all`, label: "Alle Dokumente kopieren", icon: CopyIcon, onSelect: () => latest.current.copyAll() }]
+            : []),
+        ],
+      },
+    ],
+    [title, name, several, kind.id],
+  )
+  useRegisterCommands(`${kind.id}:open`, commandGroups)
 
   // Alt+Shift+C copies the page title, with or without the preview open.
   useEffect(() => {
