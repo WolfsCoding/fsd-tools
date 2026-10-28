@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Navigate } from "react-router"
+import { Link, Navigate } from "react-router"
 import { SettingsIcon, ToggleLeftIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -47,7 +47,19 @@ export function HomeRoute() {
       <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="m-auto flex flex-col items-center py-10">
           <img src="/favicon.svg" alt="" className="mb-8 size-24 animate-in duration-500 ease-out-quint fade-in-0 zoom-in-90" />
-          <div className="animate-in duration-500 ease-out-quint fade-in-0 slide-in-from-bottom-2 fill-mode-backwards delay-100">
+          <div className="flex w-full max-w-3xl flex-col items-center animate-in duration-500 ease-out-quint fade-in-0 slide-in-from-bottom-2 fill-mode-backwards delay-100">
+            <nav aria-label="Werkzeug öffnen" className="mb-10 grid w-full grid-cols-2 gap-2 px-6 sm:grid-cols-3">
+              {enabledFeatures.map((f) => (
+                <Link
+                  key={f.path}
+                  to={`/${f.path}`}
+                  className="flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm font-medium outline-none transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <f.icon className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{f.title}</span>
+                </Link>
+              ))}
+            </nav>
             <Disclaimer />
           </div>
         </div>
