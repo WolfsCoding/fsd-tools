@@ -10,6 +10,7 @@ import {
   RotateCwIcon,
   SearchIcon,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Hint } from "@/components/hint"
 import { useCommandPalette } from "@/hooks/use-command-palette"
 import { routeOf, useTabs, type Tab } from "@/hooks/use-tabs"
@@ -136,6 +137,17 @@ function AddressBar() {
   const pageTitle = active && feature && titleOf(active) !== feature.title ? titleOf(active) : undefined
   const Icon = feature?.icon ?? MonitorIcon
 
+  // Strg+L like Explorer's address bar.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!e.ctrlKey || e.altKey || e.shiftKey || e.key?.toLowerCase() !== "l") return
+      e.preventDefault()
+      setEditing(true)
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [])
+
   const crumbs: { label: string; to?: string }[] = [
     { label: "FSD Tools" },
     ...(feature ? [{ label: feature.title, to: `/${feature.path}` }] : []),
@@ -155,8 +167,13 @@ function AddressBar() {
           if (e.key === "Escape") setEditing(false)
           if (e.key !== "Enter") return
           const value = e.currentTarget.value.trim()
+          const path = value.startsWith("/") ? value : `/${value}`
+          if (value && path !== "/" && !featureOf(path)) {
+            toast.error(`Keine Seite unter ${path}`, { description: "Prüfe die Schreibweise, z. B. /notes." })
+            return
+          }
           setEditing(false)
-          if (value) navigate(value.startsWith("/") ? value : `/${value}`)
+          if (value) navigate(path)
         }}
         className="h-8 min-w-0 flex-1 rounded-lg border-b-2 border-primary bg-field px-3 text-xs text-foreground outline-none animate-in duration-150 fade-in-0"
       />
