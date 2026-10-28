@@ -180,6 +180,7 @@ function TabItem({
         <ContextMenuTrigger asChild>
           <div
             role="tab"
+            aria-label={tooltip}
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             data-tab-id={tab.id}
@@ -194,7 +195,15 @@ function TabItem({
               closeTabs(tab.id)
             }}
             onKeyDown={(e) => {
-              if (e.key === "Delete") closeTabs(tab.id)
+              if (e.key === "Delete") return closeTabs(tab.id)
+              if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+              const targets: Partial<Record<string, number>> = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: tabs.length - 1 }
+              const target = targets[e.key]
+              if (target === undefined) return
+              e.preventDefault()
+              const next = tabs[(target + tabs.length) % tabs.length]
+              activate(next.id)
+              e.currentTarget.parentElement?.querySelector<HTMLElement>(`[data-tab-id="${next.id}"]`)?.focus()
             }}
             onDragStart={onDragStart}
             onDragOver={onDragOver}

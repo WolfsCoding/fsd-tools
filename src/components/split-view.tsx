@@ -19,7 +19,8 @@ import { cn } from "cn"
 import { Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
 import { FeatureRoute } from "@/components/feature-routes"
 import { Hint } from "@/components/hint"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Button } from "@/components/ui/button"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { features } from "@/features/registry"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { usePageTransition } from "@/hooks/use-page-transition"
@@ -228,18 +229,28 @@ class PaneErrorBoundary extends Component<{ children: ReactNode }, { error: bool
 
   render() {
     if (!this.state.error) return this.props.children
-    return (
-      <Empty className="flex-1">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <TriangleAlertIcon />
-          </EmptyMedia>
-          <EmptyTitle>Seite konnte nicht angezeigt werden</EmptyTitle>
-          <EmptyDescription>Schließe den Split View über das Kontextmenü des Tabs.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    )
+    return <PaneError />
   }
+}
+
+function PaneError() {
+  const { closeSplit } = useTabs()
+  return (
+    <Empty className="flex-1">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <TriangleAlertIcon />
+        </EmptyMedia>
+        <EmptyTitle>Seite konnte nicht angezeigt werden</EmptyTitle>
+        <EmptyDescription>Die linke Seite bleibt offen.</EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent>
+        <Button variant="outline" onClick={closeSplit}>
+          Split View schließen
+        </Button>
+      </EmptyContent>
+    </Empty>
+  )
 }
 
 /**

@@ -38,6 +38,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import { Switch } from "@/components/ui/switch"
 import { UpdateSettings } from "@/components/update-settings"
@@ -143,12 +144,14 @@ function SettingsDialogBody({
   const visible = features.filter((f) =>
     matches([f.title, f.description ?? "", ...DATA_KEYWORDS]),
   )
-  // Fall back to the first match when the search hides the active page.
+  // Fall back to the first match when the search hides the active page; without matches it stays.
   const active: SettingsPage | Feature =
     visiblePages.find((p) => p.id === activeId) ??
     visible.find((f) => f.path === activeId) ??
     visiblePages[0] ??
     visible[0] ??
+    allPages.find((p) => p.id === activeId) ??
+    features.find((f) => f.path === activeId) ??
     features[0]
   const activeKey = "content" in active ? active.id : active.path
 
@@ -181,19 +184,22 @@ function SettingsDialogBody({
           </NavGroup>
         )}
 
-        <NavGroup title="Funktionen">
-          {visible.map((feature) => (
-            <NavButton
-              key={feature.path}
-              entry={feature}
-              active={feature.path === activeKey}
-              onClick={() => setActiveId(feature.path)}
-            />
-          ))}
-          {visible.length === 0 && (
-            <p className="px-2 text-sm text-muted-foreground">Keine Treffer.</p>
-          )}
-        </NavGroup>
+        {visible.length > 0 && (
+          <NavGroup title="Funktionen">
+            {visible.map((feature) => (
+              <NavButton
+                key={feature.path}
+                entry={feature}
+                active={feature.path === activeKey}
+                onClick={() => setActiveId(feature.path)}
+              />
+            ))}
+          </NavGroup>
+        )}
+
+        {visiblePages.length === 0 && visible.length === 0 && (
+          <NoResults query={query} onReset={() => setQuery("")} />
+        )}
       </nav>
 
       <div className="min-h-0 overflow-y-auto rounded-xl bg-card px-8 py-6 ring-1 ring-border">
@@ -230,6 +236,7 @@ function NavButton({
     <button
       type="button"
       data-active={active}
+      aria-current={active ? "page" : undefined}
       onClick={onClick}
       className="flex h-8 items-center gap-2.5 rounded-lg border border-transparent px-2 text-left text-sm font-medium text-foreground/80 outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[active=true]:border-input data-[active=true]:bg-card data-[active=true]:text-foreground [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-muted-foreground data-[active=true]:[&_svg]:text-primary"
     >
