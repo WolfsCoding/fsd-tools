@@ -206,14 +206,16 @@ export function containsTerm(text: string, term: string) {
 
 /**
  * Search terms of a query; "§ 5" becomes "§5", which only matches paragraph 5, and
- * "Abs. 3" / "Nr. 1" of a citation become "abs3" / "nr1". Book abbreviations like "co" match the book.
+ * "Abs. 3" / "Nr. 1" of a citation (a query with a §) become "abs3" / "nr1". Without a §, "gemäß Absatz 1"
+ * stays words of the text. Book abbreviations like "co" match the book.
  */
 export function parseQuery(query: string): string[] {
-  return query
-    .toLowerCase()
+  const lower = query.toLowerCase()
+  const citation = lower.includes("§")
+  return lower
     .replace(/§\s*(\d+)/g, "§$1")
     .replace(/§(?!\d)/g, " ")
-    .replace(/(?<![\p{L}\p{N}])(abs|nr)(?:atz)?\.?\s*(\d+)/gu, " $1$2 ")
+    .replace(/(?<![\p{L}\p{N}])(abs|nr)(?:atz)?\.?\s*(\d+)/gu, (match, part, n) => (citation ? ` ${part}${n} ` : match))
     .split(/\s+/)
     .filter(Boolean)
 }
