@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { useSettingsDialog } from "@/hooks/use-settings"
 import type { DnaEntry } from "@/features/dna-db/types"
 import { formatDate } from "@/lib/format-date"
 import { sameText, textKey } from "@/lib/text"
@@ -1395,13 +1396,20 @@ function Notice({ text }: { text?: string }) {
 
 /** Says where `{{ME}}` comes from while no own name is set. */
 export function MeHint({ me }: { me: string }) {
+  const { openPage } = useSettingsDialog()
   if (me !== ME) return null
   return (
     <p className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
       <SparklesIcon className="size-3.5 shrink-0" />
       <span>
-        Kein eigener Name gesetzt, es wird <code className="text-foreground">{ME}</code> eingefügt. Eintragen unter
-        Einstellungen → Eigene Person.
+        Kein eigener Name gesetzt, es wird <code className="text-foreground">{ME}</code> eingefügt.{" "}
+        <button
+          type="button"
+          onClick={() => openPage("eigene-person")}
+          className="font-medium text-foreground underline-offset-2 hover:underline"
+        >
+          Name eintragen
+        </button>
       </span>
     </p>
   )
