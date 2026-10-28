@@ -50,7 +50,7 @@ export function OperationsPage() {
       onRename: setRenamingId,
       onDelete: (operation) => {
         api.deleteOperation(operation.id)
-        removedToast(`„${operationTitle(operation)}“`, () => api.restoreOperation(operation))
+        removedToast(`Einsatz „${operationTitle(operation)}“`, () => api.restoreOperation(operation))
       },
     }),
     [api, navigate, createdId, renamingId],

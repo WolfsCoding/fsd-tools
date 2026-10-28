@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { ListTodoIcon, PlusIcon } from "lucide-react"
 import { EmptyList } from "@/components/no-results"
 import { FilterMenu, SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
 import { DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu"
+import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { TodoDialog } from "./todo-dialog"
 import { TodoTable } from "./todo-table"
 import type { Todo, TodoInput } from "./types"
@@ -29,6 +30,21 @@ export function TodoPanel({
 }) {
   const [showDone, setShowDone] = useState(false)
   const [creating, setCreating] = useState(false)
+  // Only the Todos page (the one with the search) offers its commands; a person's todos don't.
+  const onPage = !!search
+  const commandGroups = useMemo<CommandGroupDef[]>(
+    () =>
+      onPage
+        ? [
+            {
+              heading: "Todos",
+              items: [{ id: "todos:new", label: "Neues Todo", icon: PlusIcon, onSelect: () => setCreating(true) }],
+            },
+          ]
+        : [],
+    [onPage],
+  )
+  useRegisterCommands("todos", commandGroups)
   const done = todos.filter((t) => t.done)
   const shown = todos
     .filter((t) => showDone || !t.done)

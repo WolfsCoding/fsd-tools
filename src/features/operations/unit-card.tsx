@@ -281,7 +281,7 @@ function UnitMenuItems({
     const index = operation.units.findIndex((u) => u.id === unit.id)
     const taskIds = operation.tasks.filter((t) => t.unitIds.includes(unit.id)).map((t) => t.id)
     api.removeUnit(id, unit)
-    removedToast(`„${unitName(unit)}“`, () => api.restoreUnit(id, unit, index, taskIds))
+    removedToast(`Streife „${unitName(unit)}“`, () => api.restoreUnit(id, unit, index, taskIds))
   }
   return (
     <>

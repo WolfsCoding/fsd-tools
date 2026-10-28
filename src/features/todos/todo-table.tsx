@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react"
 import { FileTextIcon, PencilIcon, Trash2Icon, UserIcon } from "lucide-react"
 import { Link } from "react-router"
+import { toast } from "sonner"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -42,7 +43,14 @@ export function TodoTable({ todos, api }: { todos: Todo[]; api: TodosApi }) {
               <td className="py-2 pl-3 align-middle">
                 <Checkbox
                   checked={todo.done}
-                  onCheckedChange={() => api.toggleTodo(todo.id)}
+                  onCheckedChange={() => {
+                    api.toggleTodo(todo.id)
+                    // Done todos usually leave the list, so say where it went and offer it back.
+                    if (!todo.done)
+                      toast(`Todo „${todo.title}“ erledigt`, {
+                        action: { label: "Rückgängig", onClick: () => api.toggleTodo(todo.id) },
+                      })
+                  }}
                   aria-label={todo.done ? "Wieder öffnen" : "Als erledigt markieren"}
                 />
               </td>

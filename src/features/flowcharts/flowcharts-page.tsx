@@ -57,7 +57,7 @@ export function FlowchartsPage() {
         navigate(flowchartPath(id))
       },
       onDelete: (chart) =>
-        removedToast(`Ablaufdiagramm „${flowchartTitle(chart)}"`, api.deleteFlowchart(chart.id)),
+        removedToast(`Ablaufdiagramm „${flowchartTitle(chart)}“`, api.deleteFlowchart(chart.id)),
     }),
     [api, navigate, createdId],
   )
@@ -163,7 +163,7 @@ function ChartList({ api, actions }: { api: FlowchartsApi; actions: ListActions 
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Aktionen für „${flowchartTitle(c)}"`}
+                    aria-label={`Aktionen für „${flowchartTitle(c)}“`}
                     className="absolute top-1/2 right-2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
                   >
                     <EllipsisIcon />

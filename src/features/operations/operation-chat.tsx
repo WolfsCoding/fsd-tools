@@ -481,7 +481,10 @@ function Composer({ units, onSend }: { units: Unit[]; onSend: (text: string, uni
               </UnitPicker>
             </span>
           </Hint>
-          <Button size="icon-sm" className="ml-auto" onClick={send} disabled={!text.trim()} aria-label="Senden">
+          {text && (
+            <span className="ml-auto truncate pl-2 text-xs text-muted-foreground">Umschalt+Enter für neue Zeile</span>
+          )}
+          <Button size="icon-sm" className={cn(!text && "ml-auto")} onClick={send} disabled={!text.trim()} aria-label="Senden">
             <SendIcon />
           </Button>
         </div>

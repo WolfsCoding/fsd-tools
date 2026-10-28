@@ -235,10 +235,22 @@ function NoteItem({
         <CollapsibleContent className="border-t">
           {editing ? (
             <NoteForm note={note} onSave={onSave} onCancel={onCancel} />
-          ) : note.content.trim() ? (
-            <NoteMarkdown className="px-4 py-5">{note.content}</NoteMarkdown>
           ) : (
-            <p className="px-4 py-5 text-sm text-muted-foreground italic">Leere Notiz</p>
+            <>
+              {note.content.trim() ? (
+                <NoteMarkdown className="px-4 py-5">{note.content}</NoteMarkdown>
+              ) : (
+                <p className="px-4 py-5 text-sm text-muted-foreground italic">Leere Notiz</p>
+              )}
+              <div className="flex justify-end gap-2 px-4 pb-4">
+                <Button variant="outline" size="sm" onClick={onRemove} className="text-red-400">
+                  <Trash2Icon /> Löschen
+                </Button>
+                <Button variant="outline" size="sm" onClick={onEdit}>
+                  <PencilIcon /> Bearbeiten
+                </Button>
+              </div>
+            </>
           )}
         </CollapsibleContent>
       </li>
@@ -302,6 +314,8 @@ function NewNoteDialog({
           // "Vollbild" of the editor makes the dialog fill the screen, the rest stays as it is.
           fullscreen && "top-0 left-0 h-dvh max-h-none max-w-none translate-x-0 translate-y-0 rounded-none sm:max-w-none",
         )}
+        // A stray click next to the editor shouldn't throw the note away; Esc and "Abbrechen" still do.
+        onInteractOutside={(e) => e.preventDefault()}
         // Esc leaves "Vollbild" first instead of throwing the note away.
         onEscapeKeyDown={(e) => {
           if (!fullscreen) return
