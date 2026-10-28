@@ -83,14 +83,14 @@ function EntryList() {
   const mentions = useCaseFileMentions(entries)
 
   const filtered = useMemo(() => {
-    const q = textKey(query)
+    // Every word on its own, so "Mustermann Max" finds "Max Mustermann".
+    const words = textKey(query).split(/\s+/).filter(Boolean)
     const sorted = sortByName(entries)
-    if (!q) return sorted
-    return sorted.filter((e) =>
-      [e.name, e.dnaId, e.fingerprintId, ...(e.tags ?? []).map((t) => t.name), ...(e.caseNumbers ?? [])].some(
-        (v) => textKey(v).includes(q),
-      ),
-    )
+    if (!words.length) return sorted
+    return sorted.filter((e) => {
+      const fields = [e.name, e.dnaId, e.fingerprintId, ...(e.tags ?? []).map((t) => t.name), ...(e.caseNumbers ?? [])].map(textKey)
+      return words.every((w) => fields.some((v) => v.includes(w)))
+    })
   }, [entries, query])
 
   const [page, setPage] = useState(1)

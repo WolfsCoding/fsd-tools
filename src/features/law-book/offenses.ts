@@ -205,25 +205,42 @@ export function containsTerm(text: string, term: string) {
 }
 
 /**
- * Search terms of a query; "§ 5" becomes "§5", which only matches paragraph 5.
- * Book abbreviations like "co" match the book.
+ * Search terms of a query; "§ 5" becomes "§5", which only matches paragraph 5, and
+ * "Abs. 3" / "Nr. 1" of a citation become "abs3" / "nr1". Book abbreviations like "co" match the book.
  */
 export function parseQuery(query: string): string[] {
   return query
     .toLowerCase()
     .replace(/§\s*(\d+)/g, "§$1")
     .replace(/§(?!\d)/g, " ")
+    .replace(/(?<![\p{L}\p{N}])(abs|nr)(?:atz)?\.?\s*(\d+)/gu, " $1$2 ")
     .split(/\s+/)
     .filter(Boolean)
 }
 
-/** Whether the paragraph contains every term; "§5" and bare numbers match its number. */
+const CITATION_PART = /^(abs|nr)(\d+)$/
+
+/** Whether the term is part of a citation ("§5", "abs3", "nr1") rather than a word of the text. */
+export const isCitationTerm = (term: string) => term.startsWith("§") || CITATION_PART.test(term)
+
+/** Whether the paragraph contains every term; "§5" and bare numbers match its number, "abs3" a paragraph with an Abs. 3. */
 export function matchesParagraph(book: Book, paragraph: Paragraph, terms: string[], text = `${paragraph.title} ${paragraph.sections.join(" ")}`) {
   const haystack = `${book.abbreviation} ${text}`
   const number = String(paragraph.number)
-  return terms.every((t) => (t.startsWith("§") ? t.slice(1) === number : t === number || containsTerm(haystack, t)))
+  return terms.every((t) => {
+    if (t.startsWith("§")) return t.slice(1) === number
+    const part = CITATION_PART.exec(t)
+    if (part) return part[1] === "nr" || Number(part[2]) <= paragraph.sections.length
+    return t === number || containsTerm(haystack, t)
+  })
 }
 
 export function matchesOffense(o: Offense, terms: string[]) {
-  return matchesParagraph(o.book, o.paragraph, terms, `${o.ref} ${o.title} ${o.paragraph.title} ${o.text}`)
+  const [, , abs, nr] = o.id.split("-")
+  return (
+    terms.every((t) => {
+      const part = CITATION_PART.exec(t)
+      return !part || part[2] === (part[1] === "abs" ? abs : nr)
+    }) && matchesParagraph(o.book, o.paragraph, terms, `${o.ref} ${o.title} ${o.paragraph.title} ${o.text}`)
+  )
 }

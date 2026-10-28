@@ -34,15 +34,17 @@ function dayAgo(days: number) {
   return d.toISOString().slice(0, 10)
 }
 
-/** The checks matching the text (driver, holder, model, plate, scene), the status and the date range. */
+/**
+ * The checks matching every word of the text (in the driver, holder, model, plate or scene), the status
+ * and the date range. Plates also match without their space, so "ZZ4711" finds "ZZ 4711".
+ */
 export function filterChecks(checks: readonly PlateCheck[], { query = "", status = "alle", date = "alle" }: PlateFilter) {
-  const q = query.trim().toLowerCase()
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
   const days = DATE_FILTERS.find((d) => d.value === date)?.days
   const since = days === undefined ? "" : dayAgo(days)
-  return checks.filter(
-    (c) =>
-      (status === "alle" || c.status === status) &&
-      c.date.slice(0, 10) >= since &&
-      (!q || [c.driver, c.holder ?? "", c.model, c.plate, c.scene].some((t) => t.toLowerCase().includes(q))),
-  )
+  return checks.filter((c) => {
+    if ((status !== "alle" && c.status !== status) || c.date.slice(0, 10) < since) return false
+    const fields = [c.driver, c.holder ?? "", c.model, c.plate, c.plate.replace(/\s+/g, ""), c.scene].map((t) => t.toLowerCase())
+    return words.every((w) => fields.some((t) => t.includes(w)))
+  })
 }

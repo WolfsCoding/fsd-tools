@@ -48,7 +48,14 @@ export function HeadersPage() {
   return (
     <div className="@container flex min-h-0 flex-1">
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 @3xl:flex-row @3xl:overflow-hidden">
-        <DesignForm design={design} onChange={update} onReset={() => setStored(DEFAULT_DESIGN)} />
+        <DesignForm
+          design={design}
+          onChange={update}
+          onReset={() => {
+            setStored(DEFAULT_DESIGN)
+            toast("Header zurückgesetzt", { action: { label: "Rückgängig", onClick: () => setStored(stored) } })
+          }}
+        />
         <Preview design={design} scale={scale} onScale={setScale} />
       </div>
     </div>

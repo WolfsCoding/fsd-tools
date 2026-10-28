@@ -62,14 +62,13 @@ export function FsuPage() {
 function PostList({ query, onQuery }: { query: string; onQuery: (q: string) => void }) {
   const search = query ? `?${new URLSearchParams({ q: query })}` : ""
   const groups = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return allGroups
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+    if (!words.length) return allGroups
     return groupByCategory(
-      posts.filter((p) =>
-        [p.title, p.category, p.content].some((v) =>
-          v.toLowerCase().includes(q),
-        ),
-      ),
+      posts.filter((p) => {
+        const text = `${p.title} ${p.category} ${p.content}`.toLowerCase()
+        return words.every((w) => text.includes(w))
+      }),
     )
   }, [query])
 

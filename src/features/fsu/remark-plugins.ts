@@ -68,10 +68,11 @@ export function remarkLawLinks() {
     )
 }
 
-/** Wraps every occurrence of `query` (ignoring case) in `<mark>`. */
+/** Wraps every occurrence of each word of `query` (ignoring case) in `<mark>`. */
 export function remarkHighlight(query: string) {
   const q = query.trim()
-  const pattern = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi")
+  const words = q.split(/\s+/).map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+  const pattern = new RegExp(words.join("|"), "gi")
   return (tree: MdNode) => {
     if (!q) return
     mapText(
