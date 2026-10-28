@@ -180,6 +180,7 @@ function TabItem({
         <ContextMenuTrigger asChild>
           <div
             role="tab"
+            aria-label={tooltip}
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             data-tab-id={tab.id}
