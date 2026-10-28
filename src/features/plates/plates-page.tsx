@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react"
+import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import {
   DropdownMenuLabel,
@@ -19,6 +20,11 @@ export function PlatesPage() {
 
   const shown = useMemo(() => filterChecks(api.checks, { query, status, date }), [api.checks, query, status, date])
   const keep = (e: Event) => e.preventDefault()
+  const resetFilters = () => {
+    setQuery("")
+    setStatus("alle")
+    setDate("alle")
+  }
 
   return (
     <main className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -51,7 +57,16 @@ export function PlatesPage() {
             </>
           }
         />
-        <PlateTable checks={shown} api={api} />
+        <PlateTable
+          checks={shown}
+          api={api}
+          onAdd={() => {
+            // A new row must not be hidden by the search or a filter.
+            resetFilters()
+            api.addCheck()
+          }}
+        />
+        {query.trim() && !shown.length && <NoResults query={query} onReset={resetFilters} />}
       </div>
     </main>
   )

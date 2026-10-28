@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { EllipsisIcon, EyeIcon, GripVerticalIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
@@ -34,9 +34,10 @@ const STATUS: Choice[] = [
  * Plate checks as an editable table like the ones in the Akten: every cell is filled in place,
  * new rows start on top, and rows are reordered by dragging their handle.
  */
-export function PlateTable({ checks, api }: { checks: PlateCheck[]; api: PlatesApi }) {
+export function PlateTable({ checks, api, onAdd }: { checks: PlateCheck[]; api: PlatesApi; onAdd: () => void }) {
   const { colors } = useColors()
   const [ticket, setTicket] = useState<string>()
+  const bodyRef = useRef<HTMLTableSectionElement>(null)
   const reorder = useReorder((from, to) => api.moveCheck(checks[from].id, checks[to].id))
 
   return (
@@ -59,7 +60,7 @@ export function PlateTable({ checks, api }: { checks: PlateCheck[]; api: PlatesA
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody ref={bodyRef}>
           {checks.map((check, i) => (
             <tr key={check.id} {...reorder.row(i)} className={cn("group focus-within:bg-accent/20 *:border-b", reorder.rowClass(i))}>
               <Hint label="Ziehen zum Verschieben">
@@ -122,9 +123,9 @@ export function PlateTable({ checks, api }: { checks: PlateCheck[]; api: PlatesA
                     )}
                     <DropdownMenuItem
                       variant="destructive"
-                      onSelect={() => removedToast(`Abfrage ${i + 1}`, api.deleteCheck(check.id))}
+                      onSelect={() => removedToast(check.plate.trim() ? `Abfrage „${check.plate.trim()}“` : "Abfrage", api.deleteCheck(check.id))}
                     >
-                      <Trash2Icon /> Entfernen
+                      <Trash2Icon /> Löschen
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -133,7 +134,15 @@ export function PlateTable({ checks, api }: { checks: PlateCheck[]; api: PlatesA
           ))}
         </tbody>
       </table>
-      <AddRow label="Abfrage hinzufügen" onClick={() => api.addCheck()} className="sticky left-0" />
+      <AddRow
+        label="Abfrage hinzufügen"
+        onClick={() => {
+          onAdd()
+          // New rows start on top.
+          requestAnimationFrame(() => bodyRef.current?.querySelector("input")?.focus())
+        }}
+        className="sticky left-0"
+      />
       <TicketDialog markdown={ticket} onClose={() => setTicket(undefined)} />
     </div>
   )
