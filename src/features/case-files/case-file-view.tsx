@@ -121,6 +121,7 @@ export function CaseFileView({
   const focusDoc = useRef((location.state as { created?: boolean } | null)?.created ? caseFile.docs[0].id : undefined)
   /** "caseFile" or the id of the document whose title is being edited. */
   const [renaming, setRenaming] = useState<string>()
+  const renameAfterMenu = useRef(false)
   const title = caseFileTitle(caseFile, me, templates)
   useTabTitle(title)
 
@@ -293,7 +294,17 @@ export function CaseFileView({
                 <EllipsisIcon />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60">
+            {/* "Umbenennen" opens the title field once the menu is closed, so the field gets the focus, not the button. */}
+            <DropdownMenuContent
+              align="end"
+              className="w-60"
+              onCloseAutoFocus={(e) => {
+                if (!renameAfterMenu.current) return
+                renameAfterMenu.current = false
+                e.preventDefault()
+                setRenaming("caseFile")
+              }}
+            >
               <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
                 <EyeIcon /> Vorschau
               </DropdownMenuItem>
@@ -315,6 +326,9 @@ export function CaseFileView({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => (renameAfterMenu.current = true)}>
+                <PencilIcon /> {kind.noun} umbenennen
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => api.setSettled(caseFile.id, !caseFile.settled)}>
                 <CircleCheckIcon /> {caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}
               </DropdownMenuItem>
