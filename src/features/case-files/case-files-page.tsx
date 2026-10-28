@@ -47,7 +47,7 @@ export function CaseFilesPage({ kind = POLICE_FILES_KIND }: { kind?: CaseFileKin
   const navigate = useNavigate()
 
   const create = useCallback(
-    (template: string) => navigate(casePath(kind, createCaseFile(template))),
+    (template: string) => navigate(casePath(kind, createCaseFile(template)), { state: { created: true } }),
     [createCaseFile, kind, navigate],
   )
 

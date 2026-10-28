@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router"
 import {
   CircleCheckIcon,
@@ -34,6 +34,7 @@ import {
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
+import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { copy } from "@/lib/clipboard"
 import { formatRelative } from "@/lib/format-date"
@@ -69,9 +70,13 @@ function isAltShift(e: KeyboardEvent, code: string) {
   return e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.getModifierState("AltGraph") && e.code === code
 }
 
-/** Says which required fields are still empty, after copying anyway. */
-function warnMissing(missing: string[]) {
-  if (missing.length) toast.warning("Trotzdem kopiert: Pflichtfelder leer", { description: missing.join(", ") })
+/** Copies `text`; with required fields still empty, one warning naming them replaces the usual confirmation. */
+function copyChecked(text: string, label: string, missing: string[]) {
+  if (!missing.length) return copy(text, label)
+  navigator.clipboard.writeText(text).then(
+    () => toast.warning(`${label} kopiert, Pflichtfelder leer`, { description: missing.join(", ") }),
+    () => toast.error("Kopieren nicht möglich"),
+  )
 }
 
 /** One case file: a tab per document and its form. The markdown opens on demand or stays next to the form. */
@@ -111,8 +116,13 @@ export function CaseFileView({
     setHandledKey(location.key)
     if ((location.state as { preview?: boolean } | null)?.preview) setPreviewOpen(true)
   }
+  // A case file just created (`{ created: true }`) or a document just added starts in its first field.
+  const formRef = useRef<HTMLDivElement>(null)
+  /** The document whose first field takes the focus once it is shown. */
+  const focusDoc = useRef((location.state as { created?: boolean } | null)?.created ? caseFile.docs[0].id : undefined)
   /** "caseFile" or the id of the document whose title is being edited. */
   const [renaming, setRenaming] = useState<string>()
+  const renameAfterMenu = useRef(false)
   const title = caseFileTitle(caseFile, me, templates)
   useTabTitle(title)
 
@@ -139,25 +149,46 @@ export function CaseFileView({
   const label = docLabel(current, me, templates, caseFile.docs)
   // Automatic dates are the time of copying; the preview shows them as they would be now.
   const preview = withNow(markdown)
-  const copyMarkdown = () => {
-    copy(withNow(markdown), label)
-    warnMissing(missingRequired(template, reader))
-  }
+  const copyMarkdown = () => copyChecked(withNow(markdown), label, missingRequired(template, reader))
   /** The main document and every attached one as one text, in tab order. */
-  const copyAll = () => {
-    copy(withNow(caseFile.docs.map((d) => templates[d.template].render(readerOf(d))).join("\n\n")), "Alle Dokumente")
-    warnMissing(
+  const copyAll = () =>
+    copyChecked(
+      withNow(caseFile.docs.map((d) => templates[d.template].render(readerOf(d))).join("\n\n")),
+      "Alle Dokumente",
       caseFile.docs.flatMap((d) =>
         missingRequired(templates[d.template], readerOf(d)).map((f) => `${docName(d, me, templates, caseFile.docs)}: ${f}`),
       ),
     )
-  }
   /** The empty template of the open document, without the own name; its `{{now:…}}` dates stay for the editor to fill in. */
   const copyBlank = () => {
     if (!template.blank) return
     copy(blankMarkdown(template, colors, identity.department), "Vorlage")
   }
   const showTabs = caseFile.docs.length > 1 || !!main.attachable
+
+  // The palette runs the latest actions, but registers its entries again only when their labels change.
+  const latest = useRef({ copyMarkdown, copyAll })
+  useEffect(() => {
+    latest.current = { copyMarkdown, copyAll }
+  })
+  const several = caseFile.docs.length > 1
+  const name = docName(current, me, templates, caseFile.docs)
+  const commandGroups = useMemo<CommandGroupDef[]>(
+    () => [
+      {
+        heading: title,
+        items: [
+          { id: `${kind.id}:open:copy`, label: `${name} kopieren`, icon: ClipboardCopyIcon, onSelect: () => latest.current.copyMarkdown() },
+          { id: `${kind.id}:open:preview`, label: `Vorschau: ${name}`, icon: EyeIcon, onSelect: () => setPreviewOpen(true) },
+          ...(several
+            ? [{ id: `${kind.id}:open:copy-all`, label: "Alle Dokumente kopieren", icon: CopyIcon, onSelect: () => latest.current.copyAll() }]
+            : []),
+        ],
+      },
+    ],
+    [title, name, several, kind.id],
+  )
+  useRegisterCommands(`${kind.id}:open`, commandGroups)
 
   // Alt+Shift+C copies the page title, with or without the preview open.
   useEffect(() => {
@@ -171,6 +202,12 @@ export function CaseFileView({
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [pageTitle])
+
+  useEffect(() => {
+    if (focusDoc.current !== current.id) return
+    focusDoc.current = undefined
+    formRef.current?.querySelector<HTMLElement>("input, textarea")?.focus()
+  })
 
   // A new case file nothing was entered in yet is deleted once it is left: another one is
   // opened, the tab is closed or the page reloaded.
@@ -197,7 +234,9 @@ export function CaseFileView({
   }
 
   function addDoc(id: string) {
-    setDocId(api.addDoc(caseFile.id, id))
+    const added = api.addDoc(caseFile.id, id)
+    focusDoc.current = added
+    setDocId(added)
   }
 
   function removeDoc(removed: Doc<string>) {
@@ -280,7 +319,17 @@ export function CaseFileView({
                 <EllipsisIcon />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60">
+            {/* "Umbenennen" opens the title field once the menu is closed, so the field gets the focus, not the button. */}
+            <DropdownMenuContent
+              align="end"
+              className="w-60"
+              onCloseAutoFocus={(e) => {
+                if (!renameAfterMenu.current) return
+                renameAfterMenu.current = false
+                e.preventDefault()
+                setRenaming("caseFile")
+              }}
+            >
               <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
                 <EyeIcon /> Vorschau
               </DropdownMenuItem>
@@ -302,6 +351,9 @@ export function CaseFileView({
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => (renameAfterMenu.current = true)}>
+                <PencilIcon /> {kind.noun} umbenennen
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => api.setSettled(caseFile.id, !caseFile.settled)}>
                 <CircleCheckIcon /> {caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}
               </DropdownMenuItem>
@@ -395,7 +447,8 @@ export function CaseFileView({
                     </Button>
                   </DropdownMenuTrigger>
                 </Hint>
-                <DropdownMenuContent align="start" className="w-60">
+                {/* The new document's first field keeps the focus, not the button. */}
+                <DropdownMenuContent align="start" className="w-60" onCloseAutoFocus={(e) => e.preventDefault()}>
                   <DropdownMenuLabel>Zur Akte hinzufügen</DropdownMenuLabel>
                   {attachItems}
                 </DropdownMenuContent>
@@ -410,7 +463,7 @@ export function CaseFileView({
           <div className="grid gap-4">
             <MeHint me={reader.me} />
             {/* Keyed by document, so switching documents fades the new one in. */}
-            <div key={current.id} className="animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
+            <div key={current.id} ref={formRef} className="animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
               <DocForm
                 template={template}
                 values={current.values}

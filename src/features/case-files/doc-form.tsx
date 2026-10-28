@@ -28,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { useSettingsDialog } from "@/hooks/use-settings"
 import type { DnaEntry } from "@/features/dna-db/types"
 import { formatDate } from "@/lib/format-date"
 import { sameText, textKey } from "@/lib/text"
@@ -1090,7 +1091,18 @@ function TableInput({
     )
   }
 
+  const panel = useRef<HTMLDivElement>(null)
+  /** The index of the row just added; its first input takes the focus once it is shown. */
+  const focusRow = useRef<number>(undefined)
+  useLayoutEffect(() => {
+    const shown = panel.current?.querySelectorAll("[data-row]")
+    if (focusRow.current === undefined || !shown || shown.length <= focusRow.current) return
+    shown[focusRow.current].querySelector("input")?.focus()
+    focusRow.current = undefined
+  })
+
   function add() {
+    focusRow.current = rows.length
     setRows([...rows, { id: crypto.randomUUID(), ...Object.fromEntries(field.columns.map((c) => [c.key, c.initial ?? ""])) }])
   }
 
@@ -1143,9 +1155,9 @@ function TableInput({
   if (cards)
     return (
       <Labeled label={field.label} bare={bare} required={field.required} className={FULL}>
-        <div className="grid gap-3">
+        <div ref={panel} className="grid gap-3">
           {rows.map((row, i) => (
-            <div key={row.id ?? i} {...reorder.row(i)} className={cn(BOX, "group", reorder.rowClass(i))}>
+            <div key={row.id ?? i} data-row {...reorder.row(i)} className={cn(BOX, "group", reorder.rowClass(i))}>
               {/* Header like a panel row: the drag handle, the card's title, its remove button. */}
               <div className="flex h-10 items-stretch border-b border-border/60 bg-muted/50">
                 {handle(row, i)}
@@ -1178,7 +1190,7 @@ function TableInput({
 
   return (
     <Labeled label={field.label} bare={bare} required={field.required} className={FULL}>
-      <div className={cn(BOX, "overflow-x-auto")}>
+      <div ref={panel} className={cn(BOX, "overflow-x-auto")}>
         {/* Separate borders, so each cell draws its border inside its own width like the panel rows:
             the handle column then lines up exactly with the add button below. */}
         <table className="w-full border-separate border-spacing-0 text-sm">
@@ -1207,6 +1219,7 @@ function TableInput({
             {rows.map((row, i) => (
               <tr
                 key={row.id ?? i}
+                data-row
                 {...reorder.row(i)}
                 className={cn("group focus-within:bg-accent/20 *:border-b", reorder.rowClass(i))}
               >
@@ -1395,13 +1408,20 @@ function Notice({ text }: { text?: string }) {
 
 /** Says where `{{ME}}` comes from while no own name is set. */
 export function MeHint({ me }: { me: string }) {
+  const { openPage } = useSettingsDialog()
   if (me !== ME) return null
   return (
     <p className="flex items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
       <SparklesIcon className="size-3.5 shrink-0" />
       <span>
-        Kein eigener Name gesetzt, es wird <code className="text-foreground">{ME}</code> eingefügt. Eintragen unter
-        Einstellungen → Eigene Person.
+        Kein eigener Name gesetzt, es wird <code className="text-foreground">{ME}</code> eingefügt.{" "}
+        <button
+          type="button"
+          onClick={() => openPage("eigene-person")}
+          className="font-medium text-foreground underline-offset-2 hover:underline"
+        >
+          Name eintragen
+        </button>
       </span>
     </p>
   )
