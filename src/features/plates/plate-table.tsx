@@ -96,6 +96,7 @@ export function PlateTable({ checks, api }: { checks: PlateCheck[]; api: PlatesA
                   label={`Status (Zeile ${i + 1})`}
                   value={check.status === "offen" ? "" : check.status}
                   choices={STATUS}
+                  empty="Offen"
                   onChange={(v) => api.setStatus(check.id, (v || "offen") as PlateStatus)}
                 />
               </td>

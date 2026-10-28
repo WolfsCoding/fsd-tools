@@ -1250,6 +1250,7 @@ export function ChoiceCell({
   choices,
   onChange,
   boxed,
+  empty = "---",
 }: {
   label: string
   value: string
@@ -1257,6 +1258,8 @@ export function ChoiceCell({
   onChange: (value: string) => void
   /** Bordered like an input, instead of filling a table cell. */
   boxed?: boolean
+  /** What the cell shows while nothing is chosen. */
+  empty?: string
 }) {
   const current = choices.find((m) => m.value === value)
   return (
@@ -1271,7 +1274,7 @@ export function ChoiceCell({
           current ? current.className : "text-muted-foreground/60",
         )}
       >
-        <span className="flex-1 truncate">{current ? (current.label ?? current.value) : "---"}</span>
+        <span className="flex-1 truncate">{current ? (current.label ?? current.value) : empty}</span>
         <ChevronDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="min-w-32">
