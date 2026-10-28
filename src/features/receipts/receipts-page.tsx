@@ -39,7 +39,14 @@ export function ReceiptsPage() {
   return (
     <div className="@container flex min-h-0 flex-1">
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 @3xl:flex-row @3xl:overflow-hidden">
-        <ReceiptForm receipt={receipt} onChange={update} onReset={() => setStored(DEFAULT_RECEIPT)} />
+        <ReceiptForm
+          receipt={receipt}
+          onChange={update}
+          onReset={() => {
+            setStored(DEFAULT_RECEIPT)
+            toast("Kassenbon zurückgesetzt", { action: { label: "Rückgängig", onClick: () => setStored(stored) } })
+          }}
+        />
         <Preview receipt={receipt} scale={scale} onScale={setScale} />
       </div>
     </div>
@@ -55,6 +62,7 @@ function ReceiptForm({
   onChange: (patch: Partial<Receipt>) => void
   onReset: () => void
 }) {
+  const [addedId, setAddedId] = useState<string>()
   const setItem = (id: string, patch: Partial<ReceiptItem>) =>
     onChange({ items: receipt.items.map((item) => (item.id === id ? { ...item, ...patch } : item)) })
 
@@ -103,6 +111,7 @@ function ReceiptForm({
                 onChange={(e) => setItem(item.id, { name: e.target.value })}
                 placeholder="Artikel"
                 aria-label="Artikel"
+                autoFocus={item.id === addedId}
               />
               <NumberField value={item.qty} onChange={(qty) => setItem(item.id, { qty })} label="Menge" />
               <NumberField value={item.price} onChange={(price) => setItem(item.id, { price })} label="Preis" />
@@ -117,7 +126,15 @@ function ReceiptForm({
             </div>
           ))}
           <div className="flex items-center justify-between gap-2">
-            <Button variant="outline" size="sm" onClick={() => onChange({ items: [...receipt.items, newItem()] })}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const item = newItem()
+                setAddedId(item.id)
+                onChange({ items: [...receipt.items, item] })
+              }}
+            >
               <PlusIcon /> Artikel
             </Button>
             <span className="text-sm text-muted-foreground">
