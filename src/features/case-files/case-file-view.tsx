@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router"
 import {
   CircleCheckIcon,
@@ -115,6 +115,10 @@ export function CaseFileView({
     setHandledKey(location.key)
     if ((location.state as { preview?: boolean } | null)?.preview) setPreviewOpen(true)
   }
+  // A case file just created (`{ created: true }`) or a document just added starts in its first field.
+  const formRef = useRef<HTMLDivElement>(null)
+  /** The document whose first field takes the focus once it is shown. */
+  const focusDoc = useRef((location.state as { created?: boolean } | null)?.created ? caseFile.docs[0].id : undefined)
   /** "caseFile" or the id of the document whose title is being edited. */
   const [renaming, setRenaming] = useState<string>()
   const title = caseFileTitle(caseFile, me, templates)
@@ -173,6 +177,12 @@ export function CaseFileView({
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [pageTitle])
 
+  useEffect(() => {
+    if (focusDoc.current !== current.id) return
+    focusDoc.current = undefined
+    formRef.current?.querySelector<HTMLElement>("input, textarea")?.focus()
+  })
+
   // A new case file nothing was entered in yet is deleted once it is left: another one is
   // opened, the tab is closed or the page reloaded.
   const { discardDraft } = api
@@ -198,7 +208,9 @@ export function CaseFileView({
   }
 
   function addDoc(id: string) {
-    setDocId(api.addDoc(caseFile.id, id))
+    const added = api.addDoc(caseFile.id, id)
+    focusDoc.current = added
+    setDocId(added)
   }
 
   function removeDoc(removed: Doc<string>) {
@@ -396,7 +408,8 @@ export function CaseFileView({
                     </Button>
                   </DropdownMenuTrigger>
                 </Hint>
-                <DropdownMenuContent align="start" className="w-60">
+                {/* The new document's first field keeps the focus, not the button. */}
+                <DropdownMenuContent align="start" className="w-60" onCloseAutoFocus={(e) => e.preventDefault()}>
                   <DropdownMenuLabel>Zur Akte hinzufügen</DropdownMenuLabel>
                   {attachItems}
                 </DropdownMenuContent>
@@ -411,7 +424,7 @@ export function CaseFileView({
           <div className="grid gap-4">
             <MeHint me={reader.me} />
             {/* Keyed by document, so switching documents fades the new one in. */}
-            <div key={current.id} className="animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
+            <div key={current.id} ref={formRef} className="animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
               <DocForm
                 template={template}
                 values={current.values}
