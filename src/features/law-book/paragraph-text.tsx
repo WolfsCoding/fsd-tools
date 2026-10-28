@@ -5,7 +5,7 @@ import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
 import { copy } from "@/lib/clipboard"
 import type { Book, Paragraph } from "./data/types"
-import { citation, isWordTerm } from "./offenses"
+import { citation, isCitationTerm, isWordTerm } from "./offenses"
 
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -14,7 +14,7 @@ function escapeRegExp(s: string) {
 /** The text with every occurrence of the search terms marked. */
 export function Highlight({ text, terms }: { text: string; terms: string[] }) {
   const pattern = useMemo(() => {
-    const words = terms.filter((t) => t && !t.startsWith("§"))
+    const words = terms.filter((t) => t && !isCitationTerm(t))
     // Short terms like "to" only mark whole words, as they only match those.
     const parts = words.map((w) => (isWordTerm(w) ? String.raw`(?<![\p{L}\p{N}])${escapeRegExp(w)}(?![\p{L}\p{N}])` : escapeRegExp(w)))
     return words.length ? new RegExp(`(${parts.join("|")})`, "iu") : null
