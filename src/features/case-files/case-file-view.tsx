@@ -69,9 +69,13 @@ function isAltShift(e: KeyboardEvent, code: string) {
   return e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.getModifierState("AltGraph") && e.code === code
 }
 
-/** Says which required fields are still empty, after copying anyway. */
-function warnMissing(missing: string[]) {
-  if (missing.length) toast.warning("Trotzdem kopiert: Pflichtfelder leer", { description: missing.join(", ") })
+/** Copies `text`; with required fields still empty, one warning naming them replaces the usual confirmation. */
+function copyChecked(text: string, label: string, missing: string[]) {
+  if (!missing.length) return copy(text, label)
+  navigator.clipboard.writeText(text).then(
+    () => toast.warning(`${label} kopiert, Pflichtfelder leer`, { description: missing.join(", ") }),
+    () => toast.error("Kopieren nicht möglich"),
+  )
 }
 
 /** One case file: a tab per document and its form. The markdown opens on demand or stays next to the form. */
@@ -139,19 +143,16 @@ export function CaseFileView({
   const label = docLabel(current, me, templates, caseFile.docs)
   // Automatic dates are the time of copying; the preview shows them as they would be now.
   const preview = withNow(markdown)
-  const copyMarkdown = () => {
-    copy(withNow(markdown), label)
-    warnMissing(missingRequired(template, reader))
-  }
+  const copyMarkdown = () => copyChecked(withNow(markdown), label, missingRequired(template, reader))
   /** The main document and every attached one as one text, in tab order. */
-  const copyAll = () => {
-    copy(withNow(caseFile.docs.map((d) => templates[d.template].render(readerOf(d))).join("\n\n")), "Alle Dokumente")
-    warnMissing(
+  const copyAll = () =>
+    copyChecked(
+      withNow(caseFile.docs.map((d) => templates[d.template].render(readerOf(d))).join("\n\n")),
+      "Alle Dokumente",
       caseFile.docs.flatMap((d) =>
         missingRequired(templates[d.template], readerOf(d)).map((f) => `${docName(d, me, templates, caseFile.docs)}: ${f}`),
       ),
     )
-  }
   /** The empty template of the open document, without the own name; its `{{now:…}}` dates stay for the editor to fill in. */
   const copyBlank = () => {
     if (!template.blank) return
