@@ -29,6 +29,13 @@
       "subtitle": "FSD Tools",
       "description": "Paragraphen und Strafen aus dem Gesetzbuch der App suchen.",
       "mode": "view"
+    },
+    {
+      "name": "check-plates",
+      "title": "Kennzeichen abfragen",
+      "subtitle": "FSD Tools",
+      "description": "Gesehene Kennzeichen der App durchsuchen, anlegen und das Ticket eines gefälschten kopieren.",
+      "mode": "view"
     }
   ],
   "preferences": [

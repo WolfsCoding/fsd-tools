@@ -1,4 +1,4 @@
-import { Fragment, useId, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent, type ReactNode } from "react"
+import { Fragment, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import {
   CalendarIcon,
   CheckIcon,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
+import { move, useReorder } from "@/components/use-reorder"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -387,62 +388,6 @@ export function AddRow({
       {end && <span className={END} />}
     </button>
   )
-}
-
-/** `items` with the item at `from` moved to `to`. */
-function move<T>(items: T[], from: number, to: number) {
-  const next = [...items]
-  const [moved] = next.splice(from, 1)
-  next.splice(to, 0, moved)
-  return next
-}
-
-/**
- * Drag-to-reorder for rows that are held by a handle. Only the held row is draggable,
- * so text inside the rows stays selectable.
- */
-function useReorder(onMove: (from: number, to: number) => void) {
-  const [grabbed, setGrabbed] = useState<number>()
-  const [drag, setDrag] = useState<{ from: number; to: number }>()
-
-  function finish() {
-    if (drag && drag.from !== drag.to) onMove(drag.from, drag.to)
-    setDrag(undefined)
-    setGrabbed(undefined)
-  }
-
-  return {
-    row: (i: number) => ({
-      draggable: grabbed === i,
-      onDragStart: (e: DragEvent) => {
-        e.dataTransfer.effectAllowed = "move"
-        setDrag({ from: i, to: i })
-      },
-      onDragOver: (e: DragEvent) => {
-        if (!drag) return
-        e.preventDefault()
-        if (drag.to !== i) setDrag({ ...drag, to: i })
-      },
-      onDrop: (e: DragEvent) => {
-        e.preventDefault()
-        finish()
-      },
-      onDragEnd: finish,
-    }),
-    handle: (i: number) => ({
-      onPointerDown: () => setGrabbed(i),
-      onPointerUp: () => !drag && setGrabbed(undefined),
-    }),
-    /** Dims the dragged row and draws a line where it will land. */
-    rowClass: (i: number) =>
-      cn(
-        drag?.from === i && "opacity-40",
-        drag &&
-          drag.to === i &&
-          drag.from !== i &&
-          (drag.to < drag.from ? "shadow-[inset_0_2px_0_var(--primary)]" : "shadow-[inset_0_-2px_0_var(--primary)]"),
-      ),
-  }
 }
 
 /**
@@ -962,7 +907,7 @@ function ChoiceInput({ field, reader, bare }: FieldProps<ChoiceField>) {
 }
 
 /** A plain input that fills its table cell. */
-const CELL_INPUT =
+export const CELL_INPUT =
   "h-10 w-full min-w-0 bg-transparent px-3 outline-none placeholder:text-muted-foreground/60 focus:bg-accent/30"
 
 /**

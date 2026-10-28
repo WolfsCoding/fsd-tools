@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react"
-import { BookOpenIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, ListTodoIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
+import { BookOpenIcon, CarIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, ListTodoIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
 import type { StoredEntry } from "@/lib/storage"
 import { CaseFilesPage } from "./case-files/case-files-page"
 import { CaseFilesSettings, MarkdownSettings, OwnPersonSettings, SnippetsSettings } from "./case-files/case-files-settings"
@@ -28,6 +28,9 @@ import { bookmarksAtom } from "./law-book/bookmarks"
 import { calculatorAtom } from "./law-book/calculator"
 import { LAW_BOOK_BASE } from "./law-book/paths"
 import { FSU_BASE } from "./fsu/paths"
+import { PLATES_BASE } from "./plates/paths"
+import { PlatesPage } from "./plates/plates-page"
+import { platesAtom } from "./plates/use-plates"
 import { NotesPage } from "./notes/notes-page"
 import { NotesSettings } from "./notes/notes-settings"
 import { NOTES_BASE } from "./notes/paths"
@@ -105,6 +108,14 @@ export const features: Feature[] = [
     icon: ListTodoIcon,
     element: <TodosPage />,
     storage: { entries: [todosAtom] },
+  },
+  {
+    path: PLATES_BASE.slice(1),
+    title: "Kennzeichen abfragen",
+    description: "Gesehene Kennzeichen mit Fahrer, Fahrzeug, Datum und Tatort; nicht angemeldete als Ticket kopieren",
+    icon: CarIcon,
+    element: <PlatesPage />,
+    storage: { entries: [platesAtom] },
   },
   {
     path: FLOWCHARTS_BASE.slice(1),
