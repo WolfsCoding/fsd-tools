@@ -34,4 +34,4 @@ The desktop app listens on `127.0.0.1` (port 47821, or a free one if that's busy
 | `/law-book/search` | `q` | matching paragraphs with their sections and offenses |
 | `/open` | `path`, e.g. `/law-book/to/17` | |
 
-The routes are answered by the page in `src/components/desktop-api.tsx`; the server is `electron/api.cjs`.
+The routes are answered by the page in `src/components/desktop-api.tsx`; the server is `electron/services/LocalApi.ts`.

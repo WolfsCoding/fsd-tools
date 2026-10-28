@@ -9,7 +9,9 @@ bun dev          # the same in the browser, http://localhost:5173
 bun run dist     # builds the installer into release/
 ```
 
-The shell is in `electron/`. It serves `dist/` under `app://fsd-tools` (a fixed origin, so the data survives updates) and falls back to `index.html` for the app's paths (`/fsu/...`). Links to other sites open in the browser. F12 opens the DevTools. Closing the window hides it to the tray icon; "Beenden" in its menu quits.
+The shell is in `electron/`, built around [Effect](https://effect.website) like T3 Code's desktop app: each part is a service with a layer (`electron/services/`: the window, the tray, the updater and its state machine, the IPC with Schema-checked methods, the local API as an `HttpRouter`), and `electron/main.ts` only wires them up. `bun run build:electron` bundles it into `dist-electron/`. It serves `dist/` under `app://fsd-tools` (a fixed origin, so the data survives updates) and falls back to `index.html` for the app's paths (`/fsu/...`). Links to other sites open in the browser. F12 opens the DevTools. Closing the window hides it to the tray icon; "Beenden" in its menu quits.
+
+Everything that crosses between the shell and the page is typed in `src/contracts/` (the update state, the IPC channels, the local API's requests and answers). The page reads the shell through atoms (`src/lib/desktop.ts`, `@effect/atom-react`), with the app's one atom registry in `src/lib/runtime.ts`.
 
 ## Raycast
 
@@ -24,13 +26,13 @@ Every push to `main` runs `.github/workflows/release.yml`: it builds the install
 1. Create `src/features/<tool>/` with a page component.
 2. Register it in `src/features/registry.tsx`. That adds its route, its sidebar entry, and its own page in the settings (with an on/off switch).
 3. Put page controls in the header with `<HeaderActions>`. Add command palette entries (Ctrl/⌘+K) with `useRegisterCommands(id, groups)`. Memoize `groups`.
-4. Save its data with `useLocalStorage("<tool>:<key>", FALLBACK)` from `src/lib/local-storage.ts`. Keys get the `fsd-tools:` prefix automatically.
+4. Describe its data with an Effect `Schema` and keep it in a stored atom: `export const thingsAtom = stored("<tool>:<key>", Schema.Array(Thing), NO_THINGS)` from `src/lib/storage.ts`, read and written with `useAtom(thingsAtom)`. Keys get the `fsd-tools:` prefix automatically. Derive the TypeScript type from the schema (`StoredValue<typeof Thing>`); it is the schema's type with writable arrays and objects. Values of another shape are read as they are (with a console warning), never dropped, so readers can migrate what older versions wrote.
 5. Tabs work automatically: navigating inside the tool stays in its tab, and opening another tool focuses its tab or opens a new one (it never replaces the active tab's page). To name the tab after what's open (e.g. a post or note), call `useTabTitle(title)` from `src/hooks/use-tabs.ts`.
-6. List those keys in the registry entry's `storage.keys`. Its settings page then shows export, import, delete and the storage size. Add `storage.validate` to check imports, and `settings` to add extra rows built with `SettingsRow` from `src/components/settings-layout.tsx`. Own settings sections go in `preferences`, built with `SettingsSection`; they appear above "Daten". Listed keys are also part of the full backup (Einstellungen › Sicherung, main menu, command palette).
+6. List those atoms in the registry entry's `storage.entries`. Its settings page then shows export, import, delete and the storage size, and imports are checked against each atom's schema. Add `settings` to add extra rows built with `SettingsRow` from `src/components/settings-layout.tsx`. Own settings sections go in `preferences`, built with `SettingsSection`; they appear above "Daten". Listed atoms are also part of the full backup (Einstellungen › Sicherung, main menu, command palette; `src/lib/backup.ts`).
 
 Shared building blocks: `SearchField`, `NoResults`/`EmptyList`, `Combobox` and `InlineEdit` in `src/components/`, and `copy()` (`lib/clipboard.ts`), `sameText()` (`lib/text.ts`) and `removedToast()` (`lib/undo.ts`) in `src/lib/`. Deleting follows one rule: remove right away and offer "Rückgängig" in a toast instead of asking first.
 
-If saving fails (e.g. the browser storage is full), `useLocalStorage` doesn't throw; the status bar shows a warning and points to the backup.
+If saving fails (e.g. the browser storage is full), a stored atom doesn't throw; it records the failure in `writeFailureAtom`, and the status bar shows a warning that points to the backup.
 
 ## FSU-Erklärungen posts
 

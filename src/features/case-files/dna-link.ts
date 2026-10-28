@@ -5,8 +5,8 @@
 import { useEffect, useRef, useState } from "react"
 import type { DnaEntry, DnaEntryInput } from "@/features/dna-db/types"
 import { sameText } from "@/lib/text"
+import { useAtom } from "@effect/atom-react"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
-import { useLocalStorage } from "@/lib/local-storage"
 import { POLICE_FILES_KIND } from "./police-files"
 import { templateFields, type Column, type Lookup } from "./templates"
 import {
@@ -25,7 +25,6 @@ import {
 } from "./traces"
 import type { CaseFile, Row } from "./types"
 
-const NO_CASE_FILES: CaseFile<string>[] = []
 const KINDS: TraceKind[] = ["dna", "fa"]
 const FIELDS: DbField[] = ["name", "dna", "fa"]
 
@@ -211,7 +210,7 @@ function inTextField() {
  */
 export function DnaLink() {
   const { entries, dismissed, addEntry, updateEntry } = useDnaEntries()
-  const [caseFiles, setCaseFiles] = useLocalStorage(POLICE_FILES_KIND.storageKey, NO_CASE_FILES)
+  const [caseFiles, setCaseFiles] = useAtom(POLICE_FILES_KIND.atom)
   // Bumped when a field loses the focus, to link what was entered in it.
   const [blurs, setBlurs] = useState(0)
   // The case files when the focused field got the focus; different ones were edited in it.

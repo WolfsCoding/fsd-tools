@@ -1,25 +1,15 @@
-import { useLocalStorage } from "@/lib/local-storage"
-import type { NoteFolder } from "./types"
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
+import { stored } from "@/lib/storage"
+import { NoteFolder } from "./types"
 
 export const FOLDERS_KEY = "notes:folders"
 const NO_FOLDERS: NoteFolder[] = []
 
-export function isValidFoldersData(folders: unknown) {
-  return folders === undefined || (Array.isArray(folders) && folders.every(isFolder))
-}
-
-function isFolder(value: unknown): value is NoteFolder {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    ["id", "name", "createdAt", "updatedAt"].every((k) => typeof v[k] === "string") &&
-    (v.parentId === undefined || typeof v.parentId === "string") &&
-    (v.order === undefined || typeof v.order === "number")
-  )
-}
+export const foldersAtom = stored(FOLDERS_KEY, Schema.Array(NoteFolder), NO_FOLDERS)
 
 export function useNoteFolders() {
-  return useLocalStorage<NoteFolder[]>(FOLDERS_KEY, NO_FOLDERS)
+  return useAtom(foldersAtom)
 }
 
 export function folderName(folder: NoteFolder | undefined) {

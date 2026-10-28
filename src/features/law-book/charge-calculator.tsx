@@ -3,34 +3,23 @@ import { BackButton } from "@/components/explorer"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChargesEditor } from "@/features/case-files/charges-input"
-import type { Row } from "@/features/case-files/types"
+import { useAtom } from "@effect/atom-react"
 import { useTabTitle } from "@/hooks/use-tabs"
-import { useLocalStorage } from "@/lib/local-storage"
 import { removedToast } from "@/lib/undo"
+import { calculatorAtom } from "./calculator"
 import { LAW_BOOK_BASE } from "./paths"
-
-/** The calculator's charges, as rows like the ones of a case file. */
-export const CALCULATOR_KEY = "gesetzbuch:rechner"
-
-const NO_ROWS: unknown = []
-
-const rowsOf = (value: unknown): Row[] => (Array.isArray(value) ? value : [])
 
 /** The Strafrechner: offenses added up like in a case file, without one. Kept until reset. */
 export function ChargeCalculator() {
   useTabTitle("Strafrechner")
-  const [stored, setStored] = useLocalStorage(CALCULATOR_KEY, NO_ROWS)
-  const rows = rowsOf(stored)
+  const [rows, setRows] = useAtom(calculatorAtom)
 
   const reset = () => {
     const removed = rows
-    setStored([])
+    setRows([])
     // Rows added since come after the restored ones.
     removedToast("Rechnung", () =>
-      setStored((prev: unknown) => {
-        const now = rowsOf(prev)
-        return [...removed.filter((r) => !now.some((n) => n.id === r.id)), ...now]
-      }),
+      setRows((now) => [...removed.filter((r) => !now.some((n) => n.id === r.id)), ...now]),
     )
   }
 
@@ -56,7 +45,7 @@ export function ChargeCalculator() {
             Zurücksetzen
           </Button>
         </header>
-        <ChargesEditor label="Straftaten" value={rows} onChange={setStored} />
+        <ChargesEditor label="Straftaten" value={rows} onChange={setRows} />
       </div>
     </main>
   )

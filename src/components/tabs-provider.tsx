@@ -28,23 +28,34 @@ import {
   type Tab,
   type TabsContextValue,
 } from "@/hooks/use-tabs"
-import { useLocalStorage } from "@/lib/local-storage"
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
+import { stored, type StoredValue } from "@/lib/storage"
 
 const TABS_KEY = "layout:tabs"
 
-interface TabsState {
-  tabs: Tab[]
-  activeId: string | null
+const TabSchema = Schema.Struct({
+  id: Schema.String,
+  path: Schema.String,
+  pinned: Schema.optionalKey(Schema.Boolean),
+  split: Schema.optionalKey(Schema.String),
+})
+const CrumbSchema = Schema.Struct({ label: Schema.String, to: Schema.String })
+
+const TabsState = Schema.Struct({
+  tabs: Schema.Array(TabSchema),
+  activeId: Schema.NullOr(Schema.String),
   /** Page titles by path, so inactive tabs keep their names. */
-  titles: Record<string, string>
+  titles: Schema.Record(Schema.String, Schema.String),
   /** Pages between the feature and each path, like `titles`; missing in older states. */
-  trails?: Record<string, Crumb[]>
+  trails: Schema.optionalKey(Schema.Record(Schema.String, Schema.Array(CrumbSchema))),
   /** Tab ids, most recently used first; closing a tab returns to the previous one. */
-  recent: string[]
-}
+  recent: Schema.Array(Schema.String),
+})
+type TabsState = StoredValue<typeof TabsState>
 
 // null until the first tab opens; lets `/` tell "new user" from "closed all tabs".
-const NO_STATE: TabsState | null = null
+const tabsAtom = stored(TABS_KEY, Schema.NullOr(TabsState), null)
 const EMPTY: TabsState = { tabs: [], activeId: null, titles: {}, recent: [] }
 const NO_TRAIL: Crumb[] = []
 
@@ -95,7 +106,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate()
   const { pathname, search } = useLocation()
   const { enabledFeatures } = useEnabledFeatures()
-  const [stored, setStored] = useLocalStorage(TABS_KEY, NO_STATE)
+  const [stored, setStored] = useAtom(tabsAtom)
   const [closed, setClosed] = useState<{ tab: Tab; index: number }[]>([])
 
   const featureOf = useCallback(

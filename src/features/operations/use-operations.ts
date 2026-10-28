@@ -1,6 +1,8 @@
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
 import { useCallback, useEffect, useMemo } from "react"
-import { useLocalStorage } from "@/lib/local-storage"
 import type { Identity } from "@/features/case-files/use-case-files"
+import { stored } from "@/lib/storage"
 import { textKey } from "@/lib/text"
 import { FACTOR_LABEL, FALLBACK_LABEL, LEAD_SHORT } from "./guide"
 import { MEMBER_STATE_LABEL } from "./member-state"
@@ -17,6 +19,7 @@ import {
   type Fallback,
   type LageFactor,
   type LeadRole,
+  StoredOperation,
   type Operation,
   type LogEntry,
   type Member,
@@ -28,25 +31,12 @@ import {
 } from "./types"
 
 export const OPERATIONS_KEY = "einsatz:einsaetze"
-const NO_OPERATIONS: Operation[] = []
+const NO_OPERATIONS: StoredOperation[] = []
+
+export const operationsAtom = stored(OPERATIONS_KEY, Schema.Array(StoredOperation), NO_OPERATIONS)
 
 /** Current version of the stored shape, see `Operation.schema`. */
 const SCHEMA = 2
-
-/** Checks imported data before it replaces the stored operations. */
-export function isValidOperationsData(data: Record<string, unknown>) {
-  const all = data[OPERATIONS_KEY]
-  return all === undefined || (Array.isArray(all) && all.every(isOperation))
-}
-
-function isOperation(value: unknown): value is Operation {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    ["id", "title", "createdAt", "updatedAt"].every((k) => typeof v[k] === "string") &&
-    ["units", "tasks", "log"].every((k) => Array.isArray(v[k]))
-  )
-}
 
 export function operationTitle(operation: Operation | undefined) {
   return operation?.title.trim() || "Unbenannter Einsatz"
@@ -173,13 +163,16 @@ function entry(line: Line, kind: LogEntry["kind"] = "system"): LogEntry {
 }
 
 /** Whether a stored operation already has the current shape; imports may claim the version without it. */
-const isCurrent = (raw: Operation) => raw.schema === SCHEMA && typeof raw.debrief === "object" && raw.debrief !== null
+const isCurrent = (raw: StoredOperation): raw is Operation => {
+  const e = raw as Partial<Operation>
+  return e.schema === SCHEMA && typeof e.debrief === "object" && e.debrief !== null
+}
 
 // Migrated operations by their stored object, so every reader gets the same ids until they're saved.
-const migrated = new WeakMap<Operation, Operation>()
+const migrated = new WeakMap<StoredOperation, Operation>()
 
 /** The operation in the current shape; stored ones are migrated once and then saved by `useOperations`. */
-function normalize(raw: Operation): Operation {
+function normalize(raw: StoredOperation): Operation {
   if (isCurrent(raw)) return raw
   let operation = migrated.get(raw)
   if (!operation) {
@@ -190,7 +183,7 @@ function normalize(raw: Operation): Operation {
 }
 
 /** Brings operations stored by earlier versions into the current shape. */
-function migrate(raw: Operation): Operation {
+function migrate(raw: StoredOperation): Operation {
   const e = raw as Partial<Operation> & Pick<Operation, "id" | "title" | "units" | "tasks" | "log" | "createdAt" | "updatedAt"> & { notes?: string }
   const log = e.log.map((l) => ((l.kind as string) === "meldung" ? { ...l, kind: "notiz" as const } : l))
   if (e.notes?.trim()) log.push({ id: uid(), at: e.updatedAt, kind: "notiz", text: e.notes.trim() })
@@ -315,7 +308,7 @@ const FIELD_LOG: Record<OperationField, { type: LogEntry["type"]; label: string 
 }
 
 export function useOperations() {
-  const [stored, setAll] = useLocalStorage<Operation[]>(OPERATIONS_KEY, NO_OPERATIONS)
+  const [stored, setAll] = useAtom(operationsAtom)
 
   // Running operations first, then the newest. Not sorted by the last change, so an
   // operation doesn't move while it's being edited.

@@ -55,17 +55,20 @@ import {
   clearFeatureData,
   downloadAllData,
   downloadFeatureData,
-  LAST_BACKUP_KEY,
+  lastBackupAtom,
   readAllData,
   readFeatureData,
   restoreAllData,
   restoreFeatureData,
+  storedKeys,
   type FeatureBackup,
   type FullBackup,
 } from "@/lib/backup"
 import { desktop } from "@/lib/desktop"
 import { formatBytes } from "@/lib/format-bytes"
-import { useLocalStorage, useStorageBytes } from "@/lib/local-storage"
+import { useStorageBytes } from "@/lib/storage"
+import { useAtomValue } from "@effect/atom-react"
+import * as Effect from "effect/Effect"
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
@@ -290,7 +293,7 @@ function FeatureSettingsPage({ feature }: { feature: Feature }) {
 }
 
 function FeatureDataSection({ feature }: { feature: Feature }) {
-  const keys = feature.storage?.keys ?? []
+  const keys = useMemo(() => storedKeys(feature), [feature])
   const bytes = useStorageBytes(keys)
   const fileInput = useRef<HTMLInputElement>(null)
   const [pendingImport, setPendingImport] = useState<FeatureBackup>()
@@ -301,7 +304,7 @@ function FeatureDataSection({ feature }: { feature: Feature }) {
     e.target.value = ""
     if (!file) return
     try {
-      setPendingImport(await readFeatureData(file, feature))
+      setPendingImport(await Effect.runPromise(readFeatureData(file, feature)))
     } catch {
       toast.error("Datei konnte nicht importiert werden", {
         description: `Erwartet wird ein JSON-Export von ${feature.title}.`,
@@ -436,11 +439,11 @@ function ConfirmDialog({
   )
 }
 
-const NEVER: string | null = null
+const ALL_KEYS = features.flatMap(storedKeys)
 
 function FullBackupSettings() {
-  const [lastBackup] = useLocalStorage(LAST_BACKUP_KEY, NEVER)
-  const keys = features.flatMap((f) => f.storage?.keys ?? [])
+  const lastBackup = useAtomValue(lastBackupAtom)
+  const keys = ALL_KEYS
   const bytes = useStorageBytes(keys)
   const fileInput = useRef<HTMLInputElement>(null)
   const [pendingImport, setPendingImport] = useState<FullBackup>()
@@ -450,7 +453,7 @@ function FullBackupSettings() {
     e.target.value = ""
     if (!file) return
     try {
-      setPendingImport(await readAllData(file, features))
+      setPendingImport(await Effect.runPromise(readAllData(file, features)))
     } catch {
       toast.error("Datei konnte nicht importiert werden", {
         description: "Erwartet wird eine vollständige Sicherung von FSD Tools.",

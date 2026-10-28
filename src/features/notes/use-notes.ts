@@ -1,51 +1,38 @@
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
 import { useCallback, useEffect, useMemo } from "react"
-import { readKeys, useLocalStorage } from "@/lib/local-storage"
-import type { Note } from "./types"
-import { FOLDERS_KEY, isValidFoldersData } from "./folders"
+import { readKeys, stored, type StoredValue } from "@/lib/storage"
+import { Note } from "./types"
 import type { UpdateNotes } from "./note-list"
 
 export const NOTES_KEY = "notes:notes"
 /** Pages of the earlier Notion-style notes; imported once as plain text. */
 export const LEGACY_PAGES_KEY = "wiki:pages"
-const NO_NOTES: StoredNote[] = []
 
 /**
- * Notes as stored. Earlier ones were plain text on DIN A4 pages, `pageBreaks` holding the
- * pages that start after a manual break (all of them when missing); they read as Markdown now.
+ * An earlier note: plain text on DIN A4 pages, `pageBreaks` holding the pages that start
+ * after a manual break (all of them when missing). They read as Markdown now.
  */
-type StoredNote = Note | (Omit<Note, "content"> & { pages: string[]; pageBreaks?: number[] })
+const PagedNote = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  author: Schema.optionalKey(Schema.String),
+  folderId: Schema.optionalKey(Schema.String),
+  order: Schema.optionalKey(Schema.Number),
+  createdAt: Schema.String,
+  updatedAt: Schema.String,
+  pages: Schema.Array(Schema.String),
+  pageBreaks: Schema.optionalKey(Schema.Array(Schema.Number)),
+})
 
-/** Checks imported data before it replaces the stored notes. */
-export function isValidNotesData(data: Record<string, unknown>) {
-  const notes = data[NOTES_KEY]
-  return (
-    (notes === undefined || (Array.isArray(notes) && notes.every((n) => isNote(n) || isPagedNote(n)))) &&
-    isValidFoldersData(data[FOLDERS_KEY])
-  )
-}
+/** Notes as stored, in either shape. */
+const StoredNote = Schema.Union([Note, PagedNote])
+type StoredNote = StoredValue<typeof StoredNote>
 
-export function isNote(value: unknown): value is Note {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    ["id", "title", "content", "createdAt", "updatedAt"].every((k) => typeof v[k] === "string") &&
-    (v.author === undefined || typeof v.author === "string") &&
-    (v.folderId === undefined || typeof v.folderId === "string") &&
-    (v.order === undefined || typeof v.order === "number")
-  )
-}
+const NO_NOTES: StoredNote[] = []
 
-function isPagedNote(value: unknown) {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    ["id", "title", "createdAt", "updatedAt"].every((k) => typeof v[k] === "string") &&
-    Array.isArray(v.pages) &&
-    v.pages.every((p) => typeof p === "string") &&
-    (v.pageBreaks === undefined ||
-      (Array.isArray(v.pageBreaks) && v.pageBreaks.every((i) => Number.isInteger(i))))
-  )
-}
+export const notesAtom = stored(NOTES_KEY, Schema.Array(StoredNote), NO_NOTES)
+export const legacyPagesAtom = stored(LEGACY_PAGES_KEY, Schema.Array(Schema.Unknown), [])
 
 /** Joins the pages of an earlier note; text that flowed on to the next page joins up again. */
 function toNote(note: StoredNote): Note {
@@ -60,7 +47,7 @@ export function noteTitle(note: Note | undefined) {
 }
 
 export function useNotes() {
-  const [stored, setStored] = useLocalStorage<StoredNote[]>(NOTES_KEY, NO_NOTES)
+  const [storedNotes, setStored] = useAtom(notesAtom)
 
   useEffect(() => {
     const data = readKeys([NOTES_KEY, LEGACY_PAGES_KEY])
@@ -69,7 +56,7 @@ export function useNotes() {
     }
   }, [setStored])
 
-  const notes = useMemo(() => stored.map(toNote), [stored])
+  const notes = useMemo(() => storedNotes.map(toNote), [storedNotes])
 
   const updateNotes = useCallback<UpdateNotes>(
     (change) => setStored((prev) => change(prev.map(toNote))),

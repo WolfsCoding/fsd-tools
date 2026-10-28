@@ -1,14 +1,18 @@
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
 import { useCallback, useMemo } from "react"
-import { useLocalStorage } from "@/lib/local-storage"
+import { stored } from "@/lib/storage"
 import { removedToast } from "@/lib/undo"
 import { books } from "./data/books"
 import type { Book, Paragraph } from "./data/types"
 
 export const BOOKMARKS_KEY = "gesetzbuch:bookmarks"
 
-const NONE: unknown = []
+const NONE: string[] = []
 
-/** A bookmarked paragraph, stored as "<book>-<§>", e.g. "to-14". */
+/** The ids of the bookmarked paragraphs, "<book>-<§>" (e.g. "to-14"), in the order they were added. */
+export const bookmarksAtom = stored(BOOKMARKS_KEY, Schema.Array(Schema.String), NONE)
+
 export interface Bookmark {
   id: string
   book: Book
@@ -26,15 +30,8 @@ function findBookmark(id: string): Bookmark | undefined {
 
 /** The bookmarked paragraphs in the order they were added; ids no longer in the books are skipped. */
 export function useBookmarks() {
-  const [stored, setStored] = useLocalStorage(BOOKMARKS_KEY, NONE)
-  const ids = useMemo(() => (Array.isArray(stored) ? stored.filter((id): id is string => typeof id === "string") : []), [stored])
+  const [ids, update] = useAtom(bookmarksAtom)
   const bookmarks = useMemo(() => ids.flatMap((id) => findBookmark(id) ?? []), [ids])
-
-  const update = useCallback(
-    (fn: (ids: string[]) => string[]) =>
-      setStored((prev: unknown) => fn(Array.isArray(prev) ? prev.filter((id): id is string => typeof id === "string") : [])),
-    [setStored],
-  )
 
   const has = useCallback((book: Book, paragraph: Paragraph) => ids.includes(bookmarkId(book, paragraph)), [ids])
 

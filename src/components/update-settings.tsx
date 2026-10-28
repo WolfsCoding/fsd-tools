@@ -12,7 +12,7 @@ import {
   type UpdateState,
 } from "@/lib/desktop"
 
-function describe(state: UpdateState | undefined) {
+function describe(state: UpdateState | null) {
   switch (state?.status) {
     case "checking":
       return "Suche nach Updates …"

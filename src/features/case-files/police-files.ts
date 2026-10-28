@@ -1,17 +1,22 @@
 // Kept apart from use-case-files: the forensic templates import the form, which imports that module.
 
+import * as Schema from "effect/Schema"
 import { FORENSICS_TEMPLATES, INHERITED } from "@/features/forensics/templates"
-import { readKeys, replaceKeys } from "@/lib/local-storage"
+import { appRegistry } from "@/lib/runtime"
+import { readKeys, replaceKeys, stored } from "@/lib/storage"
 import type { CaseFileKind } from "./kind"
 import { POLICE_FILES_BASE } from "./paths"
-import { isValidSnippets, SNIPPETS_KEY } from "./snippets"
 import { TEMPLATES, type Template } from "./templates"
-import type { CaseFile } from "./types"
-import { isValidCaseFiles, isValidCaseFilesData, useCaseFiles } from "./use-case-files"
+import { CaseFile } from "./types"
+import { useCaseFiles } from "./use-case-files"
 
 export const POLICE_FILES_KEY = "akten:akten"
 /** Where the analyses were kept while Forensik was a tab of its own; moved to `POLICE_FILES_KEY` on first load. */
 export const LEGACY_FORENSICS_KEY = "forensik:analysen"
+const NO_CASE_FILES: CaseFile<string>[] = []
+
+export const policeFilesAtom = stored(POLICE_FILES_KEY, Schema.Array(CaseFile), NO_CASE_FILES)
+export const legacyForensicsAtom = stored(LEGACY_FORENSICS_KEY, Schema.Array(CaseFile), NO_CASE_FILES)
 
 /** Akten that collect evidence; the analyses can be attached to them. */
 const TAKES_ANALYSES: string[] = ["strafakte", "ermittlungsakte", "sammelakte"]
@@ -32,7 +37,7 @@ export const POLICE_FILES_KIND: CaseFileKind = {
   title: "Akten",
   noun: "Akte",
   base: POLICE_FILES_BASE,
-  storageKey: POLICE_FILES_KEY,
+  atom: policeFilesAtom,
   templates: { ...withAnalyses(TEMPLATES), ...FORENSICS_TEMPLATES },
   // Only the analyses have these fields; in an Akte they come from the analyses attached before.
   inherit: INHERITED,
@@ -48,10 +53,9 @@ export const POLICE_FILES_KIND: CaseFileKind = {
  * anything renders, so old links to an analysis still find it.
  */
 function moveLegacyForensics() {
-  const stored = readKeys([POLICE_FILES_KEY, LEGACY_FORENSICS_KEY])
-  const legacy = stored[LEGACY_FORENSICS_KEY]
-  if (legacy === undefined || !isValidCaseFiles(legacy) || !isValidCaseFiles(stored[POLICE_FILES_KEY])) return
-  const own = (stored[POLICE_FILES_KEY] as CaseFile<string>[] | undefined) ?? []
+  const legacy = readKeys([LEGACY_FORENSICS_KEY])[LEGACY_FORENSICS_KEY]
+  if (legacy === undefined || !legacyForensicsAtom.is(legacy)) return
+  const own = appRegistry.get(policeFilesAtom)
   const moved = (legacy as CaseFile<string>[]).filter((a) => !own.some((o) => o.id === a.id))
   replaceKeys([POLICE_FILES_KEY, LEGACY_FORENSICS_KEY], { [POLICE_FILES_KEY]: [...own, ...moved] })
 }
@@ -59,9 +63,4 @@ moveLegacyForensics()
 
 export function usePoliceFiles() {
   return useCaseFiles(POLICE_FILES_KIND)
-}
-
-/** Checks imported data before it replaces the stored case files. */
-export function isValidPoliceFilesData(data: Record<string, unknown>) {
-  return isValidCaseFilesData(data, [POLICE_FILES_KEY, LEGACY_FORENSICS_KEY]) && isValidSnippets(data[SNIPPETS_KEY])
 }

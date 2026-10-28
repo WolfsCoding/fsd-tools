@@ -1,40 +1,14 @@
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
 import { useCallback, useMemo } from "react"
-import { useLocalStorage } from "@/lib/local-storage"
+import { stored } from "@/lib/storage"
 import { newNode } from "./tree"
-import { NODE_COLORS, type FlowNode, type Flowchart } from "./types"
+import { Flowchart, type FlowNode } from "./types"
 
 export const FLOWCHARTS_KEY = "flowcharts:flowcharts"
 const NO_FLOWCHARTS: Flowchart[] = []
 
-/** Checks imported data before it replaces the stored flowcharts. */
-export function isValidFlowchartsData(data: Record<string, unknown>) {
-  const charts = data[FLOWCHARTS_KEY]
-  return charts === undefined || (Array.isArray(charts) && charts.every(isFlowchart))
-}
-
-function isFlowchart(value: unknown): value is Flowchart {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    ["id", "createdAt", "updatedAt"].every((k) => typeof v[k] === "string") &&
-    (v.direction === "down" || v.direction === "right") &&
-    (v.theme === "dark" || v.theme === "light") &&
-    isFlowNode(v.root)
-  )
-}
-
-function isFlowNode(value: unknown): value is FlowNode {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    typeof v.id === "string" &&
-    typeof v.text === "string" &&
-    (v.color === undefined || NODE_COLORS.includes(v.color as never)) &&
-    (v.linkTo === undefined || typeof v.linkTo === "string") &&
-    Array.isArray(v.children) &&
-    v.children.every(isFlowNode)
-  )
-}
+export const flowchartsAtom = stored(FLOWCHARTS_KEY, Schema.Array(Flowchart), NO_FLOWCHARTS)
 
 export function flowchartTitle(chart: Flowchart | undefined) {
   return chart?.root.text.trim() || "Ohne Titel"
@@ -60,7 +34,7 @@ function exampleRoot(): FlowNode {
 }
 
 export function useFlowcharts() {
-  const [charts, setCharts] = useLocalStorage<Flowchart[]>(FLOWCHARTS_KEY, NO_FLOWCHARTS)
+  const [charts, setCharts] = useAtom(flowchartsAtom)
 
   const sorted = useMemo(() => [...charts].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)), [charts])
 

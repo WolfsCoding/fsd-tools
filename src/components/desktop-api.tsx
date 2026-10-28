@@ -1,3 +1,4 @@
+import * as Schema from "effect/Schema"
 import { useEffect, useRef } from "react"
 import { useNavigate } from "react-router"
 import { ChargesInput } from "@/features/case-files/charges-input"
@@ -13,10 +14,34 @@ import { citation, formatFine, matchesParagraph, OFFENSES, parseQuery, penaltyNo
 import { lawBookPath } from "@/features/law-book/paths"
 import { ApiError, desktop } from "@/lib/desktop"
 
-// Answers the desktop shell's local API (electron/api.cjs), e.g. for the Raycast extension in
+// Answers the desktop shell's local API (electron/services/LocalApi.ts), e.g. for the Raycast extension in
 // `raycast/`. Its routes and what they return are listed in raycast/README.md.
 
 const kind = POLICE_FILES_KIND
+
+/** A flag of the API: JSON callers send booleans, query strings send text ("1", "false"). */
+const Flag = Schema.optional(Schema.Union([Schema.Boolean, Schema.String]))
+const on = (flag: boolean | string | undefined) => flag === true || (typeof flag === "string" && flag !== "" && flag !== "0" && flag !== "false")
+
+const DocumentsBody = Schema.Struct({
+  template: Schema.String,
+  values: Schema.optional(Schema.Unknown),
+  /** Default true; `false` only renders the markdown. */
+  save: Flag,
+  /** Opens the created case file in the app. */
+  open: Flag,
+})
+const SearchBody = Schema.Struct({ q: Schema.optional(Schema.String) })
+const OpenBody = Schema.Struct({ path: Schema.String })
+
+/** The body as `schema` describes it, else a 400 naming what's wrong. */
+function decode<S extends Schema.Codec<unknown, unknown>>(schema: S, body: unknown): S["Type"] {
+  try {
+    return Schema.decodeUnknownSync(schema)(body)
+  } catch (error) {
+    throw new ApiError(400, error instanceof Error ? error.message : "Ungültige Anfrage.")
+  }
+}
 
 /** A field as the API describes it; fields the API can't fill (automatic ones, custom inputs) are left out. */
 type ApiField =
@@ -137,7 +162,19 @@ export function DesktopApi() {
 
   useEffect(() => {
     if (!desktop) return
-    return desktop.serveApi((route, body) => {
+    return desktop.serveApi(async (route, body) => {
+      try {
+        return { ok: true, data: answer(route, body) }
+      } catch (error) {
+        return {
+          ok: false,
+          status: error instanceof ApiError ? error.status : undefined,
+          error: error instanceof Error ? error.message : String(error),
+        }
+      }
+    })
+
+    function answer(route: string, body: Record<string, unknown>): unknown {
       const { files, identity, colors, entries, navigate } = state.current
       const me = identity.full
 
@@ -149,13 +186,14 @@ export function DesktopApi() {
           return templateGroups(kind).flatMap((g) => g.templates.map((t) => describeTemplate(t, g.label, me)))
 
         case "/documents": {
-          const template = kind.templates[String(body.template)]
-          if (!template?.standalone) throw new ApiError(404, `Unbekannte Vorlage: ${body.template}`)
-          const values = { ...structuredClone(template.initial ?? {}), ...toValues(template, body.values) }
+          const input = decode(DocumentsBody, body)
+          const template = kind.templates[input.template]
+          if (!template?.standalone) throw new ApiError(404, `Unbekannte Vorlage: ${input.template}`)
+          const values = { ...structuredClone(template.initial ?? {}), ...toValues(template, input.values) }
           const reader = createReader(template, values, me, colors, identity.department, entries)
           const markdown = withNow(template.render(reader))
           const missing = missingRequired(template, reader)
-          if (body.save === false) return { markdown, missing }
+          if (input.save === false || input.save === "false") return { markdown, missing }
 
           const id = files.createCaseFile(template.id, values)
           const at = new Date().toISOString()
@@ -165,7 +203,7 @@ export function DesktopApi() {
             kind.templates,
           )
           const path = casePath(kind, id)
-          if (body.open) navigate(path)
+          if (on(input.open)) navigate(path)
           return { id, title, path, markdown, missing }
         }
 
@@ -173,7 +211,7 @@ export function DesktopApi() {
           return OFFENSES.map(describeOffense)
 
         case "/law-book/search": {
-          const terms = parseQuery(String(body.q ?? ""))
+          const terms = parseQuery(decode(SearchBody, body).q ?? "")
           return books.flatMap((book) =>
             book.chapters.flatMap((chapter) =>
               chapter.paragraphs
@@ -193,7 +231,7 @@ export function DesktopApi() {
         }
 
         case "/open": {
-          const path = String(body.path ?? "")
+          const { path } = decode(OpenBody, body)
           if (!path.startsWith("/")) throw new ApiError(400, "`path` muss mit / beginnen.")
           navigate(path)
           return null
@@ -202,7 +240,7 @@ export function DesktopApi() {
         default:
           throw new ApiError(404, `Unbekannte Route: ${route}`)
       }
-    })
+    }
   }, [])
 
   return null

@@ -2,7 +2,7 @@
 // catalog with amount, sample, unit and a note. Only rows with a substance and an amount above 0
 // are found: listed in the overview, with a numbered section of results.
 
-import { section, table, type Colors } from "@/features/case-files/markdown"
+import { table, type Colors } from "@/features/case-files/markdown"
 import { parseNumber, pickSome, randomInt, remainder, roll, withUnit } from "@/features/case-files/range"
 import { tableRows } from "@/features/case-files/templates"
 import type { Row, Value } from "@/features/case-files/types"
@@ -141,14 +141,15 @@ function resultLines(row: Row, colors: Colors) {
 const OVERVIEW_HEADERS = ["Produkt", "Menge", "Stichprobe (10%)", "Einheit", "Anmerkung"]
 
 /**
- * Step 1 (the overview), then a section per substance numbered as an item (`#1`); `next` numbers the step that follows. The
- * empty template (`blank`) shows every substance of the catalog with placeholders.
+ * The overview table of the substances, and their results, one item (`#1`) each; "" and none
+ * while no substance was found. The empty template (`blank`) shows every substance of the
+ * catalog with placeholders.
  */
-export function toxSections(value: Value | undefined, style: { colors: Colors }, blank = false) {
+export function toxParts(value: Value | undefined, colors: Colors, blank = false) {
   const found = foundRows(value)
   const rows: Row[] = !found.length && blank ? SUBSTANCES.map((s) => ({ ...newSubstanceRow(s), einheit: "" })) : found
   // Without substances there's nothing to give an overview of.
-  if (!rows.length) return { sections: [], next: 1 }
+  if (!rows.length) return { overview: "", items: [] }
   const overview = table(
     OVERVIEW_HEADERS,
     rows.map((row) => {
@@ -163,13 +164,10 @@ export function toxSections(value: Value | undefined, style: { colors: Colors },
     }),
   )
   return {
-    sections: [
-      section(style, "1. Übersicht der Asservate:", overview),
-      ...rows.map((row, i) =>
-        section(style, `#${i + 1} Analyseergebnisse (${substanceOf(row).heading}):`, resultLines(row, style.colors)),
-      ),
-    ],
-    /** Number of the step after the overview; the results are items (`#1`), not steps. */
-    next: 2,
+    overview,
+    items: rows.map((row) => ({
+      title: `Analyseergebnisse (${substanceOf(row).heading})`,
+      body: resultLines(row, colors),
+    })),
   }
 }

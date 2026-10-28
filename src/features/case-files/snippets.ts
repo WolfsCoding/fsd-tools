@@ -1,31 +1,22 @@
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
 import { useMemo } from "react"
-import { useLocalStorage } from "@/lib/local-storage"
+import { stored, type StoredValue } from "@/lib/storage"
 
 /** Own text snippets (Textbausteine), e.g. a Belehrung, inserted into the multi-line fields. */
 export const SNIPPETS_KEY = "akten:snippets"
 
-export interface Snippet {
-  id: string
-  title: string
+export const Snippet = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
   /** May hold `{{ME}}`, `{{DEPARTMENT}}` and `{{now:…}}`, which are filled in like anywhere else. */
-  text: string
-}
+  text: Schema.String,
+})
+export type Snippet = StoredValue<typeof Snippet>
 
 const NO_SNIPPETS: Snippet[] = []
 
-/** Whether `value` (imported data) is a list of snippets; missing counts as valid. */
-export function isValidSnippets(value: unknown) {
-  return (
-    value === undefined ||
-    (Array.isArray(value) &&
-      value.every(
-        (s) =>
-          typeof s === "object" &&
-          s !== null &&
-          ["id", "title", "text"].every((k) => typeof (s as Record<string, unknown>)[k] === "string"),
-      ))
-  )
-}
+export const snippetsAtom = stored(SNIPPETS_KEY, Schema.Array(Snippet), NO_SNIPPETS)
 
 /** A snippet's name: its title, else the start of its text. */
 export function snippetLabel(snippet: Snippet) {
@@ -34,7 +25,7 @@ export function snippetLabel(snippet: Snippet) {
 
 /** The stored snippets in their order, and everything that changes them. */
 export function useSnippets() {
-  const [snippets, setSnippets] = useLocalStorage<Snippet[]>(SNIPPETS_KEY, NO_SNIPPETS)
+  const [snippets, setSnippets] = useAtom(snippetsAtom)
   const actions = useMemo(
     () => ({
       /** Adds an empty snippet at the end and returns its id. */

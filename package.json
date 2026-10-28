@@ -6,10 +6,11 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "electron/main.cjs",
+  "main": "dist-electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && bun run build:electron",
+    "build:electron": "bun build electron/main.ts electron/preload.ts --outdir dist-electron --target node --format cjs --entry-naming [name].cjs --external electron --external electron-updater",
     "lint": "oxlint",
     "preview": "vite preview",
     "desktop": "bun scripts/desktop-dev.ts",
@@ -19,6 +20,9 @@
     "electron"
   ],
   "dependencies": {
+    "@effect/atom-react": "4.0.6",
+    "@effect/platform-node": "4.0.6",
+    "effect": "4.0.6",
     "electron-updater": "^6.8.11"
   },
   "devDependencies": {

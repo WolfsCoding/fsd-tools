@@ -26,10 +26,12 @@ import { usePageTransition } from "@/hooks/use-page-transition"
 import { PaneContext } from "@/hooks/use-pane"
 import { useEnabledFeatures } from "@/hooks/use-settings"
 import { TAB_DRAG_TYPE, useTabs } from "@/hooks/use-tabs"
-import { useLocalStorage } from "@/lib/local-storage"
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
+import { stored } from "@/lib/storage"
 
-const RATIO_KEY = "layout:split-ratio"
 const DEFAULT_RATIO = 0.5
+const ratioAtom = stored("layout:split-ratio", Schema.Number, DEFAULT_RATIO)
 const MIN_RATIO = 0.2
 const MAX_RATIO = 0.8
 
@@ -45,7 +47,7 @@ export function SplitLayout({ children }: { children: ReactNode }) {
   const active = tabs.find((t) => t.id === activeId)
   // Phones have no room for two pages; the split returns on a wider screen.
   const split = isMobile ? undefined : active?.split
-  const [ratio, setRatio] = useLocalStorage(RATIO_KEY, DEFAULT_RATIO)
+  const [ratio, setRatio] = useAtom(ratioAtom)
   const [resizing, setResizing] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLDivElement>(null)

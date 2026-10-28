@@ -1,15 +1,14 @@
 // Which Akten mention an entry. Read straight from the stored case files, so the DNA-DB only
 // depends on their storage key, their shape and how their titles are made.
 
+import { useAtomValue } from "@effect/atom-react"
 import { useMemo } from "react"
-import { POLICE_FILES_KEY, POLICE_FILES_KIND } from "@/features/case-files/police-files"
+import { POLICE_FILES_KIND, policeFilesAtom } from "@/features/case-files/police-files"
 import type { CaseFile } from "@/features/case-files/types"
 import { caseFileTitle, useOwnName } from "@/features/case-files/use-case-files"
-import { useLocalStorage } from "@/lib/local-storage"
 import { textKey } from "@/lib/text"
 import type { DnaEntry } from "./types"
 
-const NO_CASE_FILES: CaseFile<string>[] = []
 const NO_MENTIONS: CaseFileMention[] = []
 
 export interface CaseFileMention {
@@ -52,7 +51,7 @@ export function caseFileMentionTitle(caseFile: CaseFile<string>, me: string) {
  * was entered as a whole field, cell or trace, the way the case files link them.
  */
 export function useCaseFileMentions(entries: DnaEntry[]) {
-  const [caseFiles] = useLocalStorage(POLICE_FILES_KEY, NO_CASE_FILES)
+  const caseFiles = useAtomValue(policeFilesAtom)
   const me = useOwnName()
 
   return useMemo(() => {
@@ -89,7 +88,7 @@ export interface CaseFileSummary extends CaseFileMention {
 
 /** Every Akte with its title as the case files show it, by id. */
 export function useCaseFileSummaries() {
-  const [caseFiles] = useLocalStorage(POLICE_FILES_KEY, NO_CASE_FILES)
+  const caseFiles = useAtomValue(policeFilesAtom)
   const me = useOwnName()
   return useMemo(
     () =>

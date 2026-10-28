@@ -8,7 +8,7 @@ directories:
 npmRebuild: false
 files:
   - dist/**
-  - electron/**
+  - dist-electron/**
   # The tray icon.
   - build/icon.ico
   - package.json

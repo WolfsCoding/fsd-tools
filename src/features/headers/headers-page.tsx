@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { useAtom } from "@effect/atom-react"
 import { useTabTitle } from "@/hooks/use-tabs"
-import { useLocalStorage } from "@/lib/local-storage"
 import {
   DEFAULT_DESIGN,
   drawHeader,
@@ -30,9 +30,7 @@ import {
   type HeaderDesign,
   type LogoId,
 } from "./render"
-import { HEADER_KEY, HEADER_SCALE_KEY } from "./storage"
-
-const DEFAULT_SCALE = 1
+import { headerDesignAtom, headerScaleAtom } from "./storage"
 
 /** The header as an `<img>` at its 800 px width; a 2× link then stays sharp. */
 function imgTag(url: string) {
@@ -42,8 +40,8 @@ function imgTag(url: string) {
 /** Header images for case files: title, subtitle and seal on the navy band, exported as PNG. */
 export function HeadersPage() {
   useTabTitle("Header-Bilder")
-  const [stored, setStored] = useLocalStorage<Partial<HeaderDesign>>(HEADER_KEY, DEFAULT_DESIGN)
-  const [scale, setScale] = useLocalStorage(HEADER_SCALE_KEY, DEFAULT_SCALE)
+  const [stored, setStored] = useAtom(headerDesignAtom)
+  const [scale, setScale] = useAtom(headerScaleAtom)
   const design: HeaderDesign = { ...DEFAULT_DESIGN, ...stored }
   const update = (patch: Partial<HeaderDesign>) => setStored((prev) => ({ ...DEFAULT_DESIGN, ...prev, ...patch }))
 

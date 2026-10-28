@@ -25,3 +25,6 @@ dist-ssr
 
 # Desktop builds
 release
+
+# Desktop shell bundle
+dist-electron

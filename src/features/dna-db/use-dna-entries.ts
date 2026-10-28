@@ -1,9 +1,10 @@
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
 import { useCallback, useEffect } from "react"
-import { useLocalStorage } from "@/lib/local-storage"
+import { stored } from "@/lib/storage"
 import { sameText } from "@/lib/text"
-import { isNote } from "@/features/notes/use-notes"
-import { isTagColor, sameTag } from "./tags"
-import { PROFILE_FIELDS, type DnaEntry, type DnaEntryInput, type DnaTag } from "./types"
+import { sameTag } from "./tags"
+import { DnaEntry, PROFILE_FIELDS, type DnaEntryInput } from "./types"
 
 export const DNA_ENTRIES_KEY = "dna-db:entries"
 const EMPTY: DnaEntry[] = []
@@ -11,38 +12,8 @@ const EMPTY: DnaEntry[] = []
 export const DNA_DISMISSED_KEY = "dna-db:dismissed"
 const NO_IDS: string[] = []
 
-/** Checks imported data before it replaces the stored entries. */
-export function isValidDnaData(data: Record<string, unknown>) {
-  const entries = data[DNA_ENTRIES_KEY]
-  const dismissed = data[DNA_DISMISSED_KEY]
-  return (
-    (entries === undefined ||
-      (Array.isArray(entries) && entries.every(isDnaEntry))) &&
-    (dismissed === undefined ||
-      (Array.isArray(dismissed) && dismissed.every((id) => typeof id === "string")))
-  )
-}
-
-function isDnaEntry(value: unknown): value is DnaEntry {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    ["id", "name", "dnaId", "fingerprintId", "createdAt", "updatedAt"].every(
-      (k) => typeof v[k] === "string",
-    ) &&
-    (v.tags === undefined || (Array.isArray(v.tags) && v.tags.every(isDnaTag))) &&
-    (v.caseNumbers === undefined ||
-      (Array.isArray(v.caseNumbers) && v.caseNumbers.every((n) => typeof n === "string"))) &&
-    PROFILE_FIELDS.every((f) => v[f.key] === undefined || typeof v[f.key] === "string") &&
-    (v.notes === undefined || (Array.isArray(v.notes) && v.notes.every(isNote)))
-  )
-}
-
-function isDnaTag(value: unknown): value is DnaTag {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return typeof v.name === "string" && isTagColor(v.color)
-}
+export const dnaEntriesAtom = stored(DNA_ENTRIES_KEY, Schema.Array(DnaEntry), EMPTY)
+export const dnaDismissedAtom = stored(DNA_DISMISSED_KEY, Schema.Array(Schema.String), NO_IDS)
 
 /** How DNA and fingerprint IDs are stored: trimmed and in capitals, e.g. "d-0042" → "D-0042". */
 export function toId(value: string) {
@@ -122,8 +93,8 @@ function ids(input: Partial<DnaEntryInput>) {
 let normalized: DnaEntry[] | undefined
 
 export function useDnaEntries() {
-  const [entries, setEntries] = useLocalStorage<DnaEntry[]>(DNA_ENTRIES_KEY, EMPTY)
-  const [dismissed, setDismissed] = useLocalStorage<string[]>(DNA_DISMISSED_KEY, NO_IDS)
+  const [entries, setEntries] = useAtom(dnaEntriesAtom)
+  const [dismissed, setDismissed] = useAtom(dnaDismissedAtom)
 
   // Older and imported entries may have IDs in lower case, or duplicates that only differ in it.
   useEffect(() => {

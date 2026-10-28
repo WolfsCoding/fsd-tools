@@ -1,26 +1,14 @@
-import { useEffect, useState } from "react"
+import { useAtomValue } from "@effect/atom-react"
+import * as Effect from "effect/Effect"
+import * as Queue from "effect/Queue"
+import * as Stream from "effect/Stream"
+import { AsyncResult, Atom } from "effect/reactivity"
+import type { DesktopBridge, UpdateState } from "@/contracts/desktop"
 
-export type UpdateState = {
-  status: "idle" | "checking" | "available" | "downloading" | "ready" | "latest" | "error" | "unsupported"
-  version?: string
-  percent?: number
-  error?: string
-}
+export type { UpdateState }
 
-interface DesktopApi {
-  version: () => Promise<string>
-  updates: {
-    get: () => Promise<UpdateState>
-    check: () => Promise<void>
-    /** Downloads the found update; nothing is downloaded without this. */
-    download: () => Promise<void>
-    install: () => Promise<void>
-    subscribe: (listener: (state: UpdateState) => void) => () => void
-  }
-  serveApi: (handler: (route: string, body: Record<string, unknown>) => unknown) => () => void
-  /** Colors of the Windows buttons in the title bar. */
-  setTitleBar: (colors: { color: string; symbolColor: string }) => void
-}
+/** The desktop shell (electron/preload.ts); undefined in the browser. */
+export const desktop: DesktopBridge | undefined = typeof window === "undefined" ? undefined : window.desktop
 
 /** Thrown by an API handler to answer with that HTTP status. */
 export class ApiError extends Error {
@@ -31,24 +19,46 @@ export class ApiError extends Error {
   }
 }
 
-/** The desktop shell (electron/preload.cjs); undefined in the browser. */
-export const desktop = (window as { desktop?: DesktopApi }).desktop
+/**
+ * The update state as the shell pushes it; null in the browser. Like T3 Code's: the
+ * subscription comes first, so a state pushed while the first read is on its way wins.
+ */
+export const updateStateAtom = Atom.make(
+  Stream.callback<UpdateState | null>((queue) =>
+    Effect.gen(function* () {
+      if (!desktop) {
+        Queue.offerUnsafe(queue, null)
+        return yield* Effect.never
+      }
+      let pushed = false
+      yield* Effect.acquireRelease(
+        Effect.sync(() =>
+          desktop.updates.subscribe((state) => {
+            pushed = true
+            Queue.offerUnsafe(queue, state)
+          }),
+        ),
+        (unsubscribe) => Effect.sync(unsubscribe),
+      )
+      const initial = yield* Effect.promise(() => desktop.updates.get()).pipe(
+        Effect.catchCause(() => Effect.succeed(null)),
+      )
+      if (!pushed && initial) Queue.offerUnsafe(queue, initial)
+      return yield* Effect.never
+    }),
+  ),
+  { initialValue: null },
+).pipe(Atom.keepAlive, Atom.withLabel("desktop:update-state"))
 
-/** The update state of the desktop app; undefined in the browser. */
-export function useUpdateState() {
-  const [state, setState] = useState<UpdateState>()
-  useEffect(() => {
-    if (!desktop) return
-    desktop.updates.get().then(setState)
-    return desktop.updates.subscribe(setState)
-  }, [])
-  return state
+/** The update state of the desktop app; null in the browser. */
+export function useUpdateState(): UpdateState | null {
+  return AsyncResult.getOrElse(useAtomValue(updateStateAtom), () => null)
 }
 
-export function useAppVersion() {
-  const [version, setVersion] = useState<string>()
-  useEffect(() => {
-    desktop?.version().then(setVersion)
-  }, [])
-  return version
+const appVersionAtom = Atom.make(
+  Effect.promise(() => (desktop ? desktop.version() : Promise.resolve(undefined))),
+).pipe(Atom.keepAlive, Atom.withLabel("desktop:app-version"))
+
+export function useAppVersion(): string | undefined {
+  return AsyncResult.getOrElse(useAtomValue(appVersionAtom), () => undefined)
 }

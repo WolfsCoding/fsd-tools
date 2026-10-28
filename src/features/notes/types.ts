@@ -1,26 +1,31 @@
+import * as Schema from "effect/Schema"
+import type { StoredValue } from "@/lib/storage"
+
 /** A note in Markdown/HTML, on its own or about a person. */
-export interface Note {
-  id: string
-  title: string
-  content: string
+export const Note = Schema.Struct({
+  id: Schema.String,
+  title: Schema.String,
+  content: Schema.String,
   /** Rank and name of who wrote it, from the settings. */
-  author?: string
+  author: Schema.optionalKey(Schema.String),
   /** Folder it sits in under "Notizen"; missing means the top level. */
-  folderId?: string
+  folderId: Schema.optionalKey(Schema.String),
   /** Place among the notes and folders next to it, once dragged there. */
-  order?: number
-  createdAt: string
-  updatedAt: string
-}
+  order: Schema.optionalKey(Schema.Number),
+  createdAt: Schema.String,
+  updatedAt: Schema.String,
+})
+export type Note = StoredValue<typeof Note>
 
 /** A folder of notes, possibly inside another one. */
-export interface NoteFolder {
-  id: string
-  name: string
+export const NoteFolder = Schema.Struct({
+  id: Schema.String,
+  name: Schema.String,
   /** Folder it sits in; missing means the top level. */
-  parentId?: string
+  parentId: Schema.optionalKey(Schema.String),
   /** Place among the notes and folders next to it, once dragged there. */
-  order?: number
-  createdAt: string
-  updatedAt: string
-}
+  order: Schema.optionalKey(Schema.Number),
+  createdAt: Schema.String,
+  updatedAt: Schema.String,
+})
+export type NoteFolder = StoredValue<typeof NoteFolder>

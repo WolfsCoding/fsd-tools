@@ -1,13 +1,17 @@
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
 import { createContext, useCallback, useContext, useMemo } from "react"
 import { features } from "@/features/registry"
-import { useLocalStorage } from "@/lib/local-storage"
+import { stored } from "@/lib/storage"
 
 // Stores disabled paths so newly added features are enabled by default.
 const DISABLED_FEATURES_KEY = "settings:disabled-features"
 const NONE: string[] = []
 
+export const disabledFeaturesAtom = stored(DISABLED_FEATURES_KEY, Schema.Array(Schema.String), NONE)
+
 export function useEnabledFeatures() {
-  const [disabled, setDisabled] = useLocalStorage(DISABLED_FEATURES_KEY, NONE)
+  const [disabled, setDisabled] = useAtom(disabledFeaturesAtom)
 
   const enabledFeatures = useMemo(
     () => features.filter((f) => !disabled.includes(f.path)),

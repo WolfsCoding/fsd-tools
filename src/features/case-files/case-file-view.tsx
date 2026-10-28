@@ -37,7 +37,9 @@ import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { copy } from "@/lib/clipboard"
 import { formatRelative } from "@/lib/format-date"
-import { useLocalStorage } from "@/lib/local-storage"
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
+import { stored } from "@/lib/storage"
 import { removedToast } from "@/lib/undo"
 import { DocForm, MeHint } from "./doc-form"
 import { withNow } from "./markdown"
@@ -57,7 +59,7 @@ import { WithIds } from "./with-ids"
 
 // Whether the markdown is shown next to the form on wide screens. Only how the page looks,
 // so it isn't part of the backups.
-const PREVIEW_SIDE_KEY = "case-files:preview-side"
+const previewSideAtom = stored("case-files:preview-side", Schema.Boolean, false)
 
 /** Drafts left just now, deleted unless they are opened again right away (StrictMode mounts twice). */
 const pendingDiscards = new Map<string, ReturnType<typeof setTimeout>>()
@@ -100,7 +102,7 @@ export function CaseFileView({
       { replace: true },
     )
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [previewSide, setPreviewSide] = useLocalStorage(PREVIEW_SIDE_KEY, false)
+  const [previewSide, setPreviewSide] = useAtom(previewSideAtom)
   // The list's context menu opens a case file with `{ preview: true }` to show its preview right away.
   // Handled once per navigation, while rendering (no effect needed).
   const location = useLocation()

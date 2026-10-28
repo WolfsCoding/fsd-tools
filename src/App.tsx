@@ -11,7 +11,7 @@ if (location.hash.startsWith("#/")) {
   history.replaceState(null, "", location.hash.slice(1))
 }
 
-// The desktop shell serves index.html for unknown paths (electron/main.cjs).
+// The desktop shell serves index.html for unknown paths (electron/services/AppProtocol.ts).
 const router = createBrowserRouter([
   {
     element: <AppLayout />,

@@ -1,5 +1,7 @@
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
 import { useCallback, useMemo } from "react"
-import { useLocalStorage } from "@/lib/local-storage"
+import { stored } from "@/lib/storage"
 import { sameText, textKey } from "@/lib/text"
 import type { CaseFileKind } from "./kind"
 import { DEFAULT_COLORS, DEFAULT_DEPARTMENT, type Colors } from "./markdown"
@@ -13,49 +15,13 @@ export const ME_RANK_KEY = "akten:me-rank"
 export const DEPARTMENT_KEY = "akten:department"
 /** Colors of the markdown. */
 export const COLORS_KEY = "akten:colors"
-const NO_CASE_FILES: CaseFile[] = []
 const NO_NAME = ""
 const NO_COLORS: Partial<Colors> = {}
 
-/** Checks imported data before it replaces the own settings and the case files under `caseFileKeys`. */
-export function isValidCaseFilesData(data: Record<string, unknown>, caseFileKeys: string[]) {
-  const me = data[ME_KEY]
-  const rank = data[ME_RANK_KEY]
-  const department = data[DEPARTMENT_KEY]
-  const colors = data[COLORS_KEY] as Record<string, unknown> | undefined
-  return (
-    (colors === undefined ||
-      (typeof colors === "object" && colors !== null && Object.values(colors).every((c) => typeof c === "string"))) &&
-    (me === undefined || typeof me === "string") &&
-    (rank === undefined || typeof rank === "string") &&
-    (department === undefined || typeof department === "string") &&
-    caseFileKeys.every((k) => isValidCaseFiles(data[k]))
-  )
-}
-
-/** Whether `value` (imported data) is a list of case files; missing counts as valid. */
-export function isValidCaseFiles(value: unknown) {
-  return value === undefined || (Array.isArray(value) && value.every(isCaseFile))
-}
-
-function isCaseFile(value: unknown): value is CaseFile<string> {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    ["id", "title", "createdAt", "updatedAt"].every((k) => typeof v[k] === "string") &&
-    (v.settled === undefined || typeof v.settled === "boolean") &&
-    Array.isArray(v.docs) &&
-    v.docs.length > 0 &&
-    v.docs.every(
-      (d) =>
-        typeof d?.id === "string" &&
-        // Templates that were removed since are allowed; their documents just aren't shown.
-        typeof d.template === "string" &&
-        typeof d.values === "object" &&
-        d.values !== null,
-    )
-  )
-}
+export const ownNameAtom = stored(ME_KEY, Schema.String, NO_NAME)
+export const ownRankAtom = stored(ME_RANK_KEY, Schema.String, NO_NAME)
+export const departmentAtom = stored(DEPARTMENT_KEY, Schema.String, NO_NAME)
+export const colorsAtom = stored(COLORS_KEY, Schema.Struct({ heading: Schema.optionalKey(Schema.String) }), NO_COLORS)
 
 /** Who is filling in the case files, from the settings. */
 export interface Identity {
@@ -68,9 +34,9 @@ export interface Identity {
 }
 
 export function useOwnIdentity() {
-  const [name, setName] = useLocalStorage(ME_KEY, NO_NAME)
-  const [rank, setRank] = useLocalStorage(ME_RANK_KEY, NO_NAME)
-  const [department, setDepartment] = useLocalStorage(DEPARTMENT_KEY, NO_NAME)
+  const [name, setName] = useAtom(ownNameAtom)
+  const [rank, setRank] = useAtom(ownRankAtom)
+  const [department, setDepartment] = useAtom(departmentAtom)
   const full = [rank.trim(), name.trim()].filter(Boolean).join(" ")
   const ownDepartment = department.trim() || DEFAULT_DEPARTMENT
   const identity = useMemo<Identity>(
@@ -83,7 +49,7 @@ export function useOwnIdentity() {
 
 /** The markdown colors from the settings; unset ones keep their default. */
 export function useColors() {
-  const [stored, setStored] = useLocalStorage<Partial<Colors>>(COLORS_KEY, NO_COLORS)
+  const [stored, setStored] = useAtom(colorsAtom)
   const colors = useMemo<Colors>(
     () => ({
       heading: stored.heading?.trim() || DEFAULT_COLORS.heading,
@@ -333,7 +299,7 @@ const drafts = new Set<string>()
 
 /** The stored case files of `kind`, newest first, and everything that changes them. */
 export function useCaseFiles(kind: CaseFileKind) {
-  const [stored, setCaseFiles] = useLocalStorage<CaseFile<string>[]>(kind.storageKey, NO_CASE_FILES)
+  const [stored, setCaseFiles] = useAtom(kind.atom)
 
   // Documents of templates that were removed stay stored but aren't shown; nor is a case file whose main document it is.
   const caseFiles = useMemo(

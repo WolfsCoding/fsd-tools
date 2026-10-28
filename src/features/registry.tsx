@@ -1,40 +1,44 @@
 import type { ComponentType, ReactNode } from "react"
-import { BookOpenIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, ListTodoIcon, NotebookPenIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
+import { BookOpenIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, ListTodoIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
+import type { StoredEntry } from "@/lib/storage"
 import { CaseFilesPage } from "./case-files/case-files-page"
 import { CaseFilesSettings, MarkdownSettings, OwnPersonSettings, SnippetsSettings } from "./case-files/case-files-settings"
 import { POLICE_FILES_BASE } from "./case-files/paths"
-import { isValidPoliceFilesData, LEGACY_FORENSICS_KEY, POLICE_FILES_KEY } from "./case-files/police-files"
-import { SNIPPETS_KEY } from "./case-files/snippets"
-import { COLORS_KEY, DEPARTMENT_KEY, ME_KEY, ME_RANK_KEY } from "./case-files/use-case-files"
+import { legacyForensicsAtom, policeFilesAtom } from "./case-files/police-files"
+import { snippetsAtom } from "./case-files/snippets"
+import { colorsAtom, departmentAtom, ownNameAtom, ownRankAtom } from "./case-files/use-case-files"
 import { DnaDbPage } from "./dna-db/dna-db-page"
 import { DnaDbSettings } from "./dna-db/dna-db-settings"
 import { DNA_DB_BASE } from "./dna-db/paths"
-import { DNA_DISMISSED_KEY, DNA_ENTRIES_KEY, isValidDnaData } from "./dna-db/use-dna-entries"
+import { dnaDismissedAtom, dnaEntriesAtom } from "./dna-db/use-dna-entries"
 import { OperationsPage } from "./operations/operations-page"
 import { OperationsSettings } from "./operations/operations-settings"
 import { OPERATIONS_BASE } from "./operations/paths"
-import { OPERATIONS_KEY, isValidOperationsData } from "./operations/use-operations"
+import { operationsAtom } from "./operations/use-operations"
 import { FlowchartsPage } from "./flowcharts/flowcharts-page"
 import { FlowchartsSettings } from "./flowcharts/flowcharts-settings"
 import { FLOWCHARTS_BASE } from "./flowcharts/paths"
-import { FLOWCHARTS_KEY, isValidFlowchartsData } from "./flowcharts/use-flowcharts"
+import { flowchartsAtom } from "./flowcharts/use-flowcharts"
 import { FsuPage } from "./fsu/fsu-page"
 import { HeadersPage } from "./headers/headers-page"
-import { HEADER_KEY, HEADER_SCALE_KEY, isValidHeaderData } from "./headers/storage"
+import { headerDesignAtom, headerScaleAtom } from "./headers/storage"
 import { HEADERS_BASE } from "./headers/paths"
 import { LawBookPage } from "./law-book/law-book-page"
-import { BOOKMARKS_KEY } from "./law-book/bookmarks"
-import { CALCULATOR_KEY } from "./law-book/charge-calculator"
+import { bookmarksAtom } from "./law-book/bookmarks"
+import { calculatorAtom } from "./law-book/calculator"
 import { LAW_BOOK_BASE } from "./law-book/paths"
 import { FSU_BASE } from "./fsu/paths"
 import { NotesPage } from "./notes/notes-page"
 import { NotesSettings } from "./notes/notes-settings"
 import { NOTES_BASE } from "./notes/paths"
-import { FOLDERS_KEY } from "./notes/folders"
-import { isValidNotesData, LEGACY_PAGES_KEY, NOTES_KEY } from "./notes/use-notes"
+import { foldersAtom } from "./notes/folders"
+import { legacyPagesAtom, notesAtom } from "./notes/use-notes"
+import { RECEIPTS_BASE } from "./receipts/paths"
+import { ReceiptsPage } from "./receipts/receipts-page"
+import { receiptAtom, receiptScaleAtom } from "./receipts/storage"
 import { TODOS_BASE } from "./todos/paths"
 import { TodosPage } from "./todos/todos-page"
-import { isValidTodosData, TODOS_KEY } from "./todos/use-todos"
+import { todosAtom } from "./todos/use-todos"
 
 export interface Feature {
   /** URL path segment, e.g. "dna-db" → /dna-db */
@@ -43,11 +47,12 @@ export interface Feature {
   description?: string
   icon: ComponentType<{ className?: string }>
   element: ReactNode
-  /** localStorage keys owned by this feature; enables export/import/clear in its settings. */
+  /**
+   * The stored atoms this feature owns; enables export/import/clear in its settings. Imports
+   * are checked against each atom's schema.
+   */
   storage?: {
-    keys: string[]
-    /** Rejects imports whose data doesn't fit this feature. */
-    validate?: (data: Record<string, unknown>) => boolean
+    entries: StoredEntry[]
   }
   /** Extra rows shown in the "Daten" section of the feature's settings page. */
   settings?: ComponentType
@@ -66,7 +71,7 @@ export const features: Feature[] = [
     description: "Durchsuchbare Datenbank für DNA- und Fingerabdruck-IDs",
     icon: DnaIcon,
     element: <DnaDbPage />,
-    storage: { keys: [DNA_ENTRIES_KEY, DNA_DISMISSED_KEY], validate: isValidDnaData },
+    storage: { entries: [dnaEntriesAtom, dnaDismissedAtom] },
     settings: DnaDbSettings,
   },
   {
@@ -82,11 +87,7 @@ export const features: Feature[] = [
     description: "Criminal Offenses, Ticket Offenses, Law und Civil Procedures durchsuchen, mit Strafrahmen je Absatz",
     icon: ScaleIcon,
     element: <LawBookPage />,
-    storage: {
-      keys: [BOOKMARKS_KEY, CALCULATOR_KEY],
-      // Both are read leniently; only reject what isn't a list.
-      validate: (data) => Object.values(data).every(Array.isArray),
-    },
+    storage: { entries: [bookmarksAtom, calculatorAtom] },
   },
   {
     path: NOTES_BASE.slice(1),
@@ -94,7 +95,7 @@ export const features: Feature[] = [
     description: "Notizen in Markdown, wie die zu Personen",
     icon: NotebookPenIcon,
     element: <NotesPage />,
-    storage: { keys: [NOTES_KEY, FOLDERS_KEY, LEGACY_PAGES_KEY], validate: isValidNotesData },
+    storage: { entries: [notesAtom, foldersAtom, legacyPagesAtom] },
     settings: NotesSettings,
   },
   {
@@ -103,7 +104,7 @@ export const features: Feature[] = [
     description: "Aufgaben, optional mit Akten und Personen verknüpft",
     icon: ListTodoIcon,
     element: <TodosPage />,
-    storage: { keys: [TODOS_KEY], validate: isValidTodosData },
+    storage: { entries: [todosAtom] },
   },
   {
     path: FLOWCHARTS_BASE.slice(1),
@@ -111,7 +112,7 @@ export const features: Feature[] = [
     description: "Abläufe mit Verzweigungen bauen und als PNG zum Posten exportieren",
     icon: WorkflowIcon,
     element: <FlowchartsPage />,
-    storage: { keys: [FLOWCHARTS_KEY], validate: isValidFlowchartsData },
+    storage: { entries: [flowchartsAtom] },
     settings: FlowchartsSettings,
   },
   {
@@ -120,7 +121,15 @@ export const features: Feature[] = [
     description: "Header für Akten mit Titel, Untertitel und Logo gestalten und als PNG exportieren",
     icon: ImageIcon,
     element: <HeadersPage />,
-    storage: { keys: [HEADER_KEY, HEADER_SCALE_KEY], validate: isValidHeaderData },
+    storage: { entries: [headerDesignAtom, headerScaleAtom] },
+  },
+  {
+    path: RECEIPTS_BASE.slice(1),
+    title: "Kassenbon",
+    description: "Just for fun: Kassenbons mit Artikeln, Summe und Rückgeld gestalten und als PNG exportieren",
+    icon: ReceiptIcon,
+    element: <ReceiptsPage />,
+    storage: { entries: [receiptAtom, receiptScaleAtom] },
   },
   {
     path: OPERATIONS_BASE.slice(1),
@@ -128,7 +137,7 @@ export const features: Feature[] = [
     description: "Einsatzleiter-Blatt: Streifen, Status, Aufgaben, Verlauf und Notizen für größere Einsätze",
     icon: SirenIcon,
     element: <OperationsPage />,
-    storage: { keys: [OPERATIONS_KEY], validate: isValidOperationsData },
+    storage: { entries: [operationsAtom] },
     settings: OperationsSettings,
   },
   {
@@ -137,7 +146,9 @@ export const features: Feature[] = [
     description: "Strafakten, Sammelakten, Aussagen, Messungen und forensische Analysen ausfüllen und als Markdown kopieren",
     icon: FolderOpenIcon,
     element: <CaseFilesPage />,
-    storage: { keys: [POLICE_FILES_KEY, LEGACY_FORENSICS_KEY, ME_KEY, ME_RANK_KEY, DEPARTMENT_KEY, COLORS_KEY, SNIPPETS_KEY], validate: isValidPoliceFilesData },
+    storage: {
+      entries: [policeFilesAtom, legacyForensicsAtom, ownNameAtom, ownRankAtom, departmentAtom, colorsAtom, snippetsAtom],
+    },
     settings: CaseFilesSettings,
     preferences: SnippetsSettings,
   },

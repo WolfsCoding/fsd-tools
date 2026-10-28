@@ -6,19 +6,18 @@ import { chargeEntries, fineOf, totalOf, type Charge, type UnknownCharge } from 
 import { ChargesInput } from "@/features/case-files/charges-input"
 import { code } from "@/features/case-files/markdown"
 import { caseFilePath } from "@/features/case-files/paths"
-import { POLICE_FILES_KEY, POLICE_FILES_KIND } from "@/features/case-files/police-files"
+import { POLICE_FILES_KIND, policeFilesAtom } from "@/features/case-files/police-files"
 import { listItems, tableRows, templateFields, type Template } from "@/features/case-files/templates"
 import type { CaseFile, Doc } from "@/features/case-files/types"
 import { docName, useOwnName } from "@/features/case-files/use-case-files"
 import { formatFine, needsQuantity, quantityLabel } from "@/features/law-book/offenses"
 import { formatDate } from "@/lib/format-date"
-import { useLocalStorage } from "@/lib/local-storage"
 import { matchesWord, textKey } from "@/lib/text"
+import { useAtomValue } from "@effect/atom-react"
 import { caseFileMentionTitle, mentionsOf, useCaseFileMentions, type CaseFileMention } from "./case-file-mentions"
 import { PROFILE_FIELDS, type DnaEntry } from "./types"
 import { entryName } from "./use-dna-entries"
 
-const NO_CASE_FILES: CaseFile<string>[] = []
 
 /** Field of the statement's text; documents with it are statements. */
 const STATEMENT_KEY = "aussage"
@@ -98,7 +97,7 @@ function suspectValues(template: Template<string>, doc: Doc<string>) {
  * counts when they are the only one the Akte names.
  */
 export function usePersonRecords(entry: DnaEntry | undefined): PersonRecords {
-  const [caseFiles] = useLocalStorage(POLICE_FILES_KEY, NO_CASE_FILES)
+  const caseFiles = useAtomValue(policeFilesAtom)
   const me = useOwnName()
   const entries = useMemo(() => (entry ? [entry] : []), [entry])
   const mentionMap = useCaseFileMentions(entries)

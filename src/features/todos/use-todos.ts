@@ -1,33 +1,14 @@
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
 import { useCallback } from "react"
 import { useOwnIdentity } from "@/features/case-files/use-case-files"
-import { useLocalStorage } from "@/lib/local-storage"
-import type { Todo, TodoInput } from "./types"
+import { stored } from "@/lib/storage"
+import { Todo, type TodoInput } from "./types"
 
 export const TODOS_KEY = "todos:todos"
 const NO_TODOS: Todo[] = []
 
-const isIds = (value: unknown) => value === undefined || (Array.isArray(value) && value.every((v) => typeof v === "string"))
-const isText = (value: unknown) => value === undefined || typeof value === "string"
-
-/** Checks imported data before it replaces the stored todos. */
-export function isValidTodosData(data: Record<string, unknown>) {
-  const todos = data[TODOS_KEY]
-  return todos === undefined || (Array.isArray(todos) && todos.every(isTodo))
-}
-
-function isTodo(value: unknown): value is Todo {
-  if (typeof value !== "object" || value === null) return false
-  const v = value as Record<string, unknown>
-  return (
-    ["id", "title", "createdAt"].every((k) => typeof v[k] === "string") &&
-    typeof v.done === "boolean" &&
-    isIds(v.caseFileIds) &&
-    isIds(v.personIds) &&
-    isText(v.note) &&
-    isText(v.author) &&
-    isText(v.doneAt)
-  )
-}
+export const todosAtom = stored(TODOS_KEY, Schema.Array(Todo), NO_TODOS)
 
 /** Leaves out empty lists, so stored todos stay small. */
 function clean(input: Partial<TodoInput>): Partial<Todo> {
@@ -39,7 +20,7 @@ function clean(input: Partial<TodoInput>): Partial<Todo> {
 }
 
 export function useTodos() {
-  const [todos, setTodos] = useLocalStorage<Todo[]>(TODOS_KEY, NO_TODOS)
+  const [todos, setTodos] = useAtom(todosAtom)
   const { identity } = useOwnIdentity()
 
   const addTodo = useCallback(

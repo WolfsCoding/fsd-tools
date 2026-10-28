@@ -3,7 +3,7 @@ import os from "node:os"
 import path from "node:path"
 import { getPreferenceValues, open } from "@raycast/api"
 
-// Client of the app's local API (electron/api.cjs). The app writes its port and token to
+// Client of the app's local API (electron/services/LocalApi.ts). The app writes its port and token to
 // api.json in its user data folder while it runs.
 
 const APP_DATA = process.env.APPDATA ?? path.join(os.homedir(), "AppData", "Roaming")

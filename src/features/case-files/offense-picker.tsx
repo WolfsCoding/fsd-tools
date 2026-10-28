@@ -4,12 +4,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { books } from "@/features/law-book/data/books"
 import { matchesOffense, OFFENSES, parseQuery, resolveOffense, type Offense } from "@/features/law-book/offenses"
 import { Highlight, LawText, ParagraphText } from "@/features/law-book/paragraph-text"
-import { useLocalStorage } from "@/lib/local-storage"
+import { useAtom } from "@effect/atom-react"
+import * as Schema from "effect/Schema"
+import { stored } from "@/lib/storage"
 
 /** Offenses picked last, newest first; device-local, so not part of the backups. */
-export const RECENT_OFFENSES_KEY = "gesetzbuch:recent-offenses"
+const RECENT_OFFENSES_KEY = "gesetzbuch:recent-offenses"
 const RECENT_MAX = 8
-const NO_RECENT: unknown = []
+const NO_RECENT: string[] = []
+const recentOffensesAtom = stored(RECENT_OFFENSES_KEY, Schema.Array(Schema.String), NO_RECENT)
 
 /** cmdk needs unique values; a recent offense is also listed in its book. */
 const RECENT_PREFIX = "recent:"
@@ -43,7 +46,7 @@ export function OffensePicker({ onPick, children }: { onPick: (offense: Offense)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [active, setActive] = useState("")
-  const [storedRecent, setRecent] = useLocalStorage(RECENT_OFFENSES_KEY, NO_RECENT)
+  const [storedRecent, setRecent] = useAtom(recentOffensesAtom)
 
   const terms = useMemo(() => parseQuery(query), [query])
   const shown = useMemo(() => (terms.length ? OFFENSES.filter((o) => matchesOffense(o, terms)) : OFFENSES), [terms])

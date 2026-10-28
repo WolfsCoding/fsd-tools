@@ -1,4 +1,6 @@
+import type { StoredAtom } from "@/lib/storage"
 import type { Template } from "./templates"
+import type { CaseFile } from "./types"
 
 /**
  * One kind of case files with its own templates and storage, e.g. the Akten with the
@@ -13,8 +15,8 @@ export interface CaseFileKind {
   noun: string
   /** Route prefix; must match the feature's `path` in the registry. */
   base: string
-  /** localStorage key of its case files. */
-  storageKey: string
+  /** Its stored case files. */
+  atom: StoredAtom<CaseFile<string>[]>
   templates: Record<string, Template<string>>
   /** Values a newly attached document takes over from the main one, e.g. the case number. */
   inherit?: string[]
