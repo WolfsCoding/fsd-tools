@@ -20,6 +20,8 @@ export const UpdateState = Schema.Struct({
   status: Schema.Literals(UPDATE_STATUSES),
   /** The version found, kept through a failed download so it can be tried again. */
   version: Schema.optional(Schema.String),
+  /** The release's notes from GitHub, as HTML; shown when hovering the update button. */
+  notes: Schema.optional(Schema.String),
   percent: Schema.optional(Schema.Number),
   error: Schema.optional(Schema.String),
 })

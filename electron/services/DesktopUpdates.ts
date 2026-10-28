@@ -17,10 +17,23 @@ import { MainWindow } from "./MainWindow"
 const STARTUP_DELAY = "15 seconds"
 const POLL_INTERVAL = "4 minutes"
 
-const UpdateInfo = Schema.Struct({ version: Schema.String })
+// electron-updater's GitHub provider hands over the release body as HTML, or one entry per skipped
+// version when it is set to the full changelog.
+const ReleaseNote = Schema.Struct({ version: Schema.String, note: Schema.NullOr(Schema.String) })
+const UpdateInfo = Schema.Struct({
+  version: Schema.String,
+  releaseNotes: Schema.optional(Schema.NullOr(Schema.Union([Schema.String, Schema.Array(ReleaseNote)]))),
+})
 const DownloadProgress = Schema.Struct({ percent: Schema.Number })
 const decodeUpdateInfo = Schema.decodeUnknownEffect(UpdateInfo)
 const decodeProgress = Schema.decodeUnknownEffect(DownloadProgress)
+
+const notesOf = (info: typeof UpdateInfo.Type) => {
+  const notes = info.releaseNotes
+  if (!notes) return undefined
+  const html = typeof notes === "string" ? notes : notes.map((entry) => entry.note ?? "").join("\n")
+  return html.trim() || undefined
+}
 
 /**
  * Where the update stands, and the checks and downloads that move it. Nothing happens
@@ -68,12 +81,16 @@ export const make = Effect.gen(function* () {
   const download = Effect.gen(function* () {
     const current = yield* state
     if (!current.version || (current.status !== "available" && current.status !== "error")) return
-    yield* setState({ status: "downloading", version: current.version, percent: 0 })
+    yield* setState({ status: "downloading", version: current.version, notes: current.notes, percent: 0 })
     yield* updater.downloadUpdate.pipe(Effect.ignore)
   })
 
   const failInstall = (error: UpdaterError) =>
-    state.pipe(Effect.flatMap((current) => setState({ status: "error", version: current.version, error: error.message })))
+    state.pipe(
+      Effect.flatMap((current) =>
+        setState({ status: "error", version: current.version, notes: current.notes, error: error.message }),
+      ),
+    )
 
   const onEvent = (name: string, handle: (raw: unknown) => Effect.Effect<void, unknown>) =>
     updater.on(name, (raw: unknown) => {
@@ -91,18 +108,27 @@ export const make = Effect.gen(function* () {
       state.pipe(Effect.flatMap((s) => (s.status === "available" ? Effect.void : setState({ status: "checking" })))),
     )
     yield* onEvent("update-available", (raw) =>
-      decodeUpdateInfo(raw).pipe(Effect.flatMap((info) => setState({ status: "available", version: info.version }))),
+      decodeUpdateInfo(raw).pipe(
+        Effect.flatMap((info) => setState({ status: "available", version: info.version, notes: notesOf(info) })),
+      ),
     )
     yield* onEvent("update-not-available", () => setState({ status: "latest" }))
     yield* onEvent("download-progress", (raw) =>
       Effect.gen(function* () {
         const progress = yield* decodeProgress(raw)
         const current = yield* state
-        yield* setState({ status: "downloading", version: current.version, percent: Math.round(progress.percent) })
+        yield* setState({
+          status: "downloading",
+          version: current.version,
+          notes: current.notes,
+          percent: Math.round(progress.percent),
+        })
       }),
     )
     yield* onEvent("update-downloaded", (raw) =>
-      decodeUpdateInfo(raw).pipe(Effect.flatMap((info) => setState({ status: "ready", version: info.version }))),
+      decodeUpdateInfo(raw).pipe(
+        Effect.flatMap((info) => setState({ status: "ready", version: info.version, notes: notesOf(info) })),
+      ),
     )
     // A failed background check keeps a found update offered; a failed download keeps its
     // version so it can be tried again.
@@ -111,7 +137,7 @@ export const make = Effect.gen(function* () {
         Effect.flatMap((current) =>
           current.status === "available"
             ? Effect.void
-            : setState({ status: "error", version: current.version, error: describe(error) }),
+            : setState({ status: "error", version: current.version, notes: current.notes, error: describe(error) }),
         ),
       ),
     )
