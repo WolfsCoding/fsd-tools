@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 export function NoResults({ query, onReset }: { query: string; onReset: () => void }) {
   return (
     <div className="grid justify-items-center gap-2 px-2.5 py-6 text-center text-sm text-muted-foreground animate-in duration-300 fade-in-0">
-      <p>Keine Treffer für „{query.trim()}"</p>
+      <p>Keine Treffer für „{query.trim()}“</p>
       <Button variant="ghost" size="sm" onClick={onReset}>
         Suche zurücksetzen
       </Button>
