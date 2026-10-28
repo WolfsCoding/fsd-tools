@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react"
 import { cn } from "cn"
-import { CheckIcon, DownloadIcon, RefreshCwIcon, RotateCcwIcon, RotateCwIcon } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import rehypeRaw from "rehype-raw"
+import rehypeSanitize from "rehype-sanitize"
+import { CheckIcon, DownloadIcon, RotateCcwIcon, RotateCwIcon } from "lucide-react"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -17,32 +20,29 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { desktop, useUpdateState, type UpdateState } from "@/lib/desktop"
 
-// The update button at the bottom of the tool strip, like T3 Code's in its sidebar: a check
-// while idle, then download, progress and restart. Nothing loads or installs without a click.
+// The update button at the bottom of the tool strip, like T3 Code's in its sidebar. It only
+// appears once an update exists: download, progress, then restart, with the release notes on
+// hover. Nothing loads or installs without a click. Checking by hand lives in the settings.
 
 const PROGRESS_RADIUS = 14
 const PROGRESS_LENGTH = 2 * Math.PI * PROGRESS_RADIUS
 
-type Action = "check" | "download" | "install" | "none"
+type Action = "download" | "install" | "none"
 
-function actionOf(state: UpdateState | null): Action {
-  switch (state?.status) {
+function actionOf(state: UpdateState): Action {
+  switch (state.status) {
     case "available":
+    case "error":
       return "download"
     case "ready":
       return "install"
-    case "error":
-      return state.version ? "download" : "check"
-    case "idle":
-    case "latest":
-      return "check"
     default:
       return "none"
   }
 }
 
-function tooltipOf(state: UpdateState | null) {
-  switch (state?.status) {
+function tooltipOf(state: UpdateState) {
+  switch (state.status) {
     case "available":
       return `Update ${state.version} bereit zum Laden`
     case "downloading":
@@ -50,15 +50,9 @@ function tooltipOf(state: UpdateState | null) {
     case "ready":
       return `Update ${state.version} geladen. Klicken zum Neustarten und Installieren.`
     case "error":
-      return state.version
-        ? `Laden von ${state.version} fehlgeschlagen. Klicken zum Wiederholen.`
-        : (state.error ?? "Update fehlgeschlagen")
-    case "checking":
-      return "Suche nach Updates …"
-    case "unsupported":
-      return "Updates nicht verfügbar"
+      return `Laden von ${state.version} fehlgeschlagen. Klicken zum Wiederholen.`
     default:
-      return "Nach Updates suchen"
+      return ""
   }
 }
 
@@ -80,13 +74,14 @@ export function UpdateButton() {
 
   if (!desktop || !state) return null
 
-  const action = actionOf(state)
   const hasUpdate = status === "available" || status === "downloading" || status === "ready" || (status === "error" && !!state.version)
+  if (!hasUpdate) return null
+
+  const action = actionOf(state)
   const disabled = action === "none"
 
   const onClick = () => {
-    if (action === "check") desktop!.updates.check()
-    else if (action === "download") desktop!.updates.download()
+    if (action === "download") desktop!.updates.download()
     else if (action === "install") setConfirming(true)
   }
 
@@ -100,19 +95,20 @@ export function UpdateButton() {
             aria-disabled={disabled || undefined}
             onClick={disabled ? undefined : onClick}
             className={cn(
-              "inline-flex size-9 items-center justify-center rounded-full outline-none transition-[background-color,color,scale] duration-150 focus-visible:ring-2 focus-visible:ring-ring",
-              disabled ? "cursor-not-allowed" : "cursor-pointer active:scale-90",
-              hasUpdate
-                ? cn("bg-strip-hover text-foreground", !disabled && "hover:bg-strip-hover/70")
-                : cn("text-strip-foreground", !disabled && "hover:bg-strip-hover hover:text-foreground"),
-              disabled && !hasUpdate && "opacity-60",
+              "inline-flex size-9 items-center justify-center rounded-full bg-strip-hover text-foreground outline-none transition-[background-color,color,scale] duration-150 focus-visible:ring-2 focus-visible:ring-ring",
+              disabled ? "cursor-not-allowed" : "cursor-pointer hover:bg-strip-hover/70 active:scale-90",
             )}
           >
             <StatusIcon state={state} />
           </button>
         </TooltipTrigger>
-        <TooltipContent side="right">
+        <TooltipContent
+          side="right"
+          align="end"
+          className={cn(state.notes && "max-w-sm flex-col items-stretch gap-2 py-2")}
+        >
           <span className="whitespace-pre-line">{tooltipOf(state)}</span>
+          {state.notes && <ReleaseNotes html={state.notes} />}
         </TooltipContent>
       </Tooltip>
 
@@ -141,20 +137,12 @@ export function UpdateButton() {
 
 function StatusIcon({ state }: { state: UpdateState }) {
   switch (state.status) {
-    case "available":
-      return <AvailableIcon />
     case "downloading":
       return <DownloadingIcon percent={state.percent ?? 0} />
     case "ready":
       return <ReadyIcon />
-    case "error":
-      return state.version ? <AvailableIcon /> : <RefreshCwIcon className="size-4" />
     default:
-      return (
-        <RefreshCwIcon
-          className={cn("size-4", state.status === "checking" && "animate-spin motion-reduce:animate-none")}
-        />
-      )
+      return <AvailableIcon />
   }
 }
 
@@ -205,5 +193,21 @@ function ReadyIcon() {
         <CheckIcon className="size-2" strokeWidth={3} />
       </span>
     </span>
+  )
+}
+
+/** The GitHub release body, sanitized; links open in the browser. */
+function ReleaseNotes({ html }: { html: string }) {
+  return (
+    <div className="max-h-80 overflow-y-auto border-t border-tooltip-foreground/15 pt-2 text-xs leading-relaxed [&_a]:underline [&_a]:underline-offset-2 [&_h1]:text-[13px] [&_h1]:font-semibold [&_h2]:text-[13px] [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:ml-4 [&_li]:list-disc [&_p]:my-1 [&_ul]:my-1 [&_ul]:space-y-0.5">
+      <ReactMarkdown
+        rehypePlugins={[rehypeRaw, rehypeSanitize]}
+        components={{
+          a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
+        }}
+      >
+        {html}
+      </ReactMarkdown>
+    </div>
   )
 }
