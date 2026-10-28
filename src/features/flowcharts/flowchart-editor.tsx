@@ -126,7 +126,7 @@ export function FlowchartEditor({
       setFocusId(focus ?? at.parent.id)
       if (quiet) return
       const label =
-        node.linkTo !== undefined ? "Verbindung" : node.text.trim() ? `Schritt „${node.text.trim()}"` : "Schritt"
+        node.linkTo !== undefined ? "Verbindung" : node.text.trim() ? `Schritt „${node.text.trim()}“` : "Schritt"
       removedToast(label, () =>
         // Back where it was, unless it's there already or its parent is gone too.
         editRoot((r) => (hasNode(r, id) || !hasNode(r, at.parent.id) ? r : insertChild(r, at.parent.id, node, at.index))),
