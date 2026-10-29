@@ -292,7 +292,7 @@ function Preview({ receipt, scale, onScale }: { receipt: Receipt; scale: number;
   }
 
   return (
-    <Card className="min-w-0 flex-1 pb-0 @3xl:min-h-0">
+    <Card className="min-w-0 shrink-0 grow pb-0 @3xl:min-h-0 @3xl:flex-1">
       <CardHeader className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b">
         <div className="mr-auto grid gap-1">
           <CardTitle className="flex items-center gap-2">
