@@ -157,7 +157,7 @@ export function SplitLayout({ children }: { children: ReactNode }) {
               onDoubleClick={() => setRatio(DEFAULT_RATIO)}
               onKeyDown={(e) => {
                 const step = KEY_STEPS[e.key]
-                if (!step) return
+                if (!step || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
                 e.preventDefault()
                 resizeTo(ratio + step)
               }}
