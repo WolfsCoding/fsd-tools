@@ -166,7 +166,7 @@ export function drawHeader(canvas: HTMLCanvasElement, design: HeaderDesign, logo
   ctx.fillStyle = "#ffffff"
   ctx.textAlign = "center"
   ctx.textBaseline = "middle"
-  ctx.fillText(title, center, top + titleHeight / 2)
+  ctx.fillText(title, center, top + titleHeight / 2, TEXT_RIGHT - TEXT_LEFT)
 
   if (subtitle) {
     const y = top + titleHeight + gap + subHeight / 2
