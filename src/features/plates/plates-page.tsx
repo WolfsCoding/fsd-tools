@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { CarIcon, PlusIcon } from "lucide-react"
-import { NoResults } from "@/components/no-results"
+import { EmptyList, NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -97,7 +97,17 @@ export function PlatesPage() {
             api.addCheck()
           }}
         />
-        {query.trim() && !shown.length && <NoResults query={query} onReset={resetFilters} />}
+        {!shown.length &&
+          (query.trim() ? (
+            <NoResults query={query} onReset={resetFilters} />
+          ) : (
+            <div className="grid justify-items-center text-muted-foreground">
+              <EmptyList>Keine Abfragen für diesen Filter</EmptyList>
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="-mt-4">
+                Filter zurücksetzen
+              </Button>
+            </div>
+          ))}
       </div>
     </main>
   )
