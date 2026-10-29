@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react"
+import { CarIcon, PlusIcon } from "lucide-react"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
+import { Button } from "@/components/ui/button"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
@@ -24,6 +27,34 @@ export function PlatesPage() {
     setQuery("")
     setStatus("alle")
     setDate("alle")
+  }
+
+  if (api.checks.length === 0) {
+    return (
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <CarIcon />
+            </EmptyMedia>
+            <EmptyTitle>Noch keine Abfragen</EmptyTitle>
+            <EmptyDescription>
+              Trag gesehene Kennzeichen mit Fahrer, Fahrzeug, Datum und Tatort ein. Nicht angemeldete kopierst du als Ticket.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button
+              onClick={() => {
+                api.addCheck()
+                requestAnimationFrame(() => document.querySelector<HTMLElement>("main tbody input")?.focus())
+              }}
+            >
+              <PlusIcon /> Abfrage hinzufügen
+            </Button>
+          </EmptyContent>
+        </Empty>
+      </main>
+    )
   }
 
   return (

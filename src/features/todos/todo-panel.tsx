@@ -3,6 +3,7 @@ import { ListTodoIcon, PlusIcon } from "lucide-react"
 import { EmptyList } from "@/components/no-results"
 import { FilterMenu, SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { TodoDialog } from "./todo-dialog"
@@ -56,6 +57,30 @@ export function TodoPanel({
     </DropdownMenuCheckboxItem>
   )
 
+  const dialog = <TodoDialog open={creating} onOpenChange={setCreating} preset={preset} onSubmit={api.addTodo} />
+
+  if (search && todos.length === 0 && !search.query.trim()) {
+    return (
+      <>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <ListTodoIcon />
+            </EmptyMedia>
+            <EmptyTitle>Noch keine Todos</EmptyTitle>
+            <EmptyDescription>Halte Aufgaben fest und verknüpf sie bei Bedarf mit Akten und Personen.</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button onClick={() => setCreating(true)}>
+              <PlusIcon /> Neues Todo
+            </Button>
+          </EmptyContent>
+        </Empty>
+        {dialog}
+      </>
+    )
+  }
+
   return (
     <div className="grid gap-3">
       <div className="flex items-center gap-2">
@@ -85,7 +110,7 @@ export function TodoPanel({
         </div>
       )}
 
-      <TodoDialog open={creating} onOpenChange={setCreating} preset={preset} onSubmit={api.addTodo} />
+      {dialog}
     </div>
   )
 }

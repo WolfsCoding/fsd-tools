@@ -200,7 +200,7 @@ export function NotesPage() {
       {/* Right click on the free space creates notes and folders; rows have menus of their own. */}
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <div className="min-h-full">
+          <div className="flex min-h-full flex-col">
             <NoteList
               notes={shown}
               onUpdate={updateNotes}

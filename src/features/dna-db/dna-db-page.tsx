@@ -248,20 +248,22 @@ function EntryList() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-      <div className="flex shrink-0 items-center gap-2">
-        <SearchField
-          value={query}
-          onChange={setQuery}
-          focusKey
-          aria-label="Name, DNA-ID, Fingerabdruck-ID, Tag oder Aktennummer suchen"
-        />
-        <Button onClick={openCreate}>
-          <PlusIcon /> Neuer Eintrag
-        </Button>
-      </div>
+      {entries.length > 0 && (
+        <div className="flex shrink-0 items-center gap-2">
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            focusKey
+            aria-label="Name, DNA-ID, Fingerabdruck-ID, Tag oder Aktennummer suchen"
+          />
+          <Button onClick={openCreate}>
+            <PlusIcon /> Neuer Eintrag
+          </Button>
+        </div>
+      )}
 
       {/* overflow-hidden clips row hover backgrounds to the rounded corners. */}
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border bg-card">
+      <div className={cn("flex min-h-0 flex-1 flex-col", entries.length > 0 && "overflow-hidden rounded-xl border bg-card")}>
         {entries.length === 0 ? (
           <NoEntries onCreate={openCreate} />
         ) : filtered.length === 0 ? (
@@ -374,12 +376,14 @@ function EntryList() {
         )}
       </div>
 
-      <DataPagination
-        total={filtered.length}
-        page={currentPage}
-        pageSize={PAGE_SIZE}
-        onPageChange={setPage}
-      />
+      {entries.length > 0 && (
+        <DataPagination
+          total={filtered.length}
+          page={currentPage}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+      )}
 
       <DnaEntryDialog
         open={dialogOpen}
@@ -434,7 +438,7 @@ function NoEntries({ onCreate }: { onCreate: () => void }) {
       </EmptyHeader>
       <EmptyContent>
         <Button onClick={onCreate}>
-          <PlusIcon /> Eintrag hinzufügen
+          <PlusIcon /> Neuer Eintrag
         </Button>
       </EmptyContent>
     </Empty>

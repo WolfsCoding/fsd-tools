@@ -134,7 +134,7 @@ export function NoteList({
   }
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-3 has-data-[slot=empty]:flex-1">
       {(entries.length > 0 || parent) && (
         <ul className="divide-y overflow-hidden rounded-lg border stagger-in">
           {parent && <ParentItem parentId={parent.id} onArrange={onArrange} />}
