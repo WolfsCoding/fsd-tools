@@ -320,7 +320,7 @@ function Note({
                       variant="ghost"
                       size="icon-xs"
                       aria-label="Aktionen für die Notiz"
-                      className="size-5 opacity-0 group-focus-within/note:opacity-100 group-hover/note:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                      className="size-5 opacity-0 group-focus-within/note:opacity-100 group-hover/note:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
                     >
                       <EllipsisIcon />
                     </Button>

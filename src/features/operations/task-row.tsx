@@ -152,7 +152,7 @@ export function TaskRow({
                       variant="ghost"
                       size={detailed ? "icon-sm" : "icon-xs"}
                       aria-label={`Aktionen für ${task.title}`}
-                      className="opacity-0 group-focus-within/task:opacity-100 group-hover/task:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                      className="opacity-0 group-focus-within/task:opacity-100 group-hover/task:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
                     >
                       <EllipsisIcon />
                     </Button>

@@ -33,9 +33,9 @@ import { memberRoles, sortTasks, unitName, type useOperations } from "./use-oper
 type Api = ReturnType<typeof useOperations>
 type Editing = "callsign" | "description" | undefined
 
-/** Classes of the "⋯" button of a row or card: shown on hover and while focused. */
+/** Classes of the "⋯" button of a row or card: shown on hover and while focused, always on touch screens. */
 const MORE_BUTTON =
-  "opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+  "opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
 
 /**
  * A unit on the sheet: call sign, description, status, personnel and its tasks.
