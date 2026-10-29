@@ -27,7 +27,7 @@ import {
 } from "./markdown"
 import type { Colors } from "./markdown"
 import { ChargesInput } from "./charges-input"
-import { MarkdownField } from "./markdown-field"
+import { EntryForm } from "./entry-form"
 import { roll, type Range } from "./range"
 import type { Snippet, SnippetsAtom } from "./snippets"
 import type { DnaEntry } from "@/features/dna-db/types"
@@ -137,6 +137,12 @@ export interface CustomFieldProps {
   onChange: (key: string, value: Value) => void
   onUpdate: UpdateValue
   docId: string
+}
+
+/** What a template's own form gets to edit the document. */
+export interface DocFormProps {
+  values: Values
+  onChange: (key: string, value: Value) => void
 }
 
 /** A field with its own input, for values none of the other fields fit. */
@@ -284,6 +290,8 @@ export interface Template<Id extends string = TemplateId> {
   /** Templates that can be attached to a case file of this type. */
   attachable?: Id[]
   sections: Section[]
+  /** Shown instead of the sections, e.g. the own entry, which reads like a note until it is edited. */
+  form?: ComponentType<DocFormProps>
   /** Values of a new document, e.g. prefilled table rows. */
   initial?: Values
   /** Placeholder values of the empty template (e.g. "XXX" rows), so it shows how it's filled in; defaults to `initial`. */
@@ -1417,10 +1425,11 @@ const entry: Template = {
       description: "Titel und Text; kopiert wird der Text so, wie er ist.",
       fields: [
         { type: "text", key: "titel", label: "Titel", fallback: "" },
-        { type: "custom", key: "text", label: "Text", component: MarkdownField, required: true },
+        { type: "text", key: "text", label: "Text", fallback: "", required: true },
       ],
     },
   ],
+  form: EntryForm,
   subject: (r) => r.filled("titel"),
   pageTitle: (r) => r.filled("titel"),
   render: (r) => r.filled("text"),
