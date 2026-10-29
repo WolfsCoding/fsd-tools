@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router"
 import { CopyPlusIcon, EllipsisIcon, PlusIcon, SparklesIcon, Trash2Icon, WorkflowIcon } from "lucide-react"
+import { cn } from "cn"
 import { Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
@@ -139,7 +140,11 @@ function ChartList({ api, actions }: { api: FlowchartsApi; actions: ListActions 
               <ContextMenu>
                 <ContextMenuTrigger asChild>
                   <Link to={flowchartPath(c.id)} className={EXPLORER_CARD}>
-                    <span className="truncate text-sm font-medium">{flowchartTitle(c)}</span>
+                    <span
+                      className={cn("truncate text-sm font-medium", !c.root.text.trim() && "text-muted-foreground italic")}
+                    >
+                      {flowchartTitle(c)}
+                    </span>
                     <span className="text-xs text-muted-foreground/70">
                       {formatRelative(c.updatedAt)} · {steps} {steps === 1 ? "Schritt" : "Schritte"}
                     </span>
