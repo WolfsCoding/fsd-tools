@@ -266,20 +266,20 @@ export function OperationBoard({
 
           <Tabs value={activeTab} onValueChange={setTab} className="min-h-0 flex-1 gap-4">
             <TabsList className="no-scrollbar max-w-full shrink-0 justify-start overflow-x-auto">
-              <TabsTrigger value="lage" className="px-3">
+              <TabsTrigger value="lage" className="sm:px-3">
                 Lage
               </TabsTrigger>
-              <TabsTrigger value="leads" className="px-3">
+              <TabsTrigger value="leads" className="sm:px-3">
                 Führung <span className="text-muted-foreground tabular-nums">{leads}</span>
               </TabsTrigger>
-              <TabsTrigger value="units" className="px-3">
+              <TabsTrigger value="units" className="sm:px-3">
                 Streifen <span className="text-muted-foreground tabular-nums">{operation.units.length}</span>
               </TabsTrigger>
-              <TabsTrigger value="tasks" className="px-3">
+              <TabsTrigger value="tasks" className="sm:px-3">
                 Aufgaben <span className="text-muted-foreground tabular-nums">{openTasks}</span>
               </TabsTrigger>
               {!wide && (
-                <TabsTrigger value="notes" className="px-3">
+                <TabsTrigger value="notes" className="sm:px-3">
                   Notizen <span className="text-muted-foreground tabular-nums">{notes}</span>
                 </TabsTrigger>
               )}
