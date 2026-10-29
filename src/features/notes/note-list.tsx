@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react"
 import { PencilIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
+import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
@@ -205,7 +206,7 @@ function NoteItem({
   return (
     <Collapsible asChild open={open} onOpenChange={(o) => !editing && onOpenChange(o)}>
       <li {...drag.row} id={`note-${note.id}`} className={cn("scroll-mt-4", drag.rowClassName)}>
-        {/* "Bearbeiten" and "Löschen" on right click. */}
+        {/* "Bearbeiten" and "Löschen" in the header, and on right click. */}
         <ContextMenu>
           <ContextMenuTrigger asChild>
           <div className={ROW}>
@@ -220,6 +221,24 @@ function NoteItem({
               </span>
             </span>
           </CollapsibleTrigger>
+          {!editing && (
+            <Hint label="Bearbeiten">
+              <Button variant="ghost" size="icon-sm" onClick={onEdit} aria-label={`„${noteTitle(note)}“ bearbeiten`}>
+                <PencilIcon />
+              </Button>
+            </Hint>
+          )}
+          <Hint label="Löschen">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onRemove}
+              aria-label={`„${noteTitle(note)}“ löschen`}
+              className="text-red-400 hover:text-red-400"
+            >
+              <Trash2Icon />
+            </Button>
+          </Hint>
           </div>
           </ContextMenuTrigger>
           <ContextMenuContent onCloseAutoFocus={menu.onCloseAutoFocus}>
@@ -235,22 +254,10 @@ function NoteItem({
         <CollapsibleContent className="border-t">
           {editing ? (
             <NoteForm note={note} onSave={onSave} onCancel={onCancel} />
+          ) : note.content.trim() ? (
+            <NoteMarkdown className="px-4 py-5">{note.content}</NoteMarkdown>
           ) : (
-            <>
-              {note.content.trim() ? (
-                <NoteMarkdown className="px-4 py-5">{note.content}</NoteMarkdown>
-              ) : (
-                <p className="px-4 py-5 text-sm text-muted-foreground italic">Leere Notiz</p>
-              )}
-              <div className="flex justify-end gap-2 px-4 pb-4">
-                <Button variant="outline" size="sm" onClick={onRemove} className="text-red-400">
-                  <Trash2Icon /> Löschen
-                </Button>
-                <Button variant="outline" size="sm" onClick={onEdit}>
-                  <PencilIcon /> Bearbeiten
-                </Button>
-              </div>
-            </>
+            <p className="px-4 py-5 text-sm text-muted-foreground italic">Leere Notiz</p>
           )}
         </CollapsibleContent>
       </li>
