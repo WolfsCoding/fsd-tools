@@ -106,7 +106,7 @@ function PersonView({
           >
             {name}
           </h1>
-          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)} aria-label="Bearbeiten">
             <PencilIcon /> <span className="hidden sm:inline">Bearbeiten</span>
           </Button>
           <DropdownMenu>
