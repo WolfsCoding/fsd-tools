@@ -287,9 +287,13 @@ function Tool({
   label,
   icon: Icon,
   run,
-  active = false,
+  active,
   disabled = false,
-}: ToolProps & { active?: boolean; disabled?: boolean }) {
+}: ToolProps & {
+  /** Set for the buttons that switch something on and off, so they read as toggles. */
+  active?: boolean
+  disabled?: boolean
+}) {
   return (
     <Hint label={label}>
       <button
@@ -297,7 +301,7 @@ function Tool({
         onClick={run}
         disabled={disabled}
         aria-label={label}
-        aria-pressed={active || undefined}
+        aria-pressed={active}
         // Keeps the selection in the text while clicking.
         onMouseDown={(e) => e.preventDefault()}
         className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 aria-pressed:bg-primary/15 aria-pressed:text-primary [&_svg]:size-4"
