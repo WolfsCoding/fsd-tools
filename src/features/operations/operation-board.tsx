@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { useSearchParams } from "react-router"
 import {
   AtSignIcon,
@@ -37,7 +37,6 @@ import { Hint } from "@/components/hint"
 import { InlineEdit } from "@/components/inline-edit"
 import { EmptyList, NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
-import { useMediaQuery } from "@/hooks/use-media-query"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { useOwnIdentity, type Identity } from "@/features/case-files/use-case-files"
 import { useCollectiveFile } from "./collective-file"
@@ -91,6 +90,21 @@ function useTabParam() {
 }
 
 /**
+ * Whether the board has room for the notes next to it. Measured on the board itself, since a
+ * split view halves it on a wide window.
+ */
+function useWide() {
+  const [wide, setWide] = useState(() => window.innerWidth >= 1024)
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 960))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return [ref, wide] as const
+}
+
+/**
  * The operation leader's sheet: units and tasks in tabs, the history as a chat on the side.
  * Finished operations are read-only until they're unlocked.
  */
@@ -119,7 +133,7 @@ export function OperationBoard({
   const locked = !!operation.endedAt && !unlocked
 
   // Wide screens show the notes next to the sheet, narrow ones in their own tab.
-  const wide = useMediaQuery("(min-width: 1024px)")
+  const [boardRef, wide] = useWide()
   const activeTab = wide && tab === "notes" ? "units" : tab
 
   const id = operation.id
@@ -154,7 +168,7 @@ export function OperationBoard({
 
   return (
     <LockedContext value={locked}>
-      <div className="flex min-h-0 flex-1">
+      <div ref={boardRef} className="flex min-h-0 flex-1">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
           <section className="grid grid-cols-1 gap-1">
             <div className="flex items-center gap-2">
