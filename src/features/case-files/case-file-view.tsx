@@ -386,7 +386,7 @@ export function CaseFileView({
             aria-label="Dokumente der Akte"
             className="-mx-3 mt-3 flex items-center gap-0.5 no-scrollbar overflow-x-auto"
           >
-            {caseFile.docs.map((d) =>
+            {caseFile.docs.map((d, index) =>
               renaming === d.id ? (
                 <span key={d.id} className="shrink-0 px-3 pt-1 pb-2">
                   <InlineEdit
@@ -409,13 +409,24 @@ export function CaseFileView({
                         role="tab"
                         aria-selected={d.id === current.id}
                         ref={d.id === current.id ? scrollIntoViewRef : undefined}
+                        tabIndex={d.id === current.id ? 0 : -1}
+                        data-doc-id={d.id}
                         onClick={() => setDocId(d.id)}
                         onDoubleClick={() => setRenaming(d.id)}
                         onKeyDown={(e) => {
                           if (e.key === "F2") {
                             e.preventDefault()
-                            setRenaming(d.id)
+                            return setRenaming(d.id)
                           }
+                          if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+                          const { docs } = caseFile
+                          const targets: Partial<Record<string, number>> = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: docs.length - 1 }
+                          const target = targets[e.key]
+                          if (target === undefined) return
+                          e.preventDefault()
+                          const next = docs[(target + docs.length) % docs.length]
+                          setDocId(next.id)
+                          e.currentTarget.parentElement?.querySelector<HTMLElement>(`[data-doc-id="${next.id}"]`)?.focus()
                         }}
                         className={cn(
                           "relative max-w-60 shrink-0 truncate px-3 pt-1.5 pb-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground",
