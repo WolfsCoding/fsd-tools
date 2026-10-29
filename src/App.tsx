@@ -30,7 +30,7 @@ const router = createBrowserRouter([
 
 export default function App() {
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={500}>
       <RouterProvider router={router} />
       <Toaster />
     </TooltipProvider>
