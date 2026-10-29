@@ -148,7 +148,7 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
                   <span className="w-7 shrink-0 text-xs font-semibold text-amber-400">{b.abbreviation}</span>
                   <span className="truncate">{b.title}</span>
                 </span>
-                <span className="text-xs text-muted-foreground/70">
+                <span className="text-xs text-muted-foreground">
                   {b.chapters.length} Kapitel · {paragraphCount(b)} Paragraphen
                 </span>
               </Link>
@@ -160,14 +160,14 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
                 <ListIcon className="size-4 shrink-0 text-muted-foreground" />
                 Strafkatalog
               </span>
-              <span className="text-xs text-muted-foreground/70">Alle Straftaten aus CO und TO mit Strafmaß</span>
+              <span className="text-xs text-muted-foreground">Alle Straftaten aus CO und TO mit Strafmaß</span>
             </Link>
             <Link to={calculatorPath()} className={EXPLORER_CARD}>
               <span className="flex items-center gap-2 text-sm font-medium">
                 <CalculatorIcon className="size-4 shrink-0 text-muted-foreground" />
                 Strafrechner
               </span>
-              <span className="text-xs text-muted-foreground/70">Straftaten zusammenrechnen, ohne Akte</span>
+              <span className="text-xs text-muted-foreground">Straftaten zusammenrechnen, ohne Akte</span>
             </Link>
           </ExplorerSection>
           {bookmarks.bookmarks.length > 0 && (

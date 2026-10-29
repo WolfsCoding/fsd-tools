@@ -39,7 +39,7 @@ export function TemplateList({
                 <span className="text-sm font-medium">
                   <span aria-hidden>{t.emoji}</span> {t.label}
                 </span>
-                <span className="text-xs text-muted-foreground/70">{t.description}</span>
+                <span className="text-xs text-muted-foreground">{t.description}</span>
               </button>
             ))}
           </div>

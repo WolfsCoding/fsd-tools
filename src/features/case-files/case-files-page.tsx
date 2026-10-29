@@ -195,7 +195,7 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
     const attached = a.docs.length - 1
     // The list is sorted by the last change, so that's the date it shows.
     const meta = (
-      <span className="text-xs text-muted-foreground/70">
+      <span className="text-xs text-muted-foreground">
         {main.label} · geändert {formatDateTime(a.updatedAt)}
         {attached > 0 && ` · +${attached} ${attached === 1 ? "Dokument" : "Dokumente"}`}
       </span>

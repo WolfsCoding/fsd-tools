@@ -145,7 +145,7 @@ function ChartList({ api, actions }: { api: FlowchartsApi; actions: ListActions 
                     >
                       {flowchartTitle(c)}
                     </span>
-                    <span className="text-xs text-muted-foreground/70">
+                    <span className="text-xs text-muted-foreground">
                       {formatRelative(c.updatedAt)} · {steps} {steps === 1 ? "Schritt" : "Schritte"}
                     </span>
                   </Link>
