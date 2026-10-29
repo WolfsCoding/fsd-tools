@@ -70,7 +70,7 @@ export function TodoTable({ todos, api }: { todos: Todo[]; api: TodosApi }) {
                 </Hint>
               </td>
               <td className="px-2 py-2">
-                <div className="flex justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <div className="flex justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100">
                   <Action label="Bearbeiten" onClick={() => setEditing(todo)}>
                     <PencilIcon />
                   </Action>

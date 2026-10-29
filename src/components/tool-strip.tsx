@@ -32,7 +32,7 @@ export function ToolStrip() {
               aria-label={f.title}
               className={cn(
                 STRIP_BUTTON,
-                active && "bg-strip-active text-white hover:bg-strip-active",
+                active && "bg-strip-active text-white hover:bg-strip-active focus-visible:ring-offset-2 focus-visible:ring-offset-frame",
               )}
             >
               <f.icon />

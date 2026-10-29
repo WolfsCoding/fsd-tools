@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router"
 import {
   CircleCheckIcon,
@@ -70,6 +70,26 @@ function isAltShift(e: KeyboardEvent, code: string) {
   return e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.getModifierState("AltGraph") && e.code === code
 }
 
+/** Brings the open document's tab into view when the tab row is wider than the screen, e.g. after adding a document. */
+function scrollIntoViewRef(el: HTMLElement | null) {
+  el?.scrollIntoView({ block: "nearest", inline: "nearest" })
+}
+
+/**
+ * Whether the page has room for the preview next to the form. Measured on the page itself,
+ * since a split view halves it on a wide window.
+ */
+function useRoomForSide() {
+  const [room, setRoom] = useState(() => window.innerWidth >= 1280)
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => setRoom(entry.contentRect.width >= 1152))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return [ref, room] as const
+}
+
 /** Copies `text`; with required fields still empty, one warning naming them replaces the usual confirmation. */
 function copyChecked(text: string, label: string, missing: string[]) {
   if (!missing.length) return copy(text, label)
@@ -108,6 +128,7 @@ export function CaseFileView({
     )
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewSide, setPreviewSide] = useAtom(previewSideAtom)
+  const [pageRef, roomForSide] = useRoomForSide()
   // The list's context menu opens a case file with `{ preview: true }` to show its preview right away.
   // Handled once per navigation, while rendering (no effect needed).
   const location = useLocation()
@@ -245,7 +266,7 @@ export function CaseFileView({
     const index = caseFile.docs.indexOf(removed)
     api.removeDoc(caseFile.id, removed.id)
     if (removed.id === current.id) setDocId(caseFile.docs[0].id)
-    removedToast(`„${docLabel(removed, me, templates, caseFile.docs)}"`, () => api.restoreDoc(caseFile.id, removed, index))
+    removedToast(`„${docLabel(removed, me, templates, caseFile.docs)}“`, () => api.restoreDoc(caseFile.id, removed, index))
   }
 
   // Where the group changes (e.g. the analyses after the statements of an Akte), it gets its own heading.
@@ -265,11 +286,12 @@ export function CaseFileView({
   })
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div ref={pageRef} className="flex min-h-0 flex-1 flex-col">
       <header className={cn("border-b px-6 pt-5", !showTabs && "pb-4")}>
-        <div className="flex items-center gap-3">
+        {/* On narrow screens the buttons move below the title rather than squeezing it away. */}
+        <div className="flex flex-wrap items-center gap-3">
           <BackButton to={kind.base} label={`Alle ${kind.title}`} />
-          <div className="grid min-w-0 flex-1 gap-0.5">
+          <div className="grid min-w-32 flex-1 gap-0.5">
             <p className="truncate text-xs text-muted-foreground">
               {main.label} · geändert {formatRelative(caseFile.updatedAt)}
               {caseFile.settled && <span className="font-medium text-emerald-400"> · Erledigt</span>}
@@ -298,78 +320,78 @@ export function CaseFileView({
               </Hint>
             )}
           </div>
-          {canRandomize(template) && (
-            <Hint label="Alle Werte mit Spanne zufällig innerhalb der Spanne neu würfeln">
-              <Button variant="outline" size="sm" onClick={randomize}>
-                <DicesIcon /> Würfeln
-              </Button>
-            </Hint>
-          )}
-          {template.blank && (
-            <Hint label="Das leere Template mit dem Vorlagen-Titel kopieren">
-              <Button variant="outline" size="sm" onClick={copyBlank}>
-                <FileTextIcon /> Vorlage kopieren
-              </Button>
-            </Hint>
-          )}
-          <Button size="sm" onClick={copyMarkdown}>
-            <ClipboardCopyIcon /> Kopieren
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Weitere Aktionen">
-                <EllipsisIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            {/* "Umbenennen" opens the title field once the menu is closed, so the field gets the focus, not the button. */}
-            <DropdownMenuContent
-              align="end"
-              className="w-60"
-              onCloseAutoFocus={(e) => {
-                if (!renameAfterMenu.current) return
-                renameAfterMenu.current = false
-                e.preventDefault()
-                setRenaming("caseFile")
-              }}
-            >
-              <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
-                <EyeIcon /> Vorschau
-              </DropdownMenuItem>
-              <DropdownMenuCheckboxItem
-                checked={previewSide}
-                onCheckedChange={setPreviewSide}
-                className="hidden xl:flex"
+          <div className="ml-auto flex items-center gap-3">
+            {canRandomize(template) && (
+              <Hint label="Alle Werte mit Spanne zufällig innerhalb der Spanne neu würfeln">
+                <Button variant="outline" size="sm" onClick={randomize}>
+                  <DicesIcon /> Würfeln
+                </Button>
+              </Hint>
+            )}
+            {template.blank && (
+              <Hint label="Das leere Template mit dem Vorlagen-Titel kopieren">
+                <Button variant="outline" size="sm" onClick={copyBlank}>
+                  <FileTextIcon /> Vorlage kopieren
+                </Button>
+              </Hint>
+            )}
+            <Button size="sm" onClick={copyMarkdown}>
+              <ClipboardCopyIcon /> Kopieren
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon-sm" aria-label="Weitere Aktionen">
+                  <EllipsisIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              {/* "Umbenennen" opens the title field once the menu is closed, so the field gets the focus, not the button. */}
+              <DropdownMenuContent
+                align="end"
+                className="w-60"
+                onCloseAutoFocus={(e) => {
+                  if (!renameAfterMenu.current) return
+                  renameAfterMenu.current = false
+                  e.preventDefault()
+                  setRenaming("caseFile")
+                }}
               >
-                <PanelRightIcon /> Vorschau neben dem Formular
-              </DropdownMenuCheckboxItem>
-              {pageTitle && (
-                <DropdownMenuItem onSelect={() => copy(pageTitle, "Titel")}>
-                  <HeadingIcon /> Seitentitel kopieren
+                <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
+                  <EyeIcon /> Vorschau
                 </DropdownMenuItem>
-              )}
-              {caseFile.docs.length > 1 && (
-                <DropdownMenuItem onSelect={copyAll}>
-                  <CopyIcon /> Alle Dokumente kopieren
+                {roomForSide && (
+                  <DropdownMenuCheckboxItem checked={previewSide} onCheckedChange={setPreviewSide}>
+                    <PanelRightIcon /> Vorschau neben dem Formular
+                  </DropdownMenuCheckboxItem>
+                )}
+                {pageTitle && (
+                  <DropdownMenuItem onSelect={() => copy(pageTitle, "Titel")}>
+                    <HeadingIcon /> Seitentitel kopieren
+                  </DropdownMenuItem>
+                )}
+                {caseFile.docs.length > 1 && (
+                  <DropdownMenuItem onSelect={copyAll}>
+                    <CopyIcon /> Alle Dokumente kopieren
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => (renameAfterMenu.current = true)}>
+                  <PencilIcon /> {kind.noun} umbenennen
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => (renameAfterMenu.current = true)}>
-                <PencilIcon /> {kind.noun} umbenennen
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => api.setSettled(caseFile.id, !caseFile.settled)}>
-                <CircleCheckIcon /> {caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {docIndex > 0 && (
-                <DropdownMenuItem variant="destructive" onSelect={() => removeDoc(current)}>
-                  <Trash2Icon /> Dokument entfernen
+                <DropdownMenuItem onSelect={() => api.setSettled(caseFile.id, !caseFile.settled)}>
+                  <CircleCheckIcon /> {caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem variant="destructive" onSelect={() => onDelete(caseFile)}>
-                <Trash2Icon /> {kind.noun} löschen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuSeparator />
+                {docIndex > 0 && (
+                  <DropdownMenuItem variant="destructive" onSelect={() => removeDoc(current)}>
+                    <Trash2Icon /> Dokument entfernen
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem variant="destructive" onSelect={() => onDelete(caseFile)}>
+                  <Trash2Icon /> {kind.noun} löschen
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {showTabs && (
@@ -378,7 +400,7 @@ export function CaseFileView({
             aria-label="Dokumente der Akte"
             className="-mx-3 mt-3 flex items-center gap-0.5 no-scrollbar overflow-x-auto"
           >
-            {caseFile.docs.map((d) =>
+            {caseFile.docs.map((d, index) =>
               renaming === d.id ? (
                 <span key={d.id} className="shrink-0 px-3 pt-1 pb-2">
                   <InlineEdit
@@ -400,13 +422,25 @@ export function CaseFileView({
                         type="button"
                         role="tab"
                         aria-selected={d.id === current.id}
+                        ref={d.id === current.id ? scrollIntoViewRef : undefined}
+                        tabIndex={d.id === current.id ? 0 : -1}
+                        data-doc-id={d.id}
                         onClick={() => setDocId(d.id)}
                         onDoubleClick={() => setRenaming(d.id)}
                         onKeyDown={(e) => {
                           if (e.key === "F2") {
                             e.preventDefault()
-                            setRenaming(d.id)
+                            return setRenaming(d.id)
                           }
+                          if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return
+                          const { docs } = caseFile
+                          const targets: Partial<Record<string, number>> = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: docs.length - 1 }
+                          const target = targets[e.key]
+                          if (target === undefined) return
+                          e.preventDefault()
+                          const next = docs[(target + docs.length) % docs.length]
+                          setDocId(next.id)
+                          e.currentTarget.parentElement?.querySelector<HTMLElement>(`[data-doc-id="${next.id}"]`)?.focus()
                         }}
                         className={cn(
                           "relative max-w-60 shrink-0 truncate px-3 pt-1.5 pb-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground",
@@ -469,7 +503,7 @@ export function CaseFileView({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6">
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6">
           <div className="grid gap-4">
             <MeHint me={reader.me} />
             {/* Keyed by document, so switching documents fades the new one in. */}
@@ -485,12 +519,12 @@ export function CaseFileView({
               />
             </div>
           </div>
-        </main>
-        {/* Next to the form only where there is room; narrower screens open the preview as a dialog. */}
-        {previewSide && (
+        </div>
+        {/* Next to the form only where the page itself is wide, not just the window (e.g. in a split view); else the preview opens as a dialog. */}
+        {previewSide && roomForSide && (
           <aside
             aria-label="Vorschau"
-            className="hidden w-[42%] max-w-3xl shrink-0 flex-col border-l animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6 xl:flex"
+            className="flex w-[42%] max-w-3xl shrink-0 flex-col border-l animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6"
           >
             <div className="flex h-11 shrink-0 items-center gap-2 border-b pr-2 pl-4 text-xs text-muted-foreground">
               <span className="min-w-0 flex-1 truncate">
@@ -531,8 +565,14 @@ export function CaseFileView({
             <span className="min-w-0 flex-1 truncate">
               {preview.split("\n").length.toLocaleString("de-DE")} Zeilen Markdown
             </span>
-            {pageTitle && <Shortcut keys={["Alt", "Umschalt", "C"]}>Titel kopieren</Shortcut>}
-            <Shortcut keys={["Strg", "C"]}>Kopieren</Shortcut>
+            {/* Phones have no keys for the shortcuts, so they get a button instead. */}
+            <span className="hidden sm:contents">
+              {pageTitle && <Shortcut keys={["Alt", "Umschalt", "C"]}>Titel kopieren</Shortcut>}
+              <Shortcut keys={["Strg", "C"]}>Kopieren</Shortcut>
+            </span>
+            <Button size="sm" onClick={copyMarkdown} className="sm:hidden">
+              <ClipboardCopyIcon /> Kopieren
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

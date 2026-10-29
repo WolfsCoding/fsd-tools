@@ -63,8 +63,15 @@ function ReceiptForm({
   onReset: () => void
 }) {
   const [addedId, setAddedId] = useState<string>()
+  const listRef = useRef<HTMLDivElement>(null)
   const setItem = (id: string, patch: Partial<ReceiptItem>) =>
     onChange({ items: receipt.items.map((item) => (item.id === id ? { ...item, ...patch } : item)) })
+
+  /** Removes the item; the focus moves on to the next row's remove button, or to the add button. */
+  function removeItem(index: number) {
+    listRef.current?.querySelectorAll<HTMLElement>("[data-list-button]")[index + 1]?.focus()
+    onChange({ items: receipt.items.filter((_, i) => i !== index) })
+  }
 
   return (
     <Card className="shrink-0 @3xl:min-h-0 @3xl:w-[26rem] @5xl:w-[30rem]">
@@ -98,13 +105,13 @@ function ReceiptForm({
 
         <Separator />
 
-        <div className="grid gap-2">
+        <div ref={listRef} className="grid gap-2">
           <div className="grid grid-cols-[1fr_4rem_5.5rem_2rem] gap-2 text-sm font-medium">
             <span>Artikel</span>
             <span>Menge</span>
             <span>Preis</span>
           </div>
-          {receipt.items.map((item) => (
+          {receipt.items.map((item, index) => (
             <div key={item.id} className="grid grid-cols-[1fr_4rem_5.5rem_2rem] items-center gap-2">
               <Input
                 value={item.name}
@@ -118,8 +125,9 @@ function ReceiptForm({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => onChange({ items: receipt.items.filter((other) => other.id !== item.id) })}
-                aria-label="Artikel entfernen"
+                onClick={() => removeItem(index)}
+                aria-label={item.name.trim() ? `„${item.name.trim()}“ entfernen` : "Artikel entfernen"}
+                data-list-button
               >
                 <Trash2Icon />
               </Button>
@@ -129,6 +137,7 @@ function ReceiptForm({
             <Button
               variant="outline"
               size="sm"
+              data-list-button
               onClick={() => {
                 const item = newItem()
                 setAddedId(item.id)
@@ -292,7 +301,7 @@ function Preview({ receipt, scale, onScale }: { receipt: Receipt; scale: number;
   }
 
   return (
-    <Card className="min-w-0 flex-1 pb-0 @3xl:min-h-0">
+    <Card className="min-w-0 shrink-0 grow pb-0 @3xl:min-h-0 @3xl:flex-1">
       <CardHeader className="flex flex-wrap items-center gap-x-4 gap-y-3 border-b">
         <div className="mr-auto grid gap-1">
           <CardTitle className="flex items-center gap-2">

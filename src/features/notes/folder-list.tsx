@@ -11,7 +11,7 @@ import { folderPath } from "./paths"
 import type { NoteFolder } from "./types"
 
 /** Row of the list; notes, folders and ".." look alike. */
-export const ROW = "flex items-center gap-2 bg-card px-3 py-2.5 transition-colors"
+export const ROW = "flex items-center gap-2 bg-card px-3 py-2.5 transition-colors hover:bg-accent/60"
 
 /** Grip at the start of a row; dragging it moves the row. */
 export function DragHandle({ label, className, ...props }: ComponentProps<"span"> & { label: string }) {

@@ -90,7 +90,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     <SettingsDialogContext.Provider value={value}>
       {children}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="grid h-[min(40rem,calc(100svh-4rem))] grid-cols-[13rem_1fr] gap-1.5 sm:max-w-4xl">
+        {/* Phones stack the navigation above the page. */}
+        <DialogContent className="grid h-[min(40rem,calc(100svh-4rem))] grid-rows-[minmax(0,2fr)_minmax(0,3fr)] gap-1.5 sm:max-w-4xl sm:grid-cols-[13rem_1fr] sm:grid-rows-1">
           <SettingsDialogBody activeId={pageId} setActiveId={setPageId} />
         </DialogContent>
       </Dialog>
@@ -168,7 +169,8 @@ function SettingsDialogBody({
           value={query}
           onChange={setQuery}
           aria-label="Einstellungen durchsuchen"
-          className="flex-none"
+          // Leaves room for the close button when the navigation spans the dialog.
+          className="flex-none max-sm:w-auto max-sm:mr-9"
         />
 
         {visiblePages.length > 0 && (
@@ -202,7 +204,7 @@ function SettingsDialogBody({
         )}
       </nav>
 
-      <div className="min-h-0 overflow-y-auto rounded-xl bg-card px-8 py-6 ring-1 ring-border">
+      <div className="min-h-0 overflow-y-auto rounded-xl bg-card px-5 py-6 ring-1 ring-border sm:px-8">
         {/* Keyed so dialogs/state inside reset, and the page fades in, when switching pages. */}
         <div key={activeKey} className="animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
           {"content" in active ? <SettingsPageView page={active} /> : <FeatureSettingsPage feature={active} />}

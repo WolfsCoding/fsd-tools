@@ -154,7 +154,8 @@
     --secondary: #2b2d30;
     --secondary-foreground: #dfe1e5;
     --muted: #2b2d30;
-    --muted-foreground: #868a91;
+    /* A shade lighter than WebStorm's #868a91, for 4.5:1 on popovers and the frame. */
+    --muted-foreground: #92969d;
     --accent: #33353b;
     --accent-foreground: #dfe1e5;
     --selection: #233558;

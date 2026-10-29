@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { CarIcon, PlusIcon } from "lucide-react"
-import { NoResults } from "@/components/no-results"
+import { EmptyList, NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -17,6 +17,7 @@ import { usePlates } from "./use-plates"
 /** All plate checks in the order they were added, searchable and filtered by status and date. */
 export function PlatesPage() {
   const api = usePlates()
+  const pageRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState("")
   const [status, setStatus] = useState<StatusFilter>("alle")
   const [date, setDate] = useState<DateFilter>("alle")
@@ -31,7 +32,7 @@ export function PlatesPage() {
 
   if (api.checks.length === 0) {
     return (
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+      <div ref={pageRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
         <Empty>
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -46,19 +47,19 @@ export function PlatesPage() {
             <Button
               onClick={() => {
                 api.addCheck()
-                requestAnimationFrame(() => document.querySelector<HTMLElement>("main tbody input")?.focus())
+                requestAnimationFrame(() => pageRef.current?.querySelector<HTMLElement>("tbody input")?.focus())
               }}
             >
               <PlusIcon /> Abfrage hinzufügen
             </Button>
           </EmptyContent>
         </Empty>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto p-4">
+    <div ref={pageRef} className="min-h-0 flex-1 overflow-y-auto p-4">
       <div className="grid gap-3">
         <SearchField
           value={query}
@@ -97,8 +98,18 @@ export function PlatesPage() {
             api.addCheck()
           }}
         />
-        {query.trim() && !shown.length && <NoResults query={query} onReset={resetFilters} />}
+        {!shown.length &&
+          (query.trim() ? (
+            <NoResults query={query} onReset={resetFilters} />
+          ) : (
+            <div className="grid justify-items-center text-muted-foreground">
+              <EmptyList>Keine Abfragen für diesen Filter</EmptyList>
+              <Button variant="ghost" size="sm" onClick={resetFilters} className="-mt-4">
+                Filter zurücksetzen
+              </Button>
+            </div>
+          ))}
       </div>
-    </main>
+    </div>
   )
 }

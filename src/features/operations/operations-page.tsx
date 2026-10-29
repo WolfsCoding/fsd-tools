@@ -118,7 +118,7 @@ function OperationList({ api, actions }: { api: Api; actions: ListActions }) {
   const details = (e: Operation) => (
     <>
       <span className="truncate text-xs text-muted-foreground">{e.location.trim() || "Kein Einsatzort"}</span>
-      <span className="text-xs text-muted-foreground/70">
+      <span className="text-xs text-muted-foreground">
         {formatRelative(e.updatedAt)} · {e.units.length} {e.units.length === 1 ? "Streife" : "Streifen"}
       </span>
     </>

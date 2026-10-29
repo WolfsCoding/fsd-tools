@@ -106,7 +106,7 @@ function PersonView({
           >
             {name}
           </h1>
-          <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)} aria-label="Bearbeiten">
             <PencilIcon /> <span className="hidden sm:inline">Bearbeiten</span>
           </Button>
           <DropdownMenu>
@@ -156,7 +156,7 @@ function PersonView({
         </dl>
       </header>
 
-      <main className="px-6 py-6">
+      <div className="px-6 py-6">
         <Tabs
           value={tab}
           onValueChange={(value) =>
@@ -232,7 +232,7 @@ function PersonView({
             />
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
 
       <DnaEntryDialog
         open={editing}

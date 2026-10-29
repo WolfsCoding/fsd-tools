@@ -160,7 +160,8 @@ function CommandPalette({
         className="rounded-xl! bg-card p-0 ring-1 ring-border [&_[data-slot=command-input-wrapper]]:p-2 [&_[data-slot=input-group]]:h-9! [&_[data-slot=input-group]]:rounded-lg! [&_[data-slot=input-group]]:border-input! [&_[data-slot=input-group]]:bg-popover/50! [&_[data-slot=input-group-addon]]:pl-2.5!"
       >
         <CommandInput placeholder="Befehl oder Suchbegriff eingeben…" />
-        <CommandList className="max-h-96 scroll-py-2 px-2 pb-2 [&_[data-slot=command-group]]:px-0 [&_[data-slot=command-group]]:pt-0 [&_[data-slot=command-group]]:pb-1">
+        {/* Sized to end above the window's bottom edge, since the dialog starts a third down. */}
+        <CommandList className="max-h-[min(24rem,calc(66svh-8.5rem))] scroll-py-2 px-2 pb-2 [&_[data-slot=command-group]]:px-0 [&_[data-slot=command-group]]:pt-0 [&_[data-slot=command-group]]:pb-1">
           <CommandEmpty className="py-12 text-muted-foreground">
             Keine Ergebnisse gefunden.
           </CommandEmpty>

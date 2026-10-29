@@ -187,7 +187,7 @@ export function NotesPage() {
         hasAny && (
           <>
             <SearchField value={query} onChange={setQuery} aria-label="Notizen durchsuchen" focusKey />
-            <Button variant="outline" onClick={createFolder}>
+            <Button variant="outline" onClick={createFolder} aria-label="Neuer Ordner">
               <FolderPlusIcon /> <span className="hidden sm:inline">Neuer Ordner</span>
             </Button>
             <Button onClick={() => setCreating(true)}>

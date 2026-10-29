@@ -27,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { formatDateTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
@@ -54,7 +54,7 @@ export function CaseFilesPage({ kind = POLICE_FILES_KIND }: { kind?: CaseFileKin
   const onDelete = useCallback(
     (caseFile: CaseFile<string>) => {
       deleteCaseFile(caseFile.id)
-      removedToast(`„${caseFileTitle(caseFile, me, kind.templates)}"`, () => restoreCaseFile(caseFile))
+      removedToast(`„${caseFileTitle(caseFile, me, kind.templates)}“`, () => restoreCaseFile(caseFile))
     },
     [deleteCaseFile, restoreCaseFile, kind, me],
   )
@@ -195,7 +195,7 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
     const attached = a.docs.length - 1
     // The list is sorted by the last change, so that's the date it shows.
     const meta = (
-      <span className="text-xs text-muted-foreground/70">
+      <span className="text-xs text-muted-foreground">
         {main.label} · geändert {formatDateTime(a.updatedAt)}
         {attached > 0 && ` · +${attached} ${attached === 1 ? "Dokument" : "Dokumente"}`}
       </span>
@@ -260,7 +260,7 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label={`Aktionen für „${caseFileTitle(a, me, kind.templates)}"`}
+              aria-label={`Aktionen für „${caseFileTitle(a, me, kind.templates)}“`}
               className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
             >
               <EllipsisIcon />
@@ -297,7 +297,7 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
       }
     >
       <div className="grid gap-4">
-        {api.caseFiles.length === 0 && <Home kind={kind} />}
+        {api.caseFiles.length === 0 && <Home kind={kind} onCreate={onCreate} />}
         {open.length > 0 && (
           <section className="grid gap-1.5">
             <ListHeading>Offen</ListHeading>
@@ -324,7 +324,7 @@ function ListHeading({ children }: { children: ReactNode }) {
 }
 
 /** Shown above the templates while nothing was created yet. */
-function Home({ kind }: { kind: CaseFileKind }) {
+function Home({ kind, onCreate }: { kind: CaseFileKind; onCreate: (template: string) => void }) {
   return (
     <Empty className="p-6">
       <EmptyHeader>
@@ -334,6 +334,13 @@ function Home({ kind }: { kind: CaseFileKind }) {
         <EmptyTitle>{kind.empty.title}</EmptyTitle>
         <EmptyDescription>{kind.empty.description}</EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <NewCaseFileMenu kind={kind} onCreate={onCreate}>
+          <Button>
+            <PlusIcon /> Neue {kind.noun}
+          </Button>
+        </NewCaseFileMenu>
+      </EmptyContent>
     </Empty>
   )
 }

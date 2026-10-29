@@ -43,7 +43,7 @@ export function PenaltyCatalog({ query, terms, onQuery }: { query: string; terms
   const back: BackState = { back: { pathname: catalogPath(), search }, backLabel: "Zurück zum Strafkatalog" }
 
   return (
-    <main className="min-h-0 min-w-0 flex-1 scroll-pt-6 overflow-y-auto">
+    <div className="min-h-0 min-w-0 flex-1 scroll-pt-6 overflow-y-auto">
       <div className="grid gap-6 px-6 py-8">
         <header className="grid gap-3 border-b pb-6">
           <div className="flex items-center gap-2">
@@ -86,7 +86,8 @@ export function PenaltyCatalog({ query, terms, onQuery }: { query: string; terms
               <p className="text-sm text-muted-foreground">{offenses.length === 1 ? "1 Treffer" : `${offenses.length} Treffer`}</p>
             )}
             <div className="overflow-hidden rounded-lg border bg-card">
-              <Table className="table-fixed">
+              {/* Fixed columns leave Tatbestand the rest, so below this width it scrolls instead of vanishing. */}
+              <Table className="min-w-256 table-fixed">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="w-40">Paragraph</TableHead>
@@ -140,6 +141,6 @@ export function PenaltyCatalog({ query, terms, onQuery }: { query: string; terms
           </div>
         )}
       </div>
-    </main>
+    </div>
   )
 }

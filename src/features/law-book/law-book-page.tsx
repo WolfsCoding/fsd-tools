@@ -148,7 +148,7 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
                   <span className="w-7 shrink-0 text-xs font-semibold text-amber-400">{b.abbreviation}</span>
                   <span className="truncate">{b.title}</span>
                 </span>
-                <span className="text-xs text-muted-foreground/70">
+                <span className="text-xs text-muted-foreground">
                   {b.chapters.length} Kapitel · {paragraphCount(b)} Paragraphen
                 </span>
               </Link>
@@ -160,14 +160,14 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
                 <ListIcon className="size-4 shrink-0 text-muted-foreground" />
                 Strafkatalog
               </span>
-              <span className="text-xs text-muted-foreground/70">Alle Straftaten aus CO und TO mit Strafmaß</span>
+              <span className="text-xs text-muted-foreground">Alle Straftaten aus CO und TO mit Strafmaß</span>
             </Link>
             <Link to={calculatorPath()} className={EXPLORER_CARD}>
               <span className="flex items-center gap-2 text-sm font-medium">
                 <CalculatorIcon className="size-4 shrink-0 text-muted-foreground" />
                 Strafrechner
               </span>
-              <span className="text-xs text-muted-foreground/70">Straftaten zusammenrechnen, ohne Akte</span>
+              <span className="text-xs text-muted-foreground">Straftaten zusammenrechnen, ohne Akte</span>
             </Link>
           </ExplorerSection>
           {bookmarks.bookmarks.length > 0 && (
@@ -224,7 +224,7 @@ function BookRoute({ terms }: { terms: string[] }) {
 }
 
 function BookView({ book, paragraph, terms }: { book: Book; paragraph?: number; terms: string[] }) {
-  const mainRef = useRef<HTMLElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
   const bookmarks = useBookmarks()
   // Opened from the hits, the search is still in the URL and leads back to them.
   const { search, state } = useLocation()
@@ -237,7 +237,7 @@ function BookView({ book, paragraph, terms }: { book: Book; paragraph?: number; 
   }, [book.id, paragraph])
 
   return (
-    <main ref={mainRef} className="min-h-0 min-w-0 flex-1 scroll-pt-6 overflow-y-auto">
+    <div ref={mainRef} className="min-h-0 min-w-0 flex-1 scroll-pt-6 overflow-y-auto">
       <div className="mx-auto max-w-3xl px-6 py-8">
         <article>
           <header className="mb-6 grid gap-2 border-b pb-6">
@@ -295,7 +295,7 @@ function BookView({ book, paragraph, terms }: { book: Book; paragraph?: number; 
           ))}
         </article>
       </div>
-    </main>
+    </div>
   )
 }
 

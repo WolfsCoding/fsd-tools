@@ -309,7 +309,7 @@ function EntryList() {
                       onDoubleClick={() => openEdit(entry)}
                       onKeyDown={(e) => handleRowKeyDown(e, entry)}
                       onContextMenu={handleRowContextMenu}
-                      className="outline-none focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring data-[state=open]:bg-muted/50"
+                      className="outline-none focus-visible:bg-muted/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-solid focus-visible:outline-ring data-[state=open]:bg-muted/50"
                     >
                       <TableCell>
                         <div className="flex items-center gap-3">

@@ -71,6 +71,7 @@ function PostList({ query, onQuery }: { query: string; onQuery: (q: string) => v
       }),
     )
   }, [query])
+  const hits = groups.reduce((n, [, items]) => n + items.length, 0)
 
   if (posts.length === 0) {
     return (
@@ -101,12 +102,15 @@ function PostList({ query, onQuery }: { query: string; onQuery: (q: string) => v
         />
       }
     >
-      <nav className="grid gap-4">
+      {query.trim() && hits > 0 && (
+        <p className="mb-4 text-sm text-muted-foreground">{hits === 1 ? "1 Treffer" : `${hits} Treffer`}</p>
+      )}
+      <nav aria-label="Beiträge" className="grid gap-4">
         {groups.map(([category, items]) => (
           <section key={category} className="grid gap-1.5">
-            <p className="px-1 text-xs font-medium text-muted-foreground">
+            <h2 className="px-1 text-xs font-medium text-muted-foreground">
               {category}
-            </p>
+            </h2>
             <div className={EXPLORER_CARDS}>
               {items.map((post) => (
                 <PostRow key={post.id} post={post} search={search} />
@@ -152,7 +156,7 @@ function excerpt(markdown: string) {
 function PostRoute({ query }: { query: string }) {
   const { postId } = useParams()
   const post = posts.find((p) => p.id === postId)
-  const mainRef = useRef<HTMLElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
   const { pathname } = useLocation()
   useTabTitle(post?.title)
 
@@ -163,9 +167,9 @@ function PostRoute({ query }: { query: string }) {
 
   if (!post) return <Navigate to={FSU_BASE} replace />
   return (
-    <main ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+    <div ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
       {/* Keyed so per-post state (active heading) starts fresh. */}
       <PostView key={post.id} post={post} query={query} scrollRef={mainRef} />
-    </main>
+    </div>
   )
 }

@@ -193,10 +193,20 @@ function Sidebar({
             } as React.CSSProperties
           }
           side={side}
+          // Radix skips links when it picks what to focus, which would land on a footer button.
+          onOpenAutoFocus={(e) => {
+            if (!(e.currentTarget instanceof HTMLElement)) return
+            const start =
+              e.currentTarget.querySelector<HTMLElement>("[data-sidebar=menu-button][data-active=true]") ??
+              e.currentTarget.querySelector<HTMLElement>("[data-sidebar=menu-button]")
+            if (!start) return
+            e.preventDefault()
+            start.focus()
+          }}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            <SheetTitle>Navigation</SheetTitle>
+            <SheetDescription>Werkzeuge, Befehlspalette und Einstellungen</SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
