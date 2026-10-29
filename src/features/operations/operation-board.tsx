@@ -265,7 +265,7 @@ export function OperationBoard({
           </section>
 
           <Tabs value={activeTab} onValueChange={setTab} className="min-h-0 flex-1 gap-4">
-            <TabsList className="no-scrollbar max-w-full justify-start overflow-x-auto">
+            <TabsList className="no-scrollbar max-w-full shrink-0 justify-start overflow-x-auto">
               <TabsTrigger value="lage" className="px-3">
                 Lage
               </TabsTrigger>
