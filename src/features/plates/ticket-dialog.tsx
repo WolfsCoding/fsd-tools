@@ -28,7 +28,9 @@ export function TicketDialog({ markdown, onClose }: { markdown: string | undefin
           <span className="min-w-0 flex-1 truncate">
             {(markdown ?? "").split("\n").length.toLocaleString("de-DE")} Zeilen Markdown
           </span>
-          <Shortcut keys={["Strg", "C"]}>Kopieren</Shortcut>
+          <span className="hidden sm:contents">
+            <Shortcut keys={["Strg", "C"]}>Kopieren</Shortcut>
+          </span>
           <Button size="sm" onClick={copyTicket}>
             <CopyIcon /> Kopieren
           </Button>

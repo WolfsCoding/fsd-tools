@@ -71,6 +71,7 @@ function PostList({ query, onQuery }: { query: string; onQuery: (q: string) => v
       }),
     )
   }, [query])
+  const hits = groups.reduce((n, [, items]) => n + items.length, 0)
 
   if (posts.length === 0) {
     return (
@@ -101,12 +102,15 @@ function PostList({ query, onQuery }: { query: string; onQuery: (q: string) => v
         />
       }
     >
-      <nav className="grid gap-4">
+      {query.trim() && hits > 0 && (
+        <p className="mb-4 text-sm text-muted-foreground">{hits === 1 ? "1 Treffer" : `${hits} Treffer`}</p>
+      )}
+      <nav aria-label="Beiträge" className="grid gap-4">
         {groups.map(([category, items]) => (
           <section key={category} className="grid gap-1.5">
-            <p className="px-1 text-xs font-medium text-muted-foreground">
+            <h2 className="px-1 text-xs font-medium text-muted-foreground">
               {category}
-            </p>
+            </h2>
             <div className={EXPLORER_CARDS}>
               {items.map((post) => (
                 <PostRow key={post.id} post={post} search={search} />
