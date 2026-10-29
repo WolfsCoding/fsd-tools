@@ -86,7 +86,8 @@ export function PenaltyCatalog({ query, terms, onQuery }: { query: string; terms
               <p className="text-sm text-muted-foreground">{offenses.length === 1 ? "1 Treffer" : `${offenses.length} Treffer`}</p>
             )}
             <div className="overflow-hidden rounded-lg border bg-card">
-              <Table className="table-fixed">
+              {/* Fixed columns leave Tatbestand the rest, so below this width it scrolls instead of vanishing. */}
+              <Table className="min-w-256 table-fixed">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="w-40">Paragraph</TableHead>
