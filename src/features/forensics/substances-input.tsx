@@ -211,17 +211,15 @@ export function SubstancesInput({ values, onChange, onUpdate }: CustomFieldProps
                   />
                 </td>
                 <td className="border-l border-border/60 p-0">
-                  <Hint label={expanded ? "Ergebnisse ausblenden" : "Ergebnisse anzeigen"}>
-                    <button
-                      type="button"
-                      onClick={() => toggle(row.id)}
-                      aria-expanded={expanded}
-                      aria-label={`${name}: Ergebnisse`}
-                      className="mx-auto flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                    >
-                      <ChevronDownIcon className={cn("size-4 transition-transform", expanded && "rotate-180")} />
-                    </button>
-                  </Hint>
+                  <button
+                    type="button"
+                    onClick={() => toggle(row.id)}
+                    aria-expanded={expanded}
+                    aria-label={`${name}: Ergebnisse`}
+                    className="mx-auto flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <ChevronDownIcon className={cn("size-4 transition-transform", expanded && "rotate-180")} />
+                  </button>
                 </td>
               </tr>,
               // Always there (empty while closed), so the details can slide open and closed.

@@ -140,18 +140,16 @@ function Action({
   children: ReactNode
 }) {
   return (
-    <Hint label={label}>
-      <button
-        type="button"
-        onClick={onClick}
-        aria-label={label}
-        className={cn(
-          "flex size-7 items-center justify-center rounded-md text-muted-foreground/80 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&_svg]:size-4",
-          className,
-        )}
-      >
-        {children}
-      </button>
-    </Hint>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={cn(
+        "flex size-7 items-center justify-center rounded-md text-muted-foreground/80 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&_svg]:size-4",
+        className,
+      )}
+    >
+      {children}
+    </button>
   )
 }

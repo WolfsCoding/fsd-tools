@@ -1,7 +1,6 @@
 import { useRef, useState } from "react"
 import { EllipsisIcon, EyeIcon, GripVerticalIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
-import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useReorder } from "@/components/use-reorder"
@@ -63,14 +62,12 @@ export function PlateTable({ checks, api, onAdd }: { checks: PlateCheck[]; api: 
         <tbody ref={bodyRef}>
           {checks.map((check, i) => (
             <tr key={check.id} {...reorder.row(i)} className={cn("group focus-within:bg-accent/20 *:border-b", reorder.rowClass(i))}>
-              <Hint label="Ziehen zum Verschieben">
-                <td
-                  {...reorder.handle(i)}
-                  className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing"
-                >
-                  <GripVerticalIcon className="mx-auto size-3.5" />
-                </td>
-              </Hint>
+              <td
+                {...reorder.handle(i)}
+                className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing"
+              >
+                <GripVerticalIcon className="mx-auto size-3.5" />
+              </td>
               {COLUMNS.map((c) => (
                 <td key={c.key} className="border-r border-border/60 p-0">
                   <input
@@ -103,18 +100,16 @@ export function PlateTable({ checks, api, onAdd }: { checks: PlateCheck[]; api: 
               </td>
               <td className="border-border/60">
                 <DropdownMenu>
-                  <Hint label="Weitere Aktionen">
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Aktionen (Zeile ${i + 1})`}
-                        className="mx-auto flex text-muted-foreground/70"
-                      >
-                        <EllipsisIcon />
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </Hint>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={`Aktionen (Zeile ${i + 1})`}
+                      className="mx-auto flex text-muted-foreground/70"
+                    >
+                      <EllipsisIcon />
+                    </Button>
+                  </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     {check.status === "ungueltig" && (
                       <DropdownMenuItem onSelect={() => setTicket(renderPlateTicket(check, colors))}>

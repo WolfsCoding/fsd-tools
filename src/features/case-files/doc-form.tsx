@@ -343,16 +343,14 @@ export function RemoveCell({ label, onRemove }: { label: string; onRemove?: () =
   return (
     <span className={END}>
       {onRemove && (
-        <Hint label="Entfernen">
-          <button
-            type="button"
-            onClick={onRemove}
-            aria-label={label}
-            className="flex size-7 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-accent hover:text-foreground"
-          >
-            <XIcon className="size-3.5" />
-          </button>
-        </Hint>
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={label}
+          className="flex size-7 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-accent hover:text-foreground"
+        >
+          <XIcon className="size-3.5" />
+        </button>
       )}
     </span>
   )
@@ -424,21 +422,17 @@ function CheckHandle({
       className="cursor-grab active:cursor-grabbing"
     />
   )
-  return (
-    <Hint label={disabled ? "Ergibt sich aus den Eingaben, ziehen zum Verschieben" : "Klicken zum Abhaken, ziehen zum Verschieben"}>
-      {cell ? (
-        <td
-          {...handle}
-          className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 group-focus-within:bg-accent/60 group-hover:bg-accent/60 active:cursor-grabbing"
-        >
-          <span className="flex items-center justify-center">{box}</span>
-        </td>
-      ) : (
-        <span {...handle} className={cn(LEAD, "cursor-grab group-hover:bg-accent/60 active:cursor-grabbing")}>
-          {box}
-        </span>
-      )}
-    </Hint>
+  return cell ? (
+    <td
+      {...handle}
+      className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 group-focus-within:bg-accent/60 group-hover:bg-accent/60 active:cursor-grabbing"
+    >
+      <span className="flex items-center justify-center">{box}</span>
+    </td>
+  ) : (
+    <span {...handle} className={cn(LEAD, "cursor-grab group-hover:bg-accent/60 active:cursor-grabbing")}>
+      {box}
+    </span>
   )
 }
 
@@ -569,14 +563,12 @@ function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListF
           {items.map((item, i) => (
             <li key={i} {...reorder.row(i)} className={cn("group flex items-stretch focus-within:bg-accent/20", reorder.rowClass(i))}>
               {/* Drag handle, like the rows of the tables. */}
-              <Hint label="Ziehen zum Verschieben">
-                <span
-                  {...reorder.handle(i)}
-                  className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
-                >
-                  <GripVerticalIcon className="size-3.5 group-focus-within:text-foreground" />
-                </span>
-              </Hint>
+              <span
+                {...reorder.handle(i)}
+                className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
+              >
+                <GripVerticalIcon className="size-3.5 group-focus-within:text-foreground" />
+              </span>
               <input
                 ref={(el) => {
                   refs.current[i] = el
@@ -1132,23 +1124,19 @@ function TableInput({
         />
       )
     return cell ? (
-      <Hint label="Ziehen zum Verschieben">
-        <td
-          {...reorder.handle(i)}
-          className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing"
-        >
-          <GripVerticalIcon className="mx-auto size-3.5" />
-        </td>
-      </Hint>
+      <td
+        {...reorder.handle(i)}
+        className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing"
+      >
+        <GripVerticalIcon className="mx-auto size-3.5" />
+      </td>
     ) : (
-      <Hint label="Ziehen zum Verschieben">
-        <span
-          {...reorder.handle(i)}
-          className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
-        >
-          <GripVerticalIcon className="size-3.5" />
-        </span>
-      </Hint>
+      <span
+        {...reorder.handle(i)}
+        className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
+      >
+        <GripVerticalIcon className="size-3.5" />
+      </span>
     )
   }
 
@@ -1230,16 +1218,14 @@ function TableInput({
                   </td>
                 ))}
                 <td className="border-border/60">
-                  <Hint label="Entfernen">
-                    <button
-                      type="button"
-                      onClick={() => remove(i)}
-                      aria-label={`Zeile ${i + 1} entfernen`}
-                      className="mx-auto flex size-7 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-accent hover:text-foreground"
-                    >
-                      <XIcon className="size-3.5" />
-                    </button>
-                  </Hint>
+                  <button
+                    type="button"
+                    onClick={() => remove(i)}
+                    aria-label={`Zeile ${i + 1} entfernen`}
+                    className="mx-auto flex size-7 items-center justify-center rounded-md text-muted-foreground/70 hover:bg-accent hover:text-foreground"
+                  >
+                    <XIcon className="size-3.5" />
+                  </button>
                 </td>
               </tr>
             ))}

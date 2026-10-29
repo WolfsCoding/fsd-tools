@@ -3,7 +3,6 @@ import { DnaIcon, FileTextIcon, FolderIcon, PlusIcon, UserIcon } from "lucide-re
 import { Link, Route, Routes, useNavigate, useSearchParams } from "react-router"
 import { cn } from "cn"
 import { DataPagination } from "@/components/data-pagination"
-import { Hint } from "@/components/hint"
 import { InlineEdit } from "@/components/inline-edit"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
@@ -328,19 +327,17 @@ function EntryList() {
                               className="max-w-64 font-medium"
                             />
                           ) : (
-                            <Hint label="Personenansicht">
-                              <Link
-                                to={personPath(entry.id)}
-                                // Don't let a quick double-click on the name open the edit dialog.
-                                onDoubleClick={(e) => e.stopPropagation()}
-                                className={cn(
-                                  "rounded-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                                  entry.name.trim() ? "font-medium" : "text-muted-foreground italic",
-                                )}
-                              >
-                                {entryName(entry)}
-                              </Link>
-                            </Hint>
+                            <Link
+                              to={personPath(entry.id)}
+                              // Don't let a quick double-click on the name open the edit dialog.
+                              onDoubleClick={(e) => e.stopPropagation()}
+                              className={cn(
+                                "rounded-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                                entry.name.trim() ? "font-medium" : "text-muted-foreground italic",
+                              )}
+                            >
+                              {entryName(entry)}
+                            </Link>
                           )}
                         </div>
                       </TableCell>
@@ -453,23 +450,21 @@ function sortByName(entries: DnaEntry[]) {
 /** How many case numbers the entry has ("3 Akten"); opens the dialog that manages them. */
 function CaseCounter({ count, onClick }: { count: number; onClick: () => void }) {
   return (
-    <Hint label="Aktennummern verwalten">
-      <button
-        type="button"
-        onClick={onClick}
-        // Don't let a quick double-click on the counter open the edit dialog.
-        onDoubleClick={(e) => e.stopPropagation()}
-        aria-label={`Aktennummern verwalten (${count})`}
-        className={
-          count
-            ? "inline-flex cursor-pointer items-center gap-1.5 rounded-md border bg-muted/60 px-2 py-0.5 text-xs transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-            : "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        }
-      >
-        <FolderIcon className="size-3.5" />
-        {count} {count === 1 ? "Akte" : "Akten"}
-      </button>
-    </Hint>
+    <button
+      type="button"
+      onClick={onClick}
+      // Don't let a quick double-click on the counter open the edit dialog.
+      onDoubleClick={(e) => e.stopPropagation()}
+      aria-label={`Aktennummern verwalten (${count})`}
+      className={
+        count
+          ? "inline-flex cursor-pointer items-center gap-1.5 rounded-md border bg-muted/60 px-2 py-0.5 text-xs transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          : "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      }
+    >
+      <FolderIcon className="size-3.5" />
+      {count} {count === 1 ? "Akte" : "Akten"}
+    </button>
   )
 }
 
@@ -479,20 +474,18 @@ function MentionsButton({ mentions }: { mentions: CaseFileMention[] }) {
   const label = `Erwähnt in ${mentions.length} ${mentions.length === 1 ? "Akte" : "Akten"}`
   return (
     <DropdownMenu>
-      <Hint label={label}>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            // Don't let a quick double-click on the button open the edit dialog.
-            onDoubleClick={(e) => e.stopPropagation()}
-            aria-label={label}
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-xs text-sky-300 transition-colors hover:bg-sky-500/20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            <FileTextIcon className="size-3.5" />
-            {mentions.length}
-          </button>
-        </DropdownMenuTrigger>
-      </Hint>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          // Don't let a quick double-click on the button open the edit dialog.
+          onDoubleClick={(e) => e.stopPropagation()}
+          aria-label={label}
+          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-xs text-sky-300 transition-colors hover:bg-sky-500/20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <FileTextIcon className="size-3.5" />
+          {mentions.length}
+        </button>
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-80 w-64 overflow-y-auto">
         <DropdownMenuLabel>Erwähnt in</DropdownMenuLabel>
         {mentions.map((m) => (
