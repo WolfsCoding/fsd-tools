@@ -77,59 +77,62 @@ export function ChargesEditor({
 
   return (
     <Labeled label={label} hint={hint} bare className={FULL}>
-      <div className={cn(BOX, "divide-y divide-border/60")}>
-        <div className="flex h-9 items-stretch bg-muted/50 text-xs font-medium text-muted-foreground">
-          <span className="w-10 shrink-0 border-r border-border/60" />
-          <span className="flex min-w-0 flex-1 items-center px-3">Straftat</span>
-          <span className={cn(QUANTITY, "flex items-center px-3")}>Anzahl</span>
-          <span className={cn(AMOUNT, "flex items-center px-3")}>Betrag</span>
-          <span className={END}>
-            <span className="sr-only">Entfernen</span>
-          </span>
-        </div>
-
-        {entries.map((c, i) =>
-          c.offense ? (
-            <ChargeLine
-              key={c.row.id}
-              charge={c}
-              index={i}
-              onChange={(patch) => change(c.row.id, patch)}
-              onRemove={() => remove(c.row, `Straftat ${c.offense.ref}`)}
-            />
-          ) : (
-            <UnknownLine key={c.row.id} row={c.row} index={i} onRemove={() => remove(c.row, "Unbekannte Straftat")} />
-          ),
-        )}
-
-        <OffensePicker
-          onPick={(offense) => onChange([...rows, newChargeRow(offense)])}
-        >
-          <button
-            type="button"
-            className="group/add flex h-10 w-full items-stretch text-left text-sm text-muted-foreground hover:text-foreground"
-          >
-            <span className={cn(LEAD, "group-hover/add:bg-accent/60")}>
-              <PlusIcon className="size-3.5" />
-            </span>
-            <span className="flex items-center px-3">Straftat hinzufügen</span>
-          </button>
-        </OffensePicker>
-
-        {charges.length > 0 && (
-          <div className="flex min-h-10 items-stretch bg-muted/30 text-sm">
-            <span className={cn(LEAD, "text-xs font-semibold")}>Σ</span>
-            <span className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-              <span className="font-medium">Gesamt</span>
-              {hasFine && <span className="font-semibold tabular-nums text-amber-300">{formatFine(fine)}</span>}
-              {other.map((o) => (
-                <span key={o} className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-medium text-red-300">
-                  {o}
-                </span>
-              ))}
+      {/* Scrolls sideways on narrow screens like the other tables, so the offenses keep room for their names. */}
+      <div className={cn(BOX, "relative overflow-x-auto")}>
+        <div className="min-w-lg divide-y divide-border/60">
+          <div className="flex h-9 items-stretch bg-muted/50 text-xs font-medium text-muted-foreground">
+            <span className="w-10 shrink-0 border-r border-border/60" />
+            <span className="flex min-w-0 flex-1 items-center px-3">Straftat</span>
+            <span className={cn(QUANTITY, "flex items-center px-3")}>Anzahl</span>
+            <span className={cn(AMOUNT, "flex items-center px-3")}>Betrag</span>
+            <span className={END}>
+              <span className="sr-only">Entfernen</span>
             </span>
           </div>
-        )}
+
+          {entries.map((c, i) =>
+            c.offense ? (
+              <ChargeLine
+                key={c.row.id}
+                charge={c}
+                index={i}
+                onChange={(patch) => change(c.row.id, patch)}
+                onRemove={() => remove(c.row, `Straftat ${c.offense.ref}`)}
+              />
+            ) : (
+              <UnknownLine key={c.row.id} row={c.row} index={i} onRemove={() => remove(c.row, "Unbekannte Straftat")} />
+            ),
+          )}
+
+          <OffensePicker
+            onPick={(offense) => onChange([...rows, newChargeRow(offense)])}
+          >
+            <button
+              type="button"
+              className="group/add flex h-10 w-full items-stretch text-left text-sm text-muted-foreground hover:text-foreground"
+            >
+              <span className={cn(LEAD, "group-hover/add:bg-accent/60")}>
+                <PlusIcon className="size-3.5" />
+              </span>
+              <span className="flex items-center px-3">Straftat hinzufügen</span>
+            </button>
+          </OffensePicker>
+
+          {charges.length > 0 && (
+            <div className="flex min-h-10 items-stretch bg-muted/30 text-sm">
+              <span className={cn(LEAD, "text-xs font-semibold")}>Σ</span>
+              <span className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
+                <span className="font-medium">Gesamt</span>
+                {hasFine && <span className="font-semibold tabular-nums text-amber-300">{formatFine(fine)}</span>}
+                {other.map((o) => (
+                  <span key={o} className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-medium text-red-300">
+                    {o}
+                  </span>
+                ))}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     </Labeled>
   )
