@@ -320,7 +320,7 @@ function Note({
                       variant="ghost"
                       size="icon-xs"
                       aria-label="Aktionen für die Notiz"
-                      className="size-5 opacity-0 group-focus-within/note:opacity-100 group-hover/note:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                      className="size-5 opacity-0 group-focus-within/note:opacity-100 group-hover/note:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
                     >
                       <EllipsisIcon />
                     </Button>
@@ -414,7 +414,7 @@ function Composer({ units, onSend }: { units: Unit[]; onSend: (text: string, uni
 
   return (
     <div className="grid gap-2 border-t p-2">
-      <div className="no-scrollbar flex gap-1 overflow-x-auto" role="group" aria-label="Vorlagen">
+      <div className="flex flex-wrap gap-1" role="group" aria-label="Vorlagen">
         {URGENT_REPORTS.map((r) => (
           <Hint key={r} label="Sofort melden">
             <button

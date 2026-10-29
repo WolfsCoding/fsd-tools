@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { useSearchParams } from "react-router"
 import {
   AtSignIcon,
@@ -37,7 +37,6 @@ import { Hint } from "@/components/hint"
 import { InlineEdit } from "@/components/inline-edit"
 import { EmptyList, NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
-import { useMediaQuery } from "@/hooks/use-media-query"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { useOwnIdentity, type Identity } from "@/features/case-files/use-case-files"
 import { useCollectiveFile } from "./collective-file"
@@ -91,6 +90,21 @@ function useTabParam() {
 }
 
 /**
+ * Whether the board has room for the notes next to it. Measured on the board itself, since a
+ * split view halves it on a wide window.
+ */
+function useWide() {
+  const [wide, setWide] = useState(() => window.innerWidth >= 1024)
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 960))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return [ref, wide] as const
+}
+
+/**
  * The operation leader's sheet: units and tasks in tabs, the history as a chat on the side.
  * Finished operations are read-only until they're unlocked.
  */
@@ -119,7 +133,7 @@ export function OperationBoard({
   const locked = !!operation.endedAt && !unlocked
 
   // Wide screens show the notes next to the sheet, narrow ones in their own tab.
-  const wide = useMediaQuery("(min-width: 1024px)")
+  const [boardRef, wide] = useWide()
   const activeTab = wide && tab === "notes" ? "units" : tab
 
   const id = operation.id
@@ -154,9 +168,9 @@ export function OperationBoard({
 
   return (
     <LockedContext value={locked}>
-      <div className="flex min-h-0 flex-1">
+      <div ref={boardRef} className="flex min-h-0 flex-1">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-          <section className="grid gap-1">
+          <section className="grid grid-cols-1 gap-1">
             <div className="flex items-center gap-2">
               <BackButton to={OPERATIONS_BASE} label="Alle Einsätze" />
               <HeaderField
@@ -265,21 +279,21 @@ export function OperationBoard({
           </section>
 
           <Tabs value={activeTab} onValueChange={setTab} className="min-h-0 flex-1 gap-4">
-            <TabsList className="no-scrollbar max-w-full justify-start overflow-x-auto">
-              <TabsTrigger value="lage" className="px-3">
+            <TabsList className="no-scrollbar max-w-full shrink-0 justify-start overflow-x-auto">
+              <TabsTrigger value="lage" className="sm:px-3">
                 Lage
               </TabsTrigger>
-              <TabsTrigger value="leads" className="px-3">
+              <TabsTrigger value="leads" className="sm:px-3">
                 Führung <span className="text-muted-foreground tabular-nums">{leads}</span>
               </TabsTrigger>
-              <TabsTrigger value="units" className="px-3">
+              <TabsTrigger value="units" className="sm:px-3">
                 Streifen <span className="text-muted-foreground tabular-nums">{operation.units.length}</span>
               </TabsTrigger>
-              <TabsTrigger value="tasks" className="px-3">
+              <TabsTrigger value="tasks" className="sm:px-3">
                 Aufgaben <span className="text-muted-foreground tabular-nums">{openTasks}</span>
               </TabsTrigger>
               {!wide && (
-                <TabsTrigger value="notes" className="px-3">
+                <TabsTrigger value="notes" className="sm:px-3">
                   Notizen <span className="text-muted-foreground tabular-nums">{notes}</span>
                 </TabsTrigger>
               )}
@@ -564,7 +578,7 @@ function HeaderField({
       onChange={(e) => api.setField(operation.id, field, e.target.value)}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       placeholder={placeholder}
-      aria-label={placeholder}
+      aria-label={field === "title" ? "Titel" : placeholder}
       className={cn(
         "-mx-1 h-8 min-w-0 rounded-md bg-transparent px-1 outline-none placeholder:text-muted-foreground/70 read-only:hover:bg-transparent hover:bg-muted/40 focus:bg-muted/50 read-only:focus:bg-transparent",
         className,

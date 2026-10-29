@@ -62,7 +62,7 @@ function ChangeItem({ entry, units, connected }: { entry: LogEntry; units: Unit[
 
 function UnitTag({ name }: { name: string }) {
   return (
-    <span className="mr-1.5 inline-flex h-5 items-center rounded-[3px] bg-muted px-1.5 align-[1px] text-xs font-semibold">
+    <span className="mr-1.5 inline-flex min-h-5 items-center rounded-[3px] bg-muted px-1.5 align-[1px] text-xs font-semibold">
       {name}
     </span>
   )

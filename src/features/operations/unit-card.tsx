@@ -33,9 +33,9 @@ import { memberRoles, sortTasks, unitName, type useOperations } from "./use-oper
 type Api = ReturnType<typeof useOperations>
 type Editing = "callsign" | "description" | undefined
 
-/** Classes of the "⋯" button of a row or card: shown on hover and while focused. */
+/** Classes of the "⋯" button of a row or card: shown on hover and while focused, always on touch screens. */
 const MORE_BUTTON =
-  "opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+  "opacity-0 group-focus-within/row:opacity-100 group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100 pointer-coarse:opacity-100"
 
 /**
  * A unit on the sheet: call sign, description, status, personnel and its tasks.
@@ -198,7 +198,7 @@ export function UnitCard({
             </DropdownMenu>
           </header>
 
-          <ul className="grid gap-0.5 p-2">
+          <ul className="grid grid-cols-1 gap-0.5 p-2">
             {unit.members.map((m) => (
               <MemberRow
                 key={m.id}
@@ -385,7 +385,7 @@ function MemberRow({
           ) : (
             <span
               onDoubleClick={() => !locked && setEditing(true)}
-              className="min-w-0 flex-1 truncate text-sm select-none"
+              className="min-w-0 flex-1 text-sm break-words select-none"
             >
               {member.name}
             </span>
@@ -540,6 +540,8 @@ function AddRow({
   const [text, setText] = useState("")
   // Escape unmounts the field, which may still fire a blur with the old text.
   const cancelled = useRef(false)
+  // Set by Escape so the button takes the focus back once it replaces the field.
+  const refocus = useRef(false)
   const box = (
     <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-dashed">
       <PlusIcon className="size-3.5" />
@@ -554,6 +556,12 @@ function AddRow({
     return (
       <li>
         <button
+          ref={(el) => {
+            if (el && refocus.current) {
+              refocus.current = false
+              el.focus()
+            }
+          }}
           type="button"
           onClick={() => onOpenChange(true)}
           className="flex min-h-8 w-full items-center gap-3 rounded-md px-2 py-1 text-sm text-muted-foreground outline-none hover:bg-muted/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -579,6 +587,7 @@ function AddRow({
           } else if (e.key === "Escape") {
             e.preventDefault()
             cancelled.current = true
+            refocus.current = true
             close()
           }
         }}

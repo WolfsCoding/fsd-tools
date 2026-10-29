@@ -52,7 +52,7 @@ export function QuietField({
       readOnly={locked}
       rows={1}
       className={cn(
-        "field-sizing-content block w-full resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground/60",
+        "field-sizing-content -mx-1 block w-[calc(100%+0.5rem)] resize-none rounded-md bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground/60 read-only:focus:bg-transparent focus:bg-muted/50",
         className,
       )}
       {...props}
