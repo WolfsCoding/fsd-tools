@@ -564,7 +564,7 @@ function HeaderField({
       onChange={(e) => api.setField(operation.id, field, e.target.value)}
       onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
       placeholder={placeholder}
-      aria-label={placeholder}
+      aria-label={field === "title" ? "Titel" : placeholder}
       className={cn(
         "-mx-1 h-8 min-w-0 rounded-md bg-transparent px-1 outline-none placeholder:text-muted-foreground/70 read-only:hover:bg-transparent hover:bg-muted/40 focus:bg-muted/50 read-only:focus:bg-transparent",
         className,
