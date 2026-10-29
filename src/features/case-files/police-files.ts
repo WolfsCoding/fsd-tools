@@ -42,7 +42,7 @@ export const POLICE_FILES_KIND: CaseFileKind = {
   // Only the analyses have these fields; in an Akte they come from the analyses attached before.
   inherit: INHERITED,
   empty: {
-    title: "Neue Akte anlegen",
+    title: "Noch keine Akten",
     description:
       "Felder ausfüllen, Werte mit Spanne würfeln, dann das fertige Markdown mit einem Klick kopieren. Leere Felder behalten den Platzhalter der Vorlage, leere Tabellen bleiben leer.",
   },
