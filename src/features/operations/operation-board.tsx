@@ -156,7 +156,7 @@ export function OperationBoard({
     <LockedContext value={locked}>
       <div className="flex min-h-0 flex-1">
         <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-          <section className="grid gap-1">
+          <section className="grid grid-cols-1 gap-1">
             <div className="flex items-center gap-2">
               <BackButton to={OPERATIONS_BASE} label="Alle Einsätze" />
               <HeaderField
