@@ -540,6 +540,8 @@ function AddRow({
   const [text, setText] = useState("")
   // Escape unmounts the field, which may still fire a blur with the old text.
   const cancelled = useRef(false)
+  // Set by Escape so the button takes the focus back once it replaces the field.
+  const refocus = useRef(false)
   const box = (
     <span className="flex size-6 shrink-0 items-center justify-center rounded-md border border-dashed">
       <PlusIcon className="size-3.5" />
@@ -554,6 +556,12 @@ function AddRow({
     return (
       <li>
         <button
+          ref={(el) => {
+            if (el && refocus.current) {
+              refocus.current = false
+              el.focus()
+            }
+          }}
           type="button"
           onClick={() => onOpenChange(true)}
           className="flex min-h-8 w-full items-center gap-3 rounded-md px-2 py-1 text-sm text-muted-foreground outline-none hover:bg-muted/40 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
@@ -579,6 +587,7 @@ function AddRow({
           } else if (e.key === "Escape") {
             e.preventDefault()
             cancelled.current = true
+            refocus.current = true
             close()
           }
         }}
