@@ -224,7 +224,7 @@ function BookRoute({ terms }: { terms: string[] }) {
 }
 
 function BookView({ book, paragraph, terms }: { book: Book; paragraph?: number; terms: string[] }) {
-  const mainRef = useRef<HTMLElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
   const bookmarks = useBookmarks()
   // Opened from the hits, the search is still in the URL and leads back to them.
   const { search, state } = useLocation()
@@ -237,7 +237,7 @@ function BookView({ book, paragraph, terms }: { book: Book; paragraph?: number; 
   }, [book.id, paragraph])
 
   return (
-    <main ref={mainRef} className="min-h-0 min-w-0 flex-1 scroll-pt-6 overflow-y-auto">
+    <div ref={mainRef} className="min-h-0 min-w-0 flex-1 scroll-pt-6 overflow-y-auto">
       <div className="mx-auto max-w-3xl px-6 py-8">
         <article>
           <header className="mb-6 grid gap-2 border-b pb-6">
@@ -295,7 +295,7 @@ function BookView({ book, paragraph, terms }: { book: Book; paragraph?: number; 
           ))}
         </article>
       </div>
-    </main>
+    </div>
   )
 }
 

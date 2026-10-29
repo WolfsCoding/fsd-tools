@@ -169,7 +169,7 @@ export function OperationBoard({
   return (
     <LockedContext value={locked}>
       <div ref={boardRef} className="flex min-h-0 flex-1">
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
           <section className="grid grid-cols-1 gap-1">
             <div className="flex items-center gap-2">
               <BackButton to={OPERATIONS_BASE} label="Alle Einsätze" />
@@ -326,7 +326,7 @@ export function OperationBoard({
               </TabsContent>
             )}
           </Tabs>
-        </main>
+        </div>
 
         {wide && <aside className="flex w-96 shrink-0 flex-col border-l">{chat}</aside>}
       </div>

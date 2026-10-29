@@ -24,7 +24,7 @@ export function ChargeCalculator() {
   }
 
   return (
-    <main className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+    <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
       <div className="mx-auto grid max-w-5xl gap-6 px-6 py-8">
         <header className="flex flex-wrap items-end gap-4 border-b pb-6">
           <div className="grid flex-1 gap-2">
@@ -47,6 +47,6 @@ export function ChargeCalculator() {
         </header>
         <ChargesEditor label="Straftaten" value={rows} onChange={setRows} />
       </div>
-    </main>
+    </div>
   )
 }

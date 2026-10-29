@@ -156,7 +156,7 @@ function excerpt(markdown: string) {
 function PostRoute({ query }: { query: string }) {
   const { postId } = useParams()
   const post = posts.find((p) => p.id === postId)
-  const mainRef = useRef<HTMLElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
   const { pathname } = useLocation()
   useTabTitle(post?.title)
 
@@ -167,9 +167,9 @@ function PostRoute({ query }: { query: string }) {
 
   if (!post) return <Navigate to={FSU_BASE} replace />
   return (
-    <main ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+    <div ref={mainRef} className="min-h-0 min-w-0 flex-1 overflow-y-auto">
       {/* Keyed so per-post state (active heading) starts fresh. */}
       <PostView key={post.id} post={post} query={query} scrollRef={mainRef} />
-    </main>
+    </div>
   )
 }

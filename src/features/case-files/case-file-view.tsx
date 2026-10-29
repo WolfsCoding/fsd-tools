@@ -489,7 +489,7 @@ export function CaseFileView({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <main className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6">
+        <div className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6">
           <div className="grid gap-4">
             <MeHint me={reader.me} />
             {/* Keyed by document, so switching documents fades the new one in. */}
@@ -505,7 +505,7 @@ export function CaseFileView({
               />
             </div>
           </div>
-        </main>
+        </div>
         {/* Next to the form only where the page itself is wide, not just the window (e.g. in a split view); else the preview opens as a dialog. */}
         {previewSide && (
           <aside

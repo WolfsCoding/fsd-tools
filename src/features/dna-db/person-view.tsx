@@ -156,7 +156,7 @@ function PersonView({
         </dl>
       </header>
 
-      <main className="px-6 py-6">
+      <div className="px-6 py-6">
         <Tabs
           value={tab}
           onValueChange={(value) =>
@@ -232,7 +232,7 @@ function PersonView({
             />
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
 
       <DnaEntryDialog
         open={editing}
