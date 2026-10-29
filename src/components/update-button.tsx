@@ -14,6 +14,7 @@ import {
   AlertDialogPanel,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { desktop, useUpdateState, type UpdateState } from "@/lib/desktop"
 
@@ -118,20 +119,22 @@ export function UpdateButton() {
         <TooltipContent
           side="right"
           align="end"
-          className={cn("flex-col items-stretch gap-0 p-0", releases.length > 0 && "w-80 max-w-none")}
+          className="max-w-[min(24rem,calc(100vw-2rem))] flex-col items-stretch gap-0 px-2 py-1 text-left"
         >
-          <div className="px-3 py-2.5">
-            <div className="font-semibold">{titleOf(state)}</div>
-            <div className="text-xs text-tooltip-foreground/60">{subtitleOf(state)}</div>
+          <div className="shrink-0 px-1">
+            <div className="whitespace-nowrap text-sm leading-5 font-medium">{titleOf(state)}</div>
+            <div className="mt-0.5 text-xs leading-4 text-tooltip-foreground/60">{subtitleOf(state)}</div>
           </div>
           {releases.length > 0 && (
-            <div className="max-h-96 overflow-y-auto px-3 pb-3">
+            <div className="min-h-0 max-h-[min(28rem,calc(100vh-6rem))] overflow-y-auto px-1 pt-4 pb-1">
               {releases.map((release, index) => (
-                <ReleaseChanges
-                  key={release.version}
-                  title={index === 0 ? "Was ist neu" : `Änderungen in ${release.version}`}
-                  {...release}
-                />
+                <div key={release.version}>
+                  {index > 0 && <Separator className="my-3 bg-tooltip-foreground/15" />}
+                  <ReleaseChanges
+                    title={index === 0 ? "Was ist neu" : `Änderungen in ${release.version}`}
+                    {...release}
+                  />
+                </div>
               ))}
             </div>
           )}
@@ -232,26 +235,26 @@ function changesOf(html: string) {
 function ReleaseChanges({ title, version, changes }: { title: string; version: string; changes: Array<string> }) {
   const hidden = changes.length - VISIBLE_CHANGES
   return (
-    <section className="mt-3 border-t border-tooltip-foreground/15 pt-2.5 first:mt-0 first:border-t-0 first:pt-0">
-      <h3 className="mb-1.5 text-xs font-semibold">{title}</h3>
-      <ul className="space-y-1 text-xs leading-snug">
+    <section>
+      <h3 className="text-xs leading-4 font-semibold">{title}</h3>
+      <ul className="mt-2 space-y-1.5 pl-4 text-xs leading-5 text-tooltip-foreground/90">
         {changes.slice(0, VISIBLE_CHANGES).map((change, index) => (
-          <li key={index} className="ml-4 list-disc marker:text-tooltip-foreground/50">
+          <li key={index} className="list-disc break-words">
             {change}
           </li>
         ))}
       </ul>
-      {hidden > 0 && (
-        <a
-          href={`${RELEASES_URL}/tag/v${version}`}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 inline-flex items-center gap-1 text-xs text-tooltip-foreground/60 underline underline-offset-2 hover:text-tooltip-foreground"
-        >
-          {hidden === 1 ? "1 weitere Änderung" : `${hidden} weitere Änderungen`} auf GitHub
-          <ExternalLinkIcon className="size-3" />
-        </a>
-      )}
+      <a
+        href={`${RELEASES_URL}/tag/v${version}`}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-2 inline-flex items-center gap-1 rounded-sm text-xs leading-5 text-tooltip-foreground/60 underline decoration-dotted underline-offset-4 outline-none transition-colors hover:text-tooltip-foreground focus-visible:text-tooltip-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+      >
+        {hidden <= 0
+          ? "Release auf GitHub ansehen"
+          : `${hidden} ${hidden === 1 ? "weitere Änderung" : "weitere Änderungen"} auf GitHub`}
+        <ExternalLinkIcon aria-hidden className="size-3 shrink-0" strokeWidth={2.25} />
+      </a>
     </section>
   )
 }
