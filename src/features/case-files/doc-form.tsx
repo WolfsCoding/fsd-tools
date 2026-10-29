@@ -35,7 +35,7 @@ import { sameText, textKey } from "@/lib/text"
 import { removedToast } from "@/lib/undo"
 import { Combobox, type ComboboxOption } from "@/components/combobox"
 import { DnaPicker } from "./dna-picker"
-import { SnippetMenu } from "./snippet-menu"
+import { SnippetMenu, TemplateMenu } from "./snippet-menu"
 import { localNow, ME } from "./markdown"
 import { rangeLabel, roll, type Range } from "./range"
 import { TracesCell } from "./traces-cell"
@@ -47,7 +47,6 @@ import {
   GROUP_OFFERS,
   hiddenKey,
   insertAt,
-  isFilled,
   listItems,
   orderKey,
   tableRows,
@@ -123,7 +122,6 @@ export function DocForm({
               <span className="truncate text-base font-semibold">{s.title}</span>
               <span className="truncate text-xs font-normal text-muted-foreground">{s.description}</span>
             </span>
-            <Progress fields={s.fields} reader={reader} />
           </AccordionTrigger>
           <AccordionContent className="flex flex-wrap gap-x-3 gap-y-4 border-t p-4">
             <Notice text={s.notice} />
@@ -144,28 +142,6 @@ export function DocForm({
         </AccordionItem>
       ))}
     </Accordion>
-  )
-}
-
-/** How many fields of a section are filled in, e.g. "3/5 ausgefüllt"; amber while a required one is empty. */
-function Progress({ fields, reader }: { fields: Field[]; reader: Reader }) {
-  const counted = fields.flatMap((f) => {
-    const filled = isFilled(f, reader)
-    return filled === undefined ? [] : [{ filled, required: !!f.required }]
-  })
-  if (!counted.length) return null
-  const filled = counted.filter((c) => c.filled).length
-  const missing = counted.some((c) => c.required && !c.filled)
-  return (
-    <span
-      className={cn(
-        "shrink-0 text-xs font-normal tabular-nums",
-        missing ? "text-amber-400" : filled === counted.length ? "text-emerald-400" : "text-muted-foreground",
-      )}
-    >
-      {filled}/{counted.length} ausgefüllt
-      {missing && <span className="sr-only">, Pflichtfeld leer</span>}
-    </span>
   )
 }
 
@@ -208,7 +184,7 @@ function FieldInput(props: FieldProps<Field>) {
     case "choice":
       return <ChoiceInput {...props} field={field} />
     case "table":
-      return field.layout === "cards" ? <TableInput {...props} field={field} cards /> : <TableInput {...props} field={field} />
+      return <TableInput {...props} field={field} />
     case "custom": {
       const Component = field.component
       return (
@@ -904,8 +880,8 @@ export const CELL_INPUT =
   "h-10 w-full min-w-0 bg-transparent px-3 outline-none placeholder:text-muted-foreground/60 focus:bg-accent/30"
 
 /**
- * Rows as an editable table, or as cards with `cards`. Rows are reordered by dragging their
- * handle, which changes the order in the case file.
+ * Rows as an editable table. Rows are reordered by dragging their handle, which changes the
+ * order in the case file.
  */
 function TableInput({
   field,
@@ -916,8 +892,7 @@ function TableInput({
   bare,
   suggestions,
   docId,
-  cards,
-}: FieldProps<TableField> & { cards?: boolean }) {
+}: FieldProps<TableField>) {
   const rows = tableRows(values[field.key])
   const setRows = (next: Row[]) => onChange(field.key, next)
   /** Changes the rows as they are stored by then, e.g. from a toast. */
@@ -977,33 +952,23 @@ function TableInput({
     )
   }
 
-  /** The input of a cell: filling its cell in the table, or a normal field on a card. */
+  /** The input of a cell, filling it. */
   function cellInput(row: Row, i: number, c: Column) {
     const value = row[c.key] ?? ""
-    const label = `${c.label} (${cards ? field.addLabel : "Zeile"} ${i + 1})`
+    const label = `${c.label} (Zeile ${i + 1})`
     // The generic "N/A" isn't worth showing as a hint.
     const placeholder = c.fallback === "N/A" ? undefined : reader.fill(c.fallback)
     const set = (v: string) => setCell(i, c.key, v)
     const choices = c.mark ? MARKS : c.choices
     if (c.counter)
       return (
-        <div
-          className={cn(
-            "flex w-full items-center text-sm focus-within:bg-accent/30",
-            cards ? "h-9 rounded-lg border border-input px-1.5" : "h-10 px-1.5",
-          )}
-        >
+        <div className="flex h-10 w-full items-center px-1.5 text-sm focus-within:bg-accent/30">
           <Counter label={label} value={value} onChange={set} />
         </div>
       )
     if (c.parts)
       return (
-        <div
-          className={cn(
-            "flex w-full items-center gap-1.5 text-sm focus-within:bg-accent/30",
-            cards ? "h-9 rounded-lg border border-input px-2.5" : "h-10 px-3",
-          )}
-        >
+        <div className="flex h-10 w-full items-center gap-1.5 px-3 text-sm focus-within:bg-accent/30">
           {c.parts.map((p, j) => (
             <Fragment key={p.key}>
               {j > 0 && <span className="text-muted-foreground">+</span>}
@@ -1011,7 +976,7 @@ function TableInput({
                 value={row[p.key] ?? ""}
                 onChange={(e) => setCell(i, p.key, e.target.value)}
                 placeholder="0"
-                aria-label={`${c.label}: ${p.label} (${cards ? field.addLabel : "Zeile"} ${i + 1})`}
+                aria-label={`${c.label}: ${p.label} (Zeile ${i + 1})`}
                 inputMode="numeric"
                 autoComplete="off"
                 className="w-8 min-w-0 bg-transparent text-right outline-none placeholder:text-muted-foreground/60"
@@ -1025,7 +990,7 @@ function TableInput({
       return (
         <TracesCell
           label={label}
-          title={field.cardTitle?.(row, i) ?? `${field.addLabel} ${i + 1}`}
+          title={`${field.addLabel} ${i + 1}`}
           traces={rowTraces(row, c.key, c.traces.kinds)}
           kinds={Object.keys(c.traces.kinds) as TraceKind[]}
           spots={c.traces.spots}
@@ -1037,12 +1002,11 @@ function TableInput({
               ),
             )
           }
-          boxed={cards}
         />
       )
-    if (choices) return <ChoiceCell label={label} value={value} choices={choices} onChange={set} boxed={cards} />
+    if (choices) return <ChoiceCell label={label} value={value} choices={choices} onChange={set} />
     if (c.range)
-      return <RangeInput label={label} value={value} range={c.range} onChange={set} className={cards ? undefined : CELL_INPUT} />
+      return <RangeInput label={label} value={value} range={c.range} onChange={set} className={CELL_INPUT} />
     // People and IDs are picked from the DNA database (or added to it), never left half typed.
     const lookup = rowLookup(c, row)
     if (lookup)
@@ -1056,7 +1020,7 @@ function TableInput({
           onChange={(v, entry) => setLookup(i, lookup, c.key, v, entry)}
           placeholder={placeholder}
           aria-label={label}
-          className={cards ? undefined : CELL_COMBOBOX}
+          className={CELL_COMBOBOX}
         />
       )
     if (field.remember || c.autocomplete || c.suggestions || c.options)
@@ -1067,12 +1031,21 @@ function TableInput({
           options={cellOptions(row, i, c)}
           placeholder={placeholder}
           aria-label={label}
-          className={cards ? undefined : CELL_COMBOBOX}
+          className={CELL_COMBOBOX}
         />
       )
-    return cards ? (
-      <Input value={value} onChange={(e) => set(e.target.value)} placeholder={placeholder} aria-label={label} />
-    ) : (
+    if (c.multiline)
+      return (
+        <textarea
+          value={value}
+          onChange={(e) => set(e.target.value)}
+          placeholder={placeholder}
+          aria-label={label}
+          rows={1}
+          className={cn(CELL_INPUT, "block h-auto min-h-10 resize-none py-2.5 [field-sizing:content]")}
+        />
+      )
+    return (
       <input
         value={value}
         onChange={(e) => set(e.target.value)}
@@ -1093,9 +1066,12 @@ function TableInput({
     focusRow.current = undefined
   })
 
-  function add() {
+  /** Adds a row with `fill`, e.g. from a template; carried cells start with the last row's value. */
+  function add(fill: Row = {}) {
     focusRow.current = rows.length
-    setRows([...rows, { id: crypto.randomUUID(), ...Object.fromEntries(field.columns.map((c) => [c.key, c.initial ?? ""])) }])
+    const last = rows.at(-1)
+    const start = field.columns.map((c) => [c.key, (c.carry && last?.[c.key]) || c.initial || ""])
+    setRows([...rows, { id: crypto.randomUUID(), ...Object.fromEntries(start), ...fill }])
   }
 
   /** Removes row `i`; the toast puts it back where it was, among the rows as they are by then. */
@@ -1111,70 +1087,27 @@ function TableInput({
   const check = field.columns.find((c) => c.check)
   const columns = field.columns.filter((c) => c !== check)
 
-  /** The drag handle of a row; with a check column, its checkbox. */
-  function handle(row: Row, i: number, cell?: boolean) {
+  /** The drag handle of row `i`; with a check column, its checkbox. */
+  function handle(i: number) {
     if (check)
       return (
         <CheckHandle
-          cell={cell}
+          cell
           handle={reorder.handle(i)}
-          checked={row[check.key] === "✓"}
+          checked={rows[i][check.key] === "✓"}
           onCheckedChange={(v) => setCell(i, check.key, v ? "✓" : "")}
-          label={`${check.label} (${cards ? field.addLabel : "Zeile"} ${i + 1})`}
+          label={`${check.label} (Zeile ${i + 1})`}
         />
       )
-    return cell ? (
+    return (
       <td
         {...reorder.handle(i)}
         className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing"
       >
         <GripVerticalIcon className="mx-auto size-3.5" />
       </td>
-    ) : (
-      <span
-        {...reorder.handle(i)}
-        className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
-      >
-        <GripVerticalIcon className="size-3.5" />
-      </span>
     )
   }
-
-  if (cards)
-    return (
-      <Labeled label={field.label} bare={bare} required={field.required} className={FULL}>
-        <div ref={panel} className="grid gap-3">
-          {rows.map((row, i) => (
-            <div key={row.id ?? i} data-row {...reorder.row(i)} className={cn(BOX, "group", reorder.rowClass(i))}>
-              {/* Header like a panel row: the drag handle, the card's title, its remove button. */}
-              <div className="flex h-10 items-stretch border-b border-border/60 bg-muted/50">
-                {handle(row, i)}
-                <span className="flex min-w-0 flex-1 items-center truncate px-3 text-sm font-medium">
-                  {field.cardTitle?.(row, i) ?? `${field.addLabel} ${i + 1}`}
-                </span>
-                <RemoveCell label={`${field.addLabel} ${i + 1} entfernen`} onRemove={() => remove(i)} />
-              </div>
-              <div className="flex flex-wrap gap-x-3 gap-y-4 p-4">
-                {columns.map((c, j) => (
-                  <Fragment key={c.key}>
-                    {c.heading && (
-                      <span className={cn(FULL, "text-sm font-medium", j > 0 && "mt-2 border-t border-border/60 pt-4")}>
-                        {c.heading}
-                      </span>
-                    )}
-                    <div className={cn("grid content-start gap-1.5", c.wide ? FULL : SHORT)}>
-                      <span className="text-xs font-medium text-muted-foreground">{c.label}</span>
-                      {cellInput(row, i, c)}
-                    </div>
-                  </Fragment>
-                ))}
-              </div>
-            </div>
-          ))}
-          <AddRow label={`${field.addLabel} hinzufügen`} onClick={add} className="overflow-hidden rounded-lg border border-dashed" />
-        </div>
-      </Labeled>
-    )
 
   return (
     <Labeled label={field.label} bare={bare} required={field.required} className={FULL}>
@@ -1211,9 +1144,9 @@ function TableInput({
                 {...reorder.row(i)}
                 className={cn("group focus-within:bg-accent/20 *:border-b", reorder.rowClass(i))}
               >
-                {handle(row, i, true)}
+                {handle(i)}
                 {columns.map((c) => (
-                  <td key={c.key} className="border-r border-border/60 p-0">
+                  <td key={c.key} className="border-r border-border/60 p-0 align-top">
                     {cellInput(row, i, c)}
                   </td>
                 ))}
@@ -1231,7 +1164,10 @@ function TableInput({
             ))}
           </tbody>
         </table>
-        <AddRow label={`${field.addLabel} hinzufügen`} onClick={add} className="sticky left-0" />
+        <div className="sticky left-0 flex">
+          <AddRow label={`${field.addLabel} hinzufügen`} onClick={() => add()} />
+          {field.templates && <TemplateMenu atom={field.templates.atom} onPick={(s) => add(field.templates!.fill(s))} />}
+        </div>
       </div>
     </Labeled>
   )
@@ -1248,15 +1184,12 @@ export function ChoiceCell({
   value,
   choices,
   onChange,
-  boxed,
   empty = "---",
 }: {
   label: string
   value: string
   choices: Choice[]
   onChange: (value: string) => void
-  /** Bordered like an input, instead of filling a table cell. */
-  boxed?: boolean
   /** What the cell shows while nothing is chosen. */
   empty?: string
 }) {
@@ -1267,9 +1200,7 @@ export function ChoiceCell({
         aria-label={`${label}: ${current?.label ?? current?.value ?? "offen"}`}
         className={cn(
           "flex w-full items-center gap-2 text-left text-sm outline-none",
-          boxed
-            ? "h-9 rounded-lg border border-input px-2.5 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-[state=open]:bg-accent/30"
-            : "h-10 px-3 hover:bg-accent/30 focus-visible:bg-accent/30 data-[state=open]:bg-accent/30",
+          "h-10 px-3 hover:bg-accent/30 focus-visible:bg-accent/30 data-[state=open]:bg-accent/30",
           current ? current.className : "text-muted-foreground/60",
         )}
       >

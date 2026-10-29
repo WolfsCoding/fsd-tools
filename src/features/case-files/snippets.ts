@@ -18,14 +18,17 @@ const NO_SNIPPETS: Snippet[] = []
 
 export const snippetsAtom = stored(SNIPPETS_KEY, Schema.Array(Snippet), NO_SNIPPETS)
 
+/** A stored list of snippets, e.g. the own Textbausteine or the templates of an analysis. */
+export type SnippetsAtom = typeof snippetsAtom
+
 /** A snippet's name: its title, else the start of its text. */
 export function snippetLabel(snippet: Snippet) {
   return snippet.title.trim() || snippet.text.trim().split("\n")[0].slice(0, 60) || "Unbenannter Textbaustein"
 }
 
-/** The stored snippets in their order, and everything that changes them. */
-export function useSnippets() {
-  const [snippets, setSnippets] = useAtom(snippetsAtom)
+/** The snippets of `atom` (the own Textbausteine by default) in their order, and everything that changes them. */
+export function useSnippets(atom: SnippetsAtom = snippetsAtom) {
+  const [snippets, setSnippets] = useAtom(atom)
   const actions = useMemo(
     () => ({
       /** Adds an empty snippet at the end and returns its id. */

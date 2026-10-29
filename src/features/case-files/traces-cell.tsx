@@ -42,7 +42,6 @@ export function TracesCell({
   spots = [],
   onChange,
   onUpdate,
-  boxed,
 }: {
   label: string
   /** The item, e.g. "Waffe 2"; heads the dialog. */
@@ -55,8 +54,6 @@ export function TracesCell({
   onChange: (value: string) => void
   /** Changes the traces as they are stored by then, e.g. from a toast. */
   onUpdate: (fn: (traces: Trace[]) => Trace[]) => void
-  /** Bordered like an input, instead of filling a table cell. */
-  boxed?: boolean
 }) {
   const { entries, addEntry, updateEntry } = useDnaEntries()
   const [draft, setDraft] = useState<Trace[]>()
@@ -96,12 +93,7 @@ export function TracesCell({
 
   return (
     <>
-      <div
-        className={cn(
-          "flex w-full items-center gap-2 text-sm",
-          boxed ? "h-9 rounded-lg border border-input pr-1 pl-2.5" : "h-10 pr-1 pl-3",
-        )}
-      >
+      <div className="flex h-10 w-full items-center gap-2 pr-1 pl-3 text-sm">
         <span className={cn("flex-1 truncate", !traces.length && "text-muted-foreground/60")}>
           {traceSummary(traces.length)}
         </span>

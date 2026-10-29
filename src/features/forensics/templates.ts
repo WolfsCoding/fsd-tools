@@ -1,6 +1,6 @@
 // The HP forensic analyses ("F"): ballistics, blood, edged weapons, toxicology, cyber forensics and other items.
 // Built from the same fields as the Akten. Every analysis has the same layout (see `analysis`): the banner and
-// case facts, "Gegenstand der Untersuchung", its own steps and items, then "Bemerkungen".
+// case facts, "Gegenstand der Untersuchung", its own steps, then "Bemerkungen".
 
 import { banner, bullets, cell, code, DEPARTMENT, doc, facts, formatLocalDateTime, rawTable, section, table, titleComment } from "@/features/case-files/markdown"
 import {
@@ -16,8 +16,11 @@ import {
 } from "@/features/case-files/templates"
 import { rowTraces, storeTraces } from "@/features/case-files/traces"
 import type { Row, Value, Values } from "@/features/case-files/types"
+import type { SnippetsAtom } from "@/features/case-files/snippets"
+import { sameText } from "@/lib/text"
 import { SUBSTANCES } from "./substances"
 import { SubstancesInput } from "./substances-input"
+import { cyberStepsAtom, itemStepsAtom } from "./step-templates"
 import { foundRows, randomizeSubstances, SUBSTANCES_KEY, substanceOf, toxParts } from "./tox"
 
 export type ForensicsTemplateId = "ballistik" | "blut" | "stichwaffen" | "tox" | "cyber" | "gegenstand"
@@ -103,12 +106,11 @@ function subjectSection(findings: string[], found: Analysis["found"]): Section {
         auto: found,
         collapsible: true,
       },
-      { type: "list", key: "sachverhalt", label: "Sachverhalt", fallback: "", hint: "Optional: was sonst zum Fund gehört." },
     ],
   }
 }
 
-/** "Gegenstand der Untersuchung": the find, what it covers and notes on it; the empty template shows each. */
+/** "Gegenstand der Untersuchung": the find and what it covers; the empty template shows each. */
 function subjectPart(r: Reader): Part {
   const placeholder = (key: string) => r.filled(key) || (r.blank ? "XXX" : "")
   const occasion = placeholder("anlass")
@@ -117,8 +119,7 @@ function subjectPart(r: Reader): Part {
     .checks("fundarten")
     .filter((c) => c.checked)
     .map((c) => c.label)
-  const notes = r.blank ? [] : r.lines("sachverhalt")
-  const entered = r.blank || r.filled("fundDatum") || occasion || place || findings.length || notes.length
+  const entered = r.blank || r.filled("fundDatum") || occasion || place || findings.length
   const find = [
     `Der forensische Fund vom ${code(r.text("fundDatum"))}`,
     occasion && `im Rahmen von ${code(occasion)}`,
@@ -130,7 +131,6 @@ function subjectPart(r: Reader): Part {
       ? bullets([
           `${find.filter(Boolean).join(" ")}.`,
           ...(findings.length ? [`Darunter fallen: ${findings.join(", ")}.`] : []),
-          ...notes,
         ])
       : "",
   }
@@ -241,109 +241,6 @@ function traceFindings(rows: Row[], key = "spuren") {
 const SUSPECT = { group: "suspect", autocomplete: true, lookup: PERSON } as const
 /** The suspect an item was taken from; the form shows just their name. */
 const TAKEN_FROM = { ...SUSPECT, lookup: { ...PERSON, nameOnly: true } } as const
-
-/* Items as cards, each with an overview row and a section of its own (cyber forensics and other items). */
-
-interface ItemCards {
-  field: TableField
-  /** The parts of an item's section, each with its columns. */
-  groups: { title: string; columns: Column[] }[]
-  /** Labels of the item's section that differ from the form. */
-  labels: Record<string, string>
-  /** A column whose entries are separated by semicolons, written as sub-points. */
-  split?: string
-}
-
-/** What every item lists in the overview. */
-const ITEM_OVERVIEW = ["Asservat", "Anzahl", "Art", "Abgenommen von", "BES"]
-
-/** Item cards of the given kinds; the groups follow the overview, each starting with a heading in the form. */
-function itemCards(o: {
-  kinds: string[]
-  groups: [title: string, columns: Column[]][]
-  labels?: Record<string, string>
-  split?: string
-}): ItemCards {
-  const groups = o.groups.map(([title, columns]) => ({ title, columns }))
-  return {
-    field: {
-      type: "table",
-      key: "asservate",
-      label: "Asservate",
-      addLabel: "Asservat",
-      layout: "cards",
-      cardTitle: (row, i) =>
-        `#${i + 1} ${[row.bezeichnung?.trim(), row.art?.trim() && `(${row.art.trim()})`].filter(Boolean).join(" ") || "Asservat"}`,
-      columns: [
-        { key: "bezeichnung", label: "Asservat", fallback: "N/A", wide: true },
-        { key: "art", label: "Art", fallback: "N/A", suggestions: o.kinds },
-        { key: "anzahl", label: "Anzahl", fallback: "1", counter: true },
-        { key: "abgenommen", label: "Abgenommen von", fallback: "N/A", group: "officer", autocomplete: true },
-        { key: "bes", label: "BES", fallback: "N/A", ...TAKEN_FROM },
-        ...groups.flatMap(({ title, columns }) => columns.map((c, i) => (i ? c : { ...c, heading: title }))),
-      ],
-    },
-    groups,
-    labels: o.labels ?? {},
-    split: o.split,
-  }
-}
-
-/** The kinds and traces of the entered items, for "Darunter fallen". */
-function itemFindings(r: Reader, kinds: string[]) {
-  const rows = tableRows(r.raw("asservate"))
-  const arts = new Set(rows.map((row) => row.art?.trim()))
-  return { ...Object.fromEntries(kinds.map((k) => [k, arts.has(k)])), ...traceFindings(rows) }
-}
-
-/** The bullet points of an item's section, in groups; groups with nothing entered are left out. */
-function itemLines(r: Reader, cards: ItemCards, row: Row) {
-  const line = (label: string, text: string) => `> - <font color=${r.colors.heading}><b>${label}:</b></font>${text && ` ${text}`}`
-  // Form hints in parentheses, e.g. "(mit ; trennen)", aren't written.
-  const label = (c: Column) => cards.labels[c.key] ?? c.label.replace(/\s*\(.*\)$/, "")
-  const groups = cards.groups.flatMap(({ title, columns }) => {
-    const lines = columns.flatMap((c) => {
-      if (c.traces)
-        return row.dna || row.fa ? [line("Fingerabdrücke", row.fa || "Keine"), line("DNA", row.dna || "Keine")] : []
-      const value = row[c.key]?.trim()
-      if (!value) return []
-      if (c.key !== cards.split) return [line(label(c), value)]
-      const entries = value
-        .split(";")
-        .map((m) => m.trim())
-        .filter(Boolean)
-      return [line(label(c), ""), ...entries.map((m) => `>   - ${m}`)]
-    })
-    return lines.length ? [`> **${title}**\n${lines.join("\n")}`] : []
-  })
-  return groups.join("\n>\n") || "> Keine weiteren Angaben."
-}
-
-/** The overview of the items, followed by a section for each. */
-function itemsPart(r: Reader, cards: ItemCards): Part {
-  const rows = r.rows(cards.field.key)
-  return {
-    title: "Übersicht der Asservate",
-    body: rows.length ? table(ITEM_OVERVIEW, rows.map((a) => [a.bezeichnung, a.anzahl, a.art, a.abgenommen, a.bes])) : "",
-    items: rows.map((a) => ({ title: a.bezeichnung, body: itemLines(r, cards, a) })),
-  }
-}
-
-/** The item names, for the page title. */
-const itemNames = (r: Reader) => r.rows("asservate").map((a) => a.bezeichnung)
-
-/** "XXX" in every cell of an item, so the empty template shows each part. */
-function sampleItem(cards: ItemCards, extra: Row = {}): Row {
-  return {
-    ...Object.fromEntries(cards.field.columns.map((c) => [c.key, "XXX"])),
-    bezeichnung: "[Bezeichnung]",
-    anzahl: "??",
-    abgenommen: "RANG Name - Department",
-    bes: "NAME",
-    spuren: SAMPLE_TRACES,
-    ...extra,
-  }
-}
 
 /* 1. Ballistics: weapons, gunshot residue, casings and projectiles. */
 
@@ -709,160 +606,145 @@ const tox = analysis({
   },
 })
 
-/* 5. Cyber forensics: one card and one item section per electronic device. */
+/* 5./6. Cyber forensics and other items: the items in a table, then the examination step by step. */
 
-/** Where traces are typically found on an electronic device. */
-const DEVICE_SPOTS = ["Display", "Gehäuse", "Rückseite", "Tasten", "Anschlüsse", "Akku"]
-const DEVICE_KINDS = ["Smartphone", "Laptop", "USB-Stick", "SD-Karte", "Festplatte", "Funkgerät", "Hacking Device", "Fahrzeugchip"]
+/** The items of the analysis, one row each, with the traces at typical spots. */
+function itemsTable(spots: string[]): TableField {
+  return {
+    type: "table",
+    key: "asservate",
+    label: "Asservate",
+    addLabel: "Asservat",
+    columns: [
+      { key: "bezeichnung", label: "Asservat", fallback: "N/A", wide: true },
+      { key: "art", label: "Art", fallback: "N/A", autocomplete: true },
+      { key: "anzahl", label: "Anzahl", fallback: "1", counter: true },
+      { key: "abgenommen", label: "Sichergestellt von", fallback: "N/A", group: "officer", autocomplete: true },
+      { key: "bes", label: "BES", fallback: "N/A", ...TAKEN_FROM },
+      tracesColumn(spots, "Keine"),
+    ],
+  }
+}
 
-const DEVICES = itemCards({
-  kinds: [...DEVICE_KINDS, "Sonstiges"],
-  groups: [
-    [
-      "Dokumentation",
-      [
-        { key: "besitzer", label: "Besitzer / Zuordnung", fallback: "", group: "person", autocomplete: true },
-        { key: "fundort", label: "Fundort", fallback: "" },
-        { key: "zustand", label: "Allgemeiner Zustand", fallback: "" },
-        { key: "zweck", label: "Mögliche Nutzung / Zweck", fallback: "" },
-      ],
-    ],
-    [
-      "Äußerlicher Zustand und Spuren",
-      [
-        { key: "beschaedigungen", label: "Beschädigungen", fallback: "" },
-        { key: "manipulationen", label: "Manipulationen / Umbauten", fallback: "" },
-        tracesColumn(DEVICE_SPOTS),
-        { key: "material", label: "Material / Rückstände", fallback: "" },
-        { key: "auffaelligkeiten", label: "Weitere Auffälligkeiten", fallback: "", wide: true },
-      ],
-    ],
-    [
-      "Analytische Untersuchung",
-      [
-        { key: "methoden", label: "Untersuchungsmethoden (mit ; trennen)", fallback: "", wide: true },
-        { key: "identifizierung", label: "Identifizierung", fallback: "" },
-        { key: "befund", label: "Spuren / Auffälligkeiten", fallback: "" },
-        { key: "erkenntnisse", label: "Daten / technische Erkenntnisse", fallback: "", wide: true },
-        { key: "untersuchungBemerkung", label: "Bemerkungen", fallback: "", wide: true },
-      ],
-    ],
-    [
-      "Forensische Datensicherung",
-      [
-        { key: "sicherungsmethode", label: "Sicherungsmethode", fallback: "" },
-        { key: "gesichert", label: "Gesicherte Daten", fallback: "" },
-        { key: "sicherungZeit", label: "Datum / Uhrzeit", fallback: "" },
-        { key: "sicherungDurch", label: "Durchgeführt durch", fallback: "", group: "officer", autocomplete: true },
-        { key: "sicherungBesonderheiten", label: "Besonderheiten", fallback: "", wide: true },
-      ],
-    ],
-    [
-      "Komponentenuntersuchung",
-      [
-        { key: "entnahmeGrund", label: "Grund der Untersuchung / Entnahme", fallback: "", wide: true },
-        { key: "entnahmeMethode", label: "Untersuchungsmethode", fallback: "" },
-        { key: "entnahmeZustand", label: "Zustand nach der Untersuchung", fallback: "" },
-        { key: "entnahmeBemerkung", label: "Bemerkungen", fallback: "", wide: true },
-      ],
-    ],
-  ],
-  // The results of the methods.
-  labels: {
-    identifizierung: "→ Identifizierung",
-    befund: "→ Spuren / Auffälligkeiten",
-    erkenntnisse: "→ Daten / technische Erkenntnisse",
-    untersuchungBemerkung: "→ Bemerkungen",
-  },
-  split: "methoden",
-})
+/** The item names entered above, for assigning the steps to them. */
+const itemNames = (values: Values) =>
+  tableRows(values.asservate)
+    .map((a) => a.bezeichnung?.trim() ?? "")
+    .filter(Boolean)
 
-const SAMPLE_DEVICE = sampleItem(DEVICES, {
-  bezeichnung: "[Bezeichnung / Gerätetyp]",
-  art: "[Smartphone / Laptop / USB-Stick / …]",
-  methoden: "XXX (Untersuchungsmethode); XXX (Untersuchungsmethode)",
-})
+/** The examination, one step per row in the order it was done; a template fills in the examination and its result. */
+function stepsTable(templates: SnippetsAtom): TableField {
+  return {
+    type: "table",
+    key: "schritte",
+    label: "Untersuchungsschritte",
+    addLabel: "Schritt",
+    columns: [
+      { key: "asservat", label: "Asservat", fallback: "", options: itemNames, carry: true },
+      { key: "untersuchung", label: "Untersuchung", fallback: "N/A", autocomplete: true },
+      { key: "ergebnis", label: "Ergebnis", fallback: "N/A", wide: true, multiline: true },
+    ],
+    templates: { atom: templates, fill: (t) => ({ untersuchung: t.title, ergebnis: t.text }) },
+  }
+}
 
-const cyber = analysis({
+/** The overview of the items. */
+function itemsPart(r: Reader): Part {
+  const rows = r.rows("asservate")
+  return {
+    title: "Übersicht der Asservate",
+    body: rows.length
+      ? table(
+          ["Asservat", "Art", "Anzahl", "Sichergestellt von", "BES", "DNA", "Fingerabdrücke"],
+          rows.map((a) => [a.bezeichnung, a.art, a.anzahl, a.abgenommen, a.bes, a.dna || "Keine", a.fa || "Keine"]),
+        )
+      : "",
+  }
+}
+
+/**
+ * The steps, under the item they examined in the order of the items; steps of an item not in
+ * the overview follow under its name. Each step is numbered, the lines of its result are sub-points.
+ */
+function stepsPart(r: Reader): Part {
+  const names = r.rows("asservate").map((a) => a.bezeichnung)
+  const groups = new Map<string, { order: number; rows: Row[] }>()
+  for (const s of r.rows("schritte")) {
+    const i = names.findIndex((n) => sameText(n, s.asservat))
+    const title = i >= 0 ? `#${i + 1} ${names[i]}` : s.asservat.trim() || "Ohne Asservat"
+    const group = groups.get(title) ?? { order: i >= 0 ? i : names.length, rows: [] }
+    groups.set(title, { ...group, rows: [...group.rows, s] })
+  }
+  const ordered = [...groups].sort(([, a], [, b]) => a.order - b.order)
+  const line = (label: string, text: string) => `> - <font color=${r.colors.heading}><b>${label}:</b></font>${text && ` ${text}`}`
+  const body = ordered.map(([title, { rows }]) => {
+    const lines = rows.flatMap((s, j) => {
+      const result = s.ergebnis
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean)
+      const label = `${j + 1}. ${s.untersuchung}`
+      return result.length > 1 ? [line(label, ""), ...result.map((l) => `>   - ${l}`)] : [line(label, result[0] ?? "")]
+    })
+    return `> **${title}**\n${lines.join("\n")}`
+  })
+  return { title: "Untersuchung", body: body.join("\n>\n") }
+}
+
+/** An analysis of items: what was examined, then the examination step by step. */
+function stepAnalysis(a: Pick<Analysis, "id" | "label" | "emoji" | "description" | "title"> & { spots: string[]; templates: SnippetsAtom }) {
+  return analysis({
+    ...a,
+    names: (r) => r.rows("asservate").map((row) => row.bezeichnung),
+    namesHint: "die Asservate",
+    findings: ["DNA-Proben", "Fingerabdrücke"],
+    found: (r) => traceFindings(tableRows(r.raw("asservate"))),
+    sections: [
+      {
+        title: "Asservate",
+        description: "Schritt 1: Jedes untersuchte Asservat in eine Zeile.",
+        fields: [itemsTable(a.spots)],
+      },
+      {
+        title: "Untersuchung",
+        description:
+          "Schritt 2: Jede Untersuchung in eine Zeile, in der Reihenfolge, in der sie gemacht wurde. „Aus Vorlage“ fügt einen Schritt mit vorbereitetem Ergebnis ein.",
+        fields: [stepsTable(a.templates)],
+      },
+    ],
+    sample: {
+      asservate: [1, 2].map(() => ({
+        bezeichnung: "[Bezeichnung]",
+        art: "XXX",
+        anzahl: "??",
+        abgenommen: "RANG Name - Department",
+        bes: "NAME",
+        spuren: SAMPLE_TRACES,
+      })),
+      schritte: [1, 2].map(() => ({ asservat: "[Bezeichnung]", untersuchung: "[Untersuchung]", ergebnis: "XXX" })),
+    },
+    parts: (r) => [itemsPart(r), stepsPart(r)],
+  })
+}
+
+const cyber = stepAnalysis({
   id: "cyber",
   label: "Cyberforensische Analyse",
   emoji: "💻",
-  description: "Elektronische Asservate mit Spuren, Untersuchung, Datensicherung und Komponenten.",
+  description: "Elektronische Geräte: die Asservate, dann die Untersuchung Schritt für Schritt.",
   title: "📝 [FAST-CFA] Cyberforensische Analyse",
-  names: itemNames,
-  namesHint: "die Asservate",
-  findings: [...DEVICE_KINDS, "DNA-Proben", "Fingerabdrücke"],
-  found: (r) => itemFindings(r, DEVICE_KINDS),
-  sections: [
-    {
-      title: "Asservate",
-      description: "Je Asservat eine Karte und ein eigener Abschnitt in der Analyse. Leere Angaben werden nicht geschrieben.",
-      fields: [DEVICES.field],
-    },
-  ],
-  sample: { asservate: [SAMPLE_DEVICE, SAMPLE_DEVICE] },
-  parts: (r) => [itemsPart(r, DEVICES)],
+  spots: ["Display", "Gehäuse", "Rückseite", "Tasten", "Anschlüsse", "Akku"],
+  templates: cyberStepsAtom,
 })
 
-/* 6. Other items: documents, containers, banknotes and the like, one card and one item section each. */
-
-/** Where traces are typically found on an item. */
-const ITEM_SPOTS = ["Vorderseite", "Rückseite", "Griff", "Verschluss", "Innenseite", "Oberfläche"]
-const ITEM_KINDS = ["Ausweis", "Lizenz", "Dienstausweis", "Dokument", "Koffer", "Paket", "Geldscheine"]
-
-const ITEMS = itemCards({
-  kinds: [...ITEM_KINDS, "Sonstiges"],
-  groups: [
-    [
-      "Analyse",
-      [
-        { key: "aussehen", label: "Aussehen", fallback: "", wide: true },
-        { key: "vermutung", label: "Was es sein könnte", fallback: "", wide: true },
-        {
-          key: "echtheit",
-          label: "Echtheit / Markierung",
-          fallback: "",
-          suggestions: ["Echt", "Gefälscht", "Markiert", "Unmarkiert", "Beschmiert"],
-        },
-        tracesColumn(ITEM_SPOTS),
-        { key: "merkmale", label: "Sonstige Merkmale", fallback: "", wide: true },
-        { key: "analyse", label: "Analyse (Fließtext)", fallback: "", wide: true },
-      ],
-    ],
-  ],
-})
-
-const items = analysis({
+const items = stepAnalysis({
   id: "gegenstand",
   label: "Forensische Analyse (Gegenstand)",
   emoji: "📦",
-  description: "Dokumente, Behältnisse, Geldscheine und andere Gegenstände mit Übergabe und Analyse.",
+  description: "Beliebige Gegenstände: die Asservate, dann die Untersuchung Schritt für Schritt.",
   title: "📝 [FAST-FA] Forensische Analyse",
-  names: itemNames,
-  namesHint: "die Asservate",
-  findings: [...ITEM_KINDS, "DNA-Proben", "Fingerabdrücke"],
-  found: (r) => itemFindings(r, ITEM_KINDS),
-  sections: [
-    {
-      title: "Asservate",
-      description:
-        "Je Gegenstand eine Karte: wie er aussieht, was er sein könnte, Spuren und sonstige Merkmale. Fließtext reicht auch, solange nachvollziehbar ist, was es ist und was gefunden wurde.",
-      fields: [ITEMS.field],
-    },
-  ],
-  sample: {
-    asservate: [1, 2].map(() =>
-      sampleItem(ITEMS, {
-        art: "XXX",
-        aussehen: "Wie sieht es aus?",
-        vermutung: "Was könnte es sein?",
-        echtheit: "",
-        merkmale: "Sonstige Merkmale vorhanden?",
-        analyse: "",
-      }),
-    ),
-  },
-  parts: (r) => [itemsPart(r, ITEMS)],
+  spots: ["Vorderseite", "Rückseite", "Griff", "Verschluss", "Innenseite", "Oberfläche"],
+  templates: itemStepsAtom,
 })
 
 const ALL: ForensicsTemplateId[] = ["ballistik", "blut", "stichwaffen", "tox", "cyber", "gegenstand"]

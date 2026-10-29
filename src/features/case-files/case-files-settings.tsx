@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { PlusIcon, RotateCcwIcon, Trash2Icon } from "lucide-react"
 import { Hint } from "@/components/hint"
 import { SettingsRow, SettingsSection, SettingsValue } from "@/components/settings-layout"
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { removedToast } from "@/lib/undo"
 import { DEFAULT_COLORS, DEFAULT_DEPARTMENT, ME, NOW, type Colors } from "./markdown"
 import { usePoliceFiles } from "./police-files"
-import { snippetLabel, useSnippets, type Snippet } from "./snippets"
+import { snippetLabel, snippetsAtom, useSnippets, type Snippet, type SnippetsAtom } from "./snippets"
 import { useColors, useOwnIdentity } from "./use-case-files"
 
 /** Settings page "Eigene Person": who fills in the Akten and analyses. */
@@ -119,7 +119,45 @@ function ColorRow({ colorKey, title, description }: { colorKey: keyof Colors; ti
 
 /** Section "Textbausteine" of the Akten settings: own snippets for the multi-line fields. */
 export function SnippetsSettings() {
-  const { snippets, addSnippet, updateSnippet, removeSnippet, restoreSnippet } = useSnippets()
+  return (
+    <SnippetList
+      atom={snippetsAtom}
+      title="Textbausteine"
+      noun="Textbaustein"
+      titlePlaceholder="Titel, z. B. Belehrung"
+      textPlaceholder="Text des Bausteins; jede Zeile wird ein eigener Punkt"
+      empty={
+        <>
+          Noch keine Textbausteine. Lege wiederkehrende Formulierungen an, etwa die Belehrung oder Bausteine für den
+          Tathergang. Im Formular fügt „Textbaustein einfügen“ sie an der Cursorposition ein. Platzhalter wie{" "}
+          <code className="rounded bg-muted px-1 font-mono text-xs">{ME}</code> oder{" "}
+          <code className="rounded bg-muted px-1 font-mono text-xs">{NOW}</code> werden beim Kopieren ersetzt; jede
+          Zeile wird ein eigener Punkt.
+        </>
+      }
+    />
+  )
+}
+
+/** A settings section that edits the snippets of `atom`: a title and a text each. */
+export function SnippetList({
+  atom,
+  title,
+  noun,
+  titlePlaceholder,
+  textPlaceholder,
+  empty,
+}: {
+  atom: SnippetsAtom
+  title: string
+  /** One of them, e.g. "Textbaustein". */
+  noun: string
+  titlePlaceholder: string
+  textPlaceholder: string
+  /** Shown while there are none. */
+  empty: ReactNode
+}) {
+  const { snippets, addSnippet, updateSnippet, removeSnippet, restoreSnippet } = useSnippets(atom)
   // The snippet just added; its title gets the focus.
   const [added, setAdded] = useState<string>()
 
@@ -128,28 +166,20 @@ export function SnippetsSettings() {
     removeSnippet(snippet.id)
     // An empty snippet isn't worth putting back.
     if (snippet.title.trim() || snippet.text.trim())
-      removedToast(`Textbaustein „${snippetLabel(snippet)}“`, () => restoreSnippet(snippet, index))
+      removedToast(`${noun} „${snippetLabel(snippet)}“`, () => restoreSnippet(snippet, index))
   }
 
   return (
-    <SettingsSection title="Textbausteine">
-      {snippets.length === 0 && (
-        <p className="py-4 text-sm text-muted-foreground">
-          Noch keine Textbausteine. Lege wiederkehrende Formulierungen an, etwa die Belehrung oder Bausteine für den
-          Tathergang. Im Formular fügt „Textbaustein einfügen“ sie an der Cursorposition ein. Platzhalter wie{" "}
-          <code className="rounded bg-muted px-1 font-mono text-xs">{ME}</code> oder{" "}
-          <code className="rounded bg-muted px-1 font-mono text-xs">{NOW}</code> werden beim Kopieren ersetzt; jede
-          Zeile wird ein eigener Punkt.
-        </p>
-      )}
+    <SettingsSection title={title}>
+      {snippets.length === 0 && <p className="py-4 text-sm text-muted-foreground">{empty}</p>}
       {snippets.map((s) => (
         <div key={s.id} className="grid gap-2 py-4">
           <div className="flex items-center gap-2">
             <Input
               value={s.title}
               onChange={(e) => updateSnippet(s.id, { title: e.target.value })}
-              placeholder="Titel, z. B. Belehrung"
-              aria-label="Titel des Textbausteins"
+              placeholder={titlePlaceholder}
+              aria-label={`Titel: ${noun}`}
               autoFocus={s.id === added}
               className="flex-1"
             />
@@ -162,7 +192,7 @@ export function SnippetsSettings() {
           <Textarea
             value={s.text}
             onChange={(e) => updateSnippet(s.id, { text: e.target.value })}
-            placeholder="Text des Bausteins; jede Zeile wird ein eigener Punkt"
+            placeholder={textPlaceholder}
             aria-label={`Text von ${snippetLabel(s)}`}
             spellCheck={false}
           />
@@ -170,7 +200,7 @@ export function SnippetsSettings() {
       ))}
       <div className="py-4">
         <Button variant="outline" onClick={() => setAdded(addSnippet())}>
-          <PlusIcon /> Textbaustein hinzufügen
+          <PlusIcon /> {noun} hinzufügen
         </Button>
       </div>
     </SettingsSection>

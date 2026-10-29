@@ -28,6 +28,7 @@ import {
 import type { Colors } from "./markdown"
 import { ChargesInput } from "./charges-input"
 import { roll, type Range } from "./range"
+import type { Snippet, SnippetsAtom } from "./snippets"
 import type { DnaEntry } from "@/features/dna-db/types"
 import { HEADER_API } from "@/features/headers/paths"
 import { formatTraces, lookupLabel, rowLookup, rowTraces, type DbField, type TraceKind } from "./traces"
@@ -235,8 +236,10 @@ export interface Column {
   /** What older documents prefilled the cell with; like `initial`, it doesn't count as entered. */
   formerInitial?: string
   wide?: boolean
-  /** In cards, a heading in front of the column that starts a group of them, e.g. "Datensicherung". */
-  heading?: string
+  /** A text box that grows with its lines instead of a single line. */
+  multiline?: boolean
+  /** A new row starts with the value of the row above, e.g. the item several steps examine. */
+  carry?: boolean
 }
 
 export interface TableField extends BaseField {
@@ -250,10 +253,8 @@ export interface TableField extends BaseField {
   remember?: string
   /** The own row of a remembered table, built from the settings. */
   ownRow?: (me: { name: string; rank: string }) => Row
-  /** One card per row, with a labeled input per column, instead of a table; for rows with many or long cells. */
-  layout?: "cards"
-  /** Heading of a card, e.g. "2.1 Messer"; defaults to the row's number. */
-  cardTitle?: (row: Row, index: number) => string
+  /** Editable templates that add a row from the menu next to the add button; `fill` makes the row of one. */
+  templates?: { atom: SnippetsAtom; fill: (template: Snippet) => Row }
 }
 
 export type Field = TextField | ListField | DateTimeField | ChecksField | ChoiceField | TableField | CustomField

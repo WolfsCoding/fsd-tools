@@ -2,11 +2,13 @@ import type { ComponentType, ReactNode } from "react"
 import { BookOpenIcon, CarIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, ListTodoIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
 import type { StoredEntry } from "@/lib/storage"
 import { CaseFilesPage } from "./case-files/case-files-page"
-import { CaseFilesSettings, MarkdownSettings, OwnPersonSettings, SnippetsSettings } from "./case-files/case-files-settings"
+import { CaseFilesSettings, MarkdownSettings, OwnPersonSettings } from "./case-files/case-files-settings"
 import { POLICE_FILES_BASE } from "./case-files/paths"
 import { legacyForensicsAtom, policeFilesAtom } from "./case-files/police-files"
 import { snippetsAtom } from "./case-files/snippets"
 import { colorsAtom, departmentAtom, ownNameAtom, ownRankAtom } from "./case-files/use-case-files"
+import { cyberStepsAtom, itemStepsAtom } from "./forensics/step-templates"
+import { CaseFilesPreferences } from "./forensics/step-templates-settings"
 import { DnaDbPage } from "./dna-db/dna-db-page"
 import { DnaDbSettings } from "./dna-db/dna-db-settings"
 import { DNA_DB_BASE } from "./dna-db/paths"
@@ -158,10 +160,20 @@ export const features: Feature[] = [
     icon: FolderOpenIcon,
     element: <CaseFilesPage />,
     storage: {
-      entries: [policeFilesAtom, legacyForensicsAtom, ownNameAtom, ownRankAtom, departmentAtom, colorsAtom, snippetsAtom],
+      entries: [
+        policeFilesAtom,
+        legacyForensicsAtom,
+        ownNameAtom,
+        ownRankAtom,
+        departmentAtom,
+        colorsAtom,
+        snippetsAtom,
+        cyberStepsAtom,
+        itemStepsAtom,
+      ],
     },
     settings: CaseFilesSettings,
-    preferences: SnippetsSettings,
+    preferences: CaseFilesPreferences,
   },
 ]
 
