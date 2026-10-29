@@ -198,7 +198,7 @@ export function UnitCard({
             </DropdownMenu>
           </header>
 
-          <ul className="grid gap-0.5 p-2">
+          <ul className="grid grid-cols-1 gap-0.5 p-2">
             {unit.members.map((m) => (
               <MemberRow
                 key={m.id}
@@ -385,7 +385,7 @@ function MemberRow({
           ) : (
             <span
               onDoubleClick={() => !locked && setEditing(true)}
-              className="min-w-0 flex-1 truncate text-sm select-none"
+              className="min-w-0 flex-1 text-sm break-words select-none"
             >
               {member.name}
             </span>
