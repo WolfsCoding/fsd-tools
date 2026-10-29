@@ -111,7 +111,11 @@ export function TaskRow({
               ) : (
                 <span
                   onDoubleClick={() => !locked && setEditing(true)}
-                  className={cn("truncate text-sm select-none", task.done && "text-muted-foreground line-through")}
+                  className={cn(
+                    "text-sm select-none",
+                    detailed ? "break-words" : "truncate",
+                    task.done && "text-muted-foreground line-through",
+                  )}
                 >
                   {task.title}
                 </span>
