@@ -19,6 +19,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
 
@@ -38,14 +40,28 @@ jobs:
 
       # Published in one go: electron-builder's own publishing uploads in parallel, and each
       # upload tries to create the release. latest.yml is what installed apps check for updates.
+      # The notes are the commit titles since the last release, without the conventional prefix;
+      # the app shows them as a list when hovering the update button.
       - name: Publish release
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          previous=$(gh release view --json tagName -q .tagName 2>/dev/null || true)
+          {
+            echo "## Was ist neu"
+            echo
+            git log --no-merges --format=%s ${previous:+"$previous..HEAD"} \
+              | grep -vE '^(chore|ci|test|docs|refactor|build|style)(\(|!|:)' \
+              | sed -E 's/^[a-z]+(\([^)]*\))?!?: //; s/^(.)/\U\1/; s/^/- /' || true
+            if [ -n "$previous" ]; then
+              echo
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/$previous...v$VERSION"
+            fi
+          } > notes.md
           gh release create "v$VERSION" \
             "release/FSD-Tools-Setup-$VERSION.exe" \
             "release/FSD-Tools-Setup-$VERSION.exe.blockmap" \
             release/latest.yml \
-            --title "$VERSION" --target "$GITHUB_SHA" --generate-notes
+            --title "$VERSION" --target "$GITHUB_SHA" --notes-file notes.md

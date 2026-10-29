@@ -31,8 +31,12 @@ const decodeProgress = Schema.decodeUnknownEffect(DownloadProgress)
 const notesOf = (info: typeof UpdateInfo.Type) => {
   const notes = info.releaseNotes
   if (!notes) return undefined
-  const html = typeof notes === "string" ? notes : notes.map((entry) => entry.note ?? "").join("\n")
-  return html.trim() || undefined
+  const entries =
+    typeof notes === "string"
+      ? [{ version: info.version, html: notes }]
+      : notes.map((entry) => ({ version: entry.version, html: entry.note ?? "" }))
+  const filled = entries.filter((entry) => entry.html.trim())
+  return filled.length > 0 ? filled : undefined
 }
 
 /**
@@ -102,6 +106,7 @@ export const make = Effect.gen(function* () {
   const start = Effect.gen(function* () {
     yield* updater.setAutoDownload(false)
     yield* updater.setAutoInstallOnAppQuit(false)
+    yield* updater.setFullChangelog(true)
 
     // The periodic check keeps a found update offered instead of flashing "checking".
     yield* onEvent("checking-for-update", () =>

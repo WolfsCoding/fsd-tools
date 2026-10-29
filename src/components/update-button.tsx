@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { cn } from "cn"
-import ReactMarkdown from "react-markdown"
-import rehypeRaw from "rehype-raw"
-import rehypeSanitize from "rehype-sanitize"
-import { CheckIcon, DownloadIcon, RotateCcwIcon, RotateCwIcon } from "lucide-react"
+import { CheckIcon, DownloadIcon, ExternalLinkIcon, RotateCcwIcon, RotateCwIcon } from "lucide-react"
 import { toast } from "sonner"
 import {
   AlertDialog,
@@ -26,6 +23,8 @@ import { desktop, useUpdateState, type UpdateState } from "@/lib/desktop"
 
 const PROGRESS_RADIUS = 14
 const PROGRESS_LENGTH = 2 * Math.PI * PROGRESS_RADIUS
+const VISIBLE_CHANGES = 8
+const RELEASES_URL = "https://github.com/WolfsCoding/fsd-tools/releases"
 
 type Action = "download" | "install" | "none"
 
@@ -41,18 +40,29 @@ function actionOf(state: UpdateState): Action {
   }
 }
 
-function tooltipOf(state: UpdateState) {
+function titleOf(state: UpdateState) {
   switch (state.status) {
     case "available":
-      return `Update ${state.version} bereit zum Laden`
+      return "Update bereit zum Laden"
     case "downloading":
-      return `Update wird geladen (${Math.floor(state.percent ?? 0)} %)`
+      return `Update wird geladen · ${Math.floor(state.percent ?? 0)} %`
     case "ready":
-      return `Update ${state.version} geladen. Klicken zum Neustarten und Installieren.`
+      return "Update bereit zur Installation"
     case "error":
-      return `Laden von ${state.version} fehlgeschlagen. Klicken zum Wiederholen.`
+      return "Laden des Updates fehlgeschlagen"
     default:
       return ""
+  }
+}
+
+function subtitleOf(state: UpdateState) {
+  switch (state.status) {
+    case "ready":
+      return `${state.version} · Klicken zum Neustarten`
+    case "error":
+      return `${state.version} · Klicken zum Wiederholen`
+    default:
+      return state.version
   }
 }
 
@@ -79,6 +89,9 @@ export function UpdateButton() {
 
   const action = actionOf(state)
   const disabled = action === "none"
+  const releases = (state.notes ?? [])
+    .map((release) => ({ version: release.version, changes: changesOf(release.html) }))
+    .filter((release) => release.changes.length > 0)
 
   const onClick = () => {
     if (action === "download") desktop!.updates.download()
@@ -91,7 +104,7 @@ export function UpdateButton() {
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label={tooltipOf(state)}
+            aria-label={`${titleOf(state)}, ${subtitleOf(state)}`}
             aria-disabled={disabled || undefined}
             onClick={disabled ? undefined : onClick}
             className={cn(
@@ -105,10 +118,23 @@ export function UpdateButton() {
         <TooltipContent
           side="right"
           align="end"
-          className={cn(state.notes && "max-w-sm flex-col items-stretch gap-2 py-2")}
+          className={cn("flex-col items-stretch gap-0 p-0", releases.length > 0 && "w-80 max-w-none")}
         >
-          <span className="whitespace-pre-line">{tooltipOf(state)}</span>
-          {state.notes && <ReleaseNotes html={state.notes} />}
+          <div className="px-3 py-2.5">
+            <div className="font-semibold">{titleOf(state)}</div>
+            <div className="text-xs text-tooltip-foreground/60">{subtitleOf(state)}</div>
+          </div>
+          {releases.length > 0 && (
+            <div className="max-h-96 overflow-y-auto px-3 pb-3">
+              {releases.map((release, index) => (
+                <ReleaseChanges
+                  key={release.version}
+                  title={index === 0 ? "Was ist neu" : `Änderungen in ${release.version}`}
+                  {...release}
+                />
+              ))}
+            </div>
+          )}
         </TooltipContent>
       </Tooltip>
 
@@ -196,18 +222,36 @@ function ReadyIcon() {
   )
 }
 
-/** The GitHub release body, sanitized; links open in the browser. */
-function ReleaseNotes({ html }: { html: string }) {
+/** The list items of a GitHub release body, as plain text. DOMParser documents are inert, so nothing in the HTML runs or loads. */
+function changesOf(html: string) {
+  const doc = new DOMParser().parseFromString(html, "text/html")
+  return Array.from(doc.querySelectorAll("li"), (li) => li.textContent?.trim() ?? "").filter(Boolean)
+}
+
+/** One release's changes; the rest of a long list is a link to the release on GitHub (opens in the browser). */
+function ReleaseChanges({ title, version, changes }: { title: string; version: string; changes: Array<string> }) {
+  const hidden = changes.length - VISIBLE_CHANGES
   return (
-    <div className="max-h-80 overflow-y-auto border-t border-tooltip-foreground/15 pt-2 text-xs leading-relaxed [&_a]:underline [&_a]:underline-offset-2 [&_h1]:text-[13px] [&_h1]:font-semibold [&_h2]:text-[13px] [&_h2]:font-semibold [&_h3]:font-semibold [&_li]:ml-4 [&_li]:list-disc [&_p]:my-1 [&_ul]:my-1 [&_ul]:space-y-0.5">
-      <ReactMarkdown
-        rehypePlugins={[rehypeRaw, rehypeSanitize]}
-        components={{
-          a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
-        }}
-      >
-        {html}
-      </ReactMarkdown>
-    </div>
+    <section className="mt-3 border-t border-tooltip-foreground/15 pt-2.5 first:mt-0 first:border-t-0 first:pt-0">
+      <h3 className="mb-1.5 text-xs font-semibold">{title}</h3>
+      <ul className="space-y-1 text-xs leading-snug">
+        {changes.slice(0, VISIBLE_CHANGES).map((change, index) => (
+          <li key={index} className="ml-4 list-disc marker:text-tooltip-foreground/50">
+            {change}
+          </li>
+        ))}
+      </ul>
+      {hidden > 0 && (
+        <a
+          href={`${RELEASES_URL}/tag/v${version}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex items-center gap-1 text-xs text-tooltip-foreground/60 underline underline-offset-2 hover:text-tooltip-foreground"
+        >
+          {hidden === 1 ? "1 weitere Änderung" : `${hidden} weitere Änderungen`} auf GitHub
+          <ExternalLinkIcon className="size-3" />
+        </a>
+      )}
+    </section>
   )
 }

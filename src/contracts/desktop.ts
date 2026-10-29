@@ -15,13 +15,17 @@ export const UPDATE_STATUSES = [
 ] as const
 export type UpdateStatus = (typeof UPDATE_STATUSES)[number]
 
+/** One release's notes from GitHub, as HTML. */
+export const ReleaseNotes = Schema.Struct({ version: Schema.String, html: Schema.String })
+export type ReleaseNotes = typeof ReleaseNotes.Type
+
 /** Where the app's update stands; the tool strip, the settings and the tray menu show it. */
 export const UpdateState = Schema.Struct({
   status: Schema.Literals(UPDATE_STATUSES),
   /** The version found, kept through a failed download so it can be tried again. */
   version: Schema.optional(Schema.String),
-  /** The release's notes from GitHub, as HTML; shown when hovering the update button. */
-  notes: Schema.optional(Schema.String),
+  /** The notes of every release since the installed one, newest first; shown when hovering the update button. */
+  notes: Schema.optional(Schema.Array(ReleaseNotes)),
   percent: Schema.optional(Schema.Number),
   error: Schema.optional(Schema.String),
 })

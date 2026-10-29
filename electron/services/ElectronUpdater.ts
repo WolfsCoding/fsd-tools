@@ -22,6 +22,8 @@ export class ElectronUpdater extends Context.Service<
   {
     readonly setAutoDownload: (value: boolean) => Effect.Effect<void>
     readonly setAutoInstallOnAppQuit: (value: boolean) => Effect.Effect<void>
+    /** Notes of every release since the installed one instead of only the latest. */
+    readonly setFullChangelog: (value: boolean) => Effect.Effect<void>
     readonly checkForUpdates: Effect.Effect<void, UpdaterError>
     readonly downloadUpdate: Effect.Effect<void, UpdaterError>
     readonly quitAndInstall: (options: {
@@ -51,6 +53,10 @@ export const layer = Layer.succeed(
     setAutoInstallOnAppQuit: (value) =>
       Effect.sync(() => {
         autoUpdater.autoInstallOnAppQuit = value
+      }),
+    setFullChangelog: (value) =>
+      Effect.sync(() => {
+        autoUpdater.fullChangelog = value
       }),
     checkForUpdates: Effect.tryPromise({
       try: () => autoUpdater.checkForUpdates(),
