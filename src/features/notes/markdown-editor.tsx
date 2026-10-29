@@ -28,9 +28,10 @@ import { Markdown } from "@/features/fsu/markdown"
 import { useFullscreen } from "@/hooks/use-fullscreen"
 
 // Pasted reports: thick dividers, a plain line before quotes, and tables with framed cells
-// whose rows alternate between two shades.
+// whose rows alternate between two shades. Checklist items show their box instead of a bullet.
 const REPORT = cn(
-  "prose-p:my-2 prose-img:my-2 prose-img:inline-block prose-code:text-[0.8em]",
+  "wrap-break-word prose-p:my-2 prose-img:my-2 prose-img:inline-block prose-code:text-[0.8em]",
+  "[&_.task-list-item]:list-none [&_.task-list-item>input]:my-0 [&_.task-list-item>input]:-ml-5 [&_.task-list-item>input]:mr-1",
   "prose-hr:my-5 prose-hr:border-t-[3px] prose-hr:border-muted-foreground/25",
   "prose-blockquote:my-3 prose-blockquote:border-l-[3px] prose-blockquote:border-l-muted-foreground/25 prose-blockquote:pl-4 prose-blockquote:text-foreground",
   "prose-table:my-3 prose-table:border-separate prose-table:border-spacing-0 prose-table:overflow-hidden prose-table:rounded-md prose-table:ring-1 prose-table:ring-border",
