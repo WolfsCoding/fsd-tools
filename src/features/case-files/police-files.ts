@@ -31,6 +31,13 @@ function withAnalyses(templates: Record<string, Template<string>>) {
   )
 }
 
+/** `templates` where every one that attaches documents can also attach an own entry, last. */
+function withEntry(templates: Record<string, Template<string>>) {
+  return Object.fromEntries(
+    Object.values(templates).map((t) => [t.id, t.attachable ? { ...t, attachable: [...t.attachable, "eintrag"] } : t]),
+  )
+}
+
 /** The police case files and the forensic analyses. */
 export const POLICE_FILES_KIND: CaseFileKind = {
   id: "police-files",
@@ -38,7 +45,7 @@ export const POLICE_FILES_KIND: CaseFileKind = {
   noun: "Akte",
   base: POLICE_FILES_BASE,
   atom: policeFilesAtom,
-  templates: { ...withAnalyses(TEMPLATES), ...FORENSICS_TEMPLATES },
+  templates: withEntry({ ...withAnalyses(TEMPLATES), ...FORENSICS_TEMPLATES }),
   // Only the analyses have these fields; in an Akte they come from the analyses attached before.
   inherit: INHERITED,
   empty: {

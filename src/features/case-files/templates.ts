@@ -27,6 +27,7 @@ import {
 } from "./markdown"
 import type { Colors } from "./markdown"
 import { ChargesInput } from "./charges-input"
+import { MarkdownField } from "./markdown-field"
 import { roll, type Range } from "./range"
 import type { Snippet, SnippetsAtom } from "./snippets"
 import type { DnaEntry } from "@/features/dna-db/types"
@@ -43,6 +44,7 @@ export type TemplateId =
   | "aussage-zeuge"
   | "aussage-officer"
   | "aussage-beschuldigter"
+  | "eintrag"
 
 interface BaseField {
   key: string
@@ -1401,6 +1403,29 @@ const suspectStatement: Template = {
     ),
 }
 
+/** Free Markdown, written like a note, for whatever none of the other documents fits. */
+const entry: Template = {
+  id: "eintrag",
+  label: "Eigener Eintrag",
+  emoji: "📝",
+  description: "Freier Text in Markdown, wie eine Notiz.",
+  standalone: false,
+  group: "Sonstiges",
+  sections: [
+    {
+      title: "Eintrag",
+      description: "Titel und Text; kopiert wird der Text so, wie er ist.",
+      fields: [
+        { type: "text", key: "titel", label: "Titel", fallback: "" },
+        { type: "custom", key: "text", label: "Text", component: MarkdownField, required: true },
+      ],
+    },
+  ],
+  subject: (r) => r.filled("titel"),
+  pageTitle: (r) => r.filled("titel"),
+  render: (r) => r.filled("text"),
+}
+
 export const TEMPLATES: Record<TemplateId, Template> = {
   strafakte: criminalFile,
   sammelakte: collectiveFile,
@@ -1410,4 +1435,5 @@ export const TEMPLATES: Record<TemplateId, Template> = {
   "aussage-zeuge": witnessStatement,
   "aussage-officer": officerStatement,
   "aussage-beschuldigter": suspectStatement,
+  eintrag: entry,
 }
