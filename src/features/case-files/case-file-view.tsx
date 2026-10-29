@@ -267,9 +267,10 @@ export function CaseFileView({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className={cn("border-b px-6 pt-5", !showTabs && "pb-4")}>
-        <div className="flex items-center gap-3">
+        {/* On narrow screens the buttons move below the title rather than squeezing it away. */}
+        <div className="flex flex-wrap items-center gap-3">
           <BackButton to={kind.base} label={`Alle ${kind.title}`} />
-          <div className="grid min-w-0 flex-1 gap-0.5">
+          <div className="grid min-w-32 flex-1 gap-0.5">
             <p className="truncate text-xs text-muted-foreground">
               {main.label} · geändert {formatRelative(caseFile.updatedAt)}
               {caseFile.settled && <span className="font-medium text-emerald-400"> · Erledigt</span>}
@@ -298,78 +299,80 @@ export function CaseFileView({
               </Hint>
             )}
           </div>
-          {canRandomize(template) && (
-            <Hint label="Alle Werte mit Spanne zufällig innerhalb der Spanne neu würfeln">
-              <Button variant="outline" size="sm" onClick={randomize}>
-                <DicesIcon /> Würfeln
-              </Button>
-            </Hint>
-          )}
-          {template.blank && (
-            <Hint label="Das leere Template mit dem Vorlagen-Titel kopieren">
-              <Button variant="outline" size="sm" onClick={copyBlank}>
-                <FileTextIcon /> Vorlage kopieren
-              </Button>
-            </Hint>
-          )}
-          <Button size="sm" onClick={copyMarkdown}>
-            <ClipboardCopyIcon /> Kopieren
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Weitere Aktionen">
-                <EllipsisIcon />
-              </Button>
-            </DropdownMenuTrigger>
-            {/* "Umbenennen" opens the title field once the menu is closed, so the field gets the focus, not the button. */}
-            <DropdownMenuContent
-              align="end"
-              className="w-60"
-              onCloseAutoFocus={(e) => {
-                if (!renameAfterMenu.current) return
-                renameAfterMenu.current = false
-                e.preventDefault()
-                setRenaming("caseFile")
-              }}
-            >
-              <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
-                <EyeIcon /> Vorschau
-              </DropdownMenuItem>
-              <DropdownMenuCheckboxItem
-                checked={previewSide}
-                onCheckedChange={setPreviewSide}
-                className="hidden xl:flex"
+          <div className="ml-auto flex items-center gap-3">
+            {canRandomize(template) && (
+              <Hint label="Alle Werte mit Spanne zufällig innerhalb der Spanne neu würfeln">
+                <Button variant="outline" size="sm" onClick={randomize}>
+                  <DicesIcon /> Würfeln
+                </Button>
+              </Hint>
+            )}
+            {template.blank && (
+              <Hint label="Das leere Template mit dem Vorlagen-Titel kopieren">
+                <Button variant="outline" size="sm" onClick={copyBlank}>
+                  <FileTextIcon /> Vorlage kopieren
+                </Button>
+              </Hint>
+            )}
+            <Button size="sm" onClick={copyMarkdown}>
+              <ClipboardCopyIcon /> Kopieren
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon-sm" aria-label="Weitere Aktionen">
+                  <EllipsisIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              {/* "Umbenennen" opens the title field once the menu is closed, so the field gets the focus, not the button. */}
+              <DropdownMenuContent
+                align="end"
+                className="w-60"
+                onCloseAutoFocus={(e) => {
+                  if (!renameAfterMenu.current) return
+                  renameAfterMenu.current = false
+                  e.preventDefault()
+                  setRenaming("caseFile")
+                }}
               >
-                <PanelRightIcon /> Vorschau neben dem Formular
-              </DropdownMenuCheckboxItem>
-              {pageTitle && (
-                <DropdownMenuItem onSelect={() => copy(pageTitle, "Titel")}>
-                  <HeadingIcon /> Seitentitel kopieren
+                <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
+                  <EyeIcon /> Vorschau
                 </DropdownMenuItem>
-              )}
-              {caseFile.docs.length > 1 && (
-                <DropdownMenuItem onSelect={copyAll}>
-                  <CopyIcon /> Alle Dokumente kopieren
+                <DropdownMenuCheckboxItem
+                  checked={previewSide}
+                  onCheckedChange={setPreviewSide}
+                  className="hidden xl:flex"
+                >
+                  <PanelRightIcon /> Vorschau neben dem Formular
+                </DropdownMenuCheckboxItem>
+                {pageTitle && (
+                  <DropdownMenuItem onSelect={() => copy(pageTitle, "Titel")}>
+                    <HeadingIcon /> Seitentitel kopieren
+                  </DropdownMenuItem>
+                )}
+                {caseFile.docs.length > 1 && (
+                  <DropdownMenuItem onSelect={copyAll}>
+                    <CopyIcon /> Alle Dokumente kopieren
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => (renameAfterMenu.current = true)}>
+                  <PencilIcon /> {kind.noun} umbenennen
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => (renameAfterMenu.current = true)}>
-                <PencilIcon /> {kind.noun} umbenennen
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => api.setSettled(caseFile.id, !caseFile.settled)}>
-                <CircleCheckIcon /> {caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {docIndex > 0 && (
-                <DropdownMenuItem variant="destructive" onSelect={() => removeDoc(current)}>
-                  <Trash2Icon /> Dokument entfernen
+                <DropdownMenuItem onSelect={() => api.setSettled(caseFile.id, !caseFile.settled)}>
+                  <CircleCheckIcon /> {caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}
                 </DropdownMenuItem>
-              )}
-              <DropdownMenuItem variant="destructive" onSelect={() => onDelete(caseFile)}>
-                <Trash2Icon /> {kind.noun} löschen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuSeparator />
+                {docIndex > 0 && (
+                  <DropdownMenuItem variant="destructive" onSelect={() => removeDoc(current)}>
+                    <Trash2Icon /> Dokument entfernen
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem variant="destructive" onSelect={() => onDelete(caseFile)}>
+                  <Trash2Icon /> {kind.noun} löschen
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {showTabs && (
