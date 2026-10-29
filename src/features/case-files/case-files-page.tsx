@@ -27,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { formatDateTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
@@ -297,7 +297,7 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
       }
     >
       <div className="grid gap-4">
-        {api.caseFiles.length === 0 && <Home kind={kind} />}
+        {api.caseFiles.length === 0 && <Home kind={kind} onCreate={onCreate} />}
         {open.length > 0 && (
           <section className="grid gap-1.5">
             <ListHeading>Offen</ListHeading>
@@ -324,7 +324,7 @@ function ListHeading({ children }: { children: ReactNode }) {
 }
 
 /** Shown above the templates while nothing was created yet. */
-function Home({ kind }: { kind: CaseFileKind }) {
+function Home({ kind, onCreate }: { kind: CaseFileKind; onCreate: (template: string) => void }) {
   return (
     <Empty className="p-6">
       <EmptyHeader>
@@ -334,6 +334,13 @@ function Home({ kind }: { kind: CaseFileKind }) {
         <EmptyTitle>{kind.empty.title}</EmptyTitle>
         <EmptyDescription>{kind.empty.description}</EmptyDescription>
       </EmptyHeader>
+      <EmptyContent>
+        <NewCaseFileMenu kind={kind} onCreate={onCreate}>
+          <Button>
+            <PlusIcon /> Neue {kind.noun}
+          </Button>
+        </NewCaseFileMenu>
+      </EmptyContent>
     </Empty>
   )
 }
