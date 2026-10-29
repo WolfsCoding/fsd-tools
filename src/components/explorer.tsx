@@ -10,7 +10,7 @@ export const EXPLORER_CARDS = "grid content-start gap-2 stagger-in"
 
 /** One item of `EXPLORER_CARDS`; leaves room on the right for a ⋯ button. */
 export const EXPLORER_CARD =
-  "grid gap-0.5 rounded-lg border px-3 py-2.5 pr-10 outline-none transition-colors hover:bg-accent/60 focus-visible:bg-accent/60"
+  "grid gap-0.5 rounded-lg border px-3 py-2.5 pr-10 outline-none transition-colors hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
 
 /**
  * A page's items (notes, posts, …) across the whole page, like a file explorer. Opening an

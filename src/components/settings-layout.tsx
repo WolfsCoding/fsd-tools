@@ -30,8 +30,9 @@ export function SettingsRow({
   children: ReactNode
 }) {
   return (
-    <div className="flex items-center gap-8 py-4">
-      <div className={cn("grid flex-1 gap-1", !description && "py-0.5")}>
+    // On a narrow page the control wraps below the text instead of squeezing it.
+    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 py-4">
+      <div className={cn("grid flex-1 basis-60 gap-1", !description && "py-0.5")}>
         <Label htmlFor={htmlFor} className="text-sm font-medium">
           {title}
         </Label>
