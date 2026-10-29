@@ -551,8 +551,14 @@ export function CaseFileView({
             <span className="min-w-0 flex-1 truncate">
               {preview.split("\n").length.toLocaleString("de-DE")} Zeilen Markdown
             </span>
-            {pageTitle && <Shortcut keys={["Alt", "Umschalt", "C"]}>Titel kopieren</Shortcut>}
-            <Shortcut keys={["Strg", "C"]}>Kopieren</Shortcut>
+            {/* Phones have no keys for the shortcuts, so they get a button instead. */}
+            <span className="hidden sm:contents">
+              {pageTitle && <Shortcut keys={["Alt", "Umschalt", "C"]}>Titel kopieren</Shortcut>}
+              <Shortcut keys={["Strg", "C"]}>Kopieren</Shortcut>
+            </span>
+            <Button size="sm" onClick={copyMarkdown} className="sm:hidden">
+              <ClipboardCopyIcon /> Kopieren
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
