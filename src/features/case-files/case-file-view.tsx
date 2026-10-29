@@ -250,7 +250,7 @@ export function CaseFileView({
     const index = caseFile.docs.indexOf(removed)
     api.removeDoc(caseFile.id, removed.id)
     if (removed.id === current.id) setDocId(caseFile.docs[0].id)
-    removedToast(`„${docLabel(removed, me, templates, caseFile.docs)}"`, () => api.restoreDoc(caseFile.id, removed, index))
+    removedToast(`„${docLabel(removed, me, templates, caseFile.docs)}“`, () => api.restoreDoc(caseFile.id, removed, index))
   }
 
   // Where the group changes (e.g. the analyses after the statements of an Akte), it gets its own heading.

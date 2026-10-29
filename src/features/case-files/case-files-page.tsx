@@ -54,7 +54,7 @@ export function CaseFilesPage({ kind = POLICE_FILES_KIND }: { kind?: CaseFileKin
   const onDelete = useCallback(
     (caseFile: CaseFile<string>) => {
       deleteCaseFile(caseFile.id)
-      removedToast(`„${caseFileTitle(caseFile, me, kind.templates)}"`, () => restoreCaseFile(caseFile))
+      removedToast(`„${caseFileTitle(caseFile, me, kind.templates)}“`, () => restoreCaseFile(caseFile))
     },
     [deleteCaseFile, restoreCaseFile, kind, me],
   )
@@ -260,7 +260,7 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
             <Button
               variant="ghost"
               size="icon-xs"
-              aria-label={`Aktionen für „${caseFileTitle(a, me, kind.templates)}"`}
+              aria-label={`Aktionen für „${caseFileTitle(a, me, kind.templates)}“`}
               className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
             >
               <EllipsisIcon />
