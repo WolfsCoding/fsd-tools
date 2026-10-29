@@ -20,13 +20,13 @@ export function TodosPage() {
   }, [api.todos, options, query])
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+    <div role="region" aria-label="Todos" className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
       <TodoPanel
         todos={shown}
         api={api}
         empty={query.trim() ? `Keine Todos für „${query.trim()}“.` : "Noch keine Todos."}
         search={{ query, onQuery: setQuery }}
       />
-    </main>
+    </div>
   )
 }
