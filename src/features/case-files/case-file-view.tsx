@@ -270,7 +270,7 @@ export function CaseFileView({
   })
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="@container flex min-h-0 flex-1 flex-col">
       <header className={cn("border-b px-6 pt-5", !showTabs && "pb-4")}>
         {/* On narrow screens the buttons move below the title rather than squeezing it away. */}
         <div className="flex flex-wrap items-center gap-3">
@@ -506,11 +506,11 @@ export function CaseFileView({
             </div>
           </div>
         </main>
-        {/* Next to the form only where there is room; narrower screens open the preview as a dialog. */}
+        {/* Next to the form only where the page itself is wide, not just the window (e.g. in a split view); else the preview opens as a dialog. */}
         {previewSide && (
           <aside
             aria-label="Vorschau"
-            className="hidden w-[42%] max-w-3xl shrink-0 flex-col border-l animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6 xl:flex"
+            className="hidden w-[42%] max-w-3xl shrink-0 flex-col border-l animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6 @6xl:flex"
           >
             <div className="flex h-11 shrink-0 items-center gap-2 border-b pr-2 pl-4 text-xs text-muted-foreground">
               <span className="min-w-0 flex-1 truncate">
