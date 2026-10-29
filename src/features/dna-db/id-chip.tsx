@@ -14,6 +14,7 @@ export function IdChip({ value, label }: { value: string; label: string }) {
         <button
           type="button"
           onClick={() => copy(value, label)}
+          aria-label={`${label} ${value} kopieren`}
           // Don't let a quick double-click on the chip open the edit dialog.
           onDoubleClick={(e) => e.stopPropagation()}
           className="inline-flex cursor-pointer rounded-md border bg-muted/60 px-2 py-0.5 font-mono text-xs transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
