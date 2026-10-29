@@ -35,6 +35,7 @@ const DEFAULT_RATIO = 0.5
 const ratioAtom = stored("layout:split-ratio", Schema.Number, DEFAULT_RATIO)
 const MIN_RATIO = 0.2
 const MAX_RATIO = 0.8
+const KEY_STEPS: Partial<Record<string, number>> = { ArrowLeft: -0.05, ArrowRight: 0.05 }
 
 const ISLAND = "relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl bg-island"
 
@@ -95,7 +96,10 @@ export function SplitLayout({ children }: { children: ReactNode }) {
   function onPointerMove(e: PointerEvent<HTMLDivElement>) {
     const rect = containerRef.current?.getBoundingClientRect()
     if (!resizing || !rect) return
-    const next = (e.clientX - rect.left) / rect.width
+    resizeTo((e.clientX - rect.left) / rect.width)
+  }
+
+  function resizeTo(next: number) {
     setRatio(Math.round(Math.min(MAX_RATIO, Math.max(MIN_RATIO, next)) * 1000) / 1000)
   }
 
@@ -137,21 +141,31 @@ export function SplitLayout({ children }: { children: ReactNode }) {
       {split !== undefined && active && (
         <>
           {/* Also the gap between the islands. */}
-          <Hint label="Ziehen zum Anpassen, Doppelklick teilt gleichmäßig">
+          <Hint label="Ziehen oder Pfeiltasten zum Anpassen, Doppelklick teilt gleichmäßig">
             <div
               role="separator"
+              tabIndex={0}
               aria-orientation="vertical"
               aria-label="Split View anpassen"
+              aria-valuenow={Math.round(ratio * 100)}
+              aria-valuemin={MIN_RATIO * 100}
+              aria-valuemax={MAX_RATIO * 100}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={() => setResizing(false)}
               onPointerCancel={() => setResizing(false)}
               onDoubleClick={() => setRatio(DEFAULT_RATIO)}
-              className="group flex w-1 shrink-0 cursor-col-resize justify-center animate-in fade-in-0 duration-300"
+              onKeyDown={(e) => {
+                const step = KEY_STEPS[e.key]
+                if (!step) return
+                e.preventDefault()
+                resizeTo(ratio + step)
+              }}
+              className="group flex w-1 shrink-0 cursor-col-resize justify-center outline-none animate-in fade-in-0 duration-300"
             >
               <span
                 className={cn(
-                  "my-3 w-0.5 rounded-full transition-colors group-hover:bg-primary/60",
+                  "my-3 w-0.5 rounded-full transition-colors group-hover:bg-primary/60 group-focus-visible:bg-primary",
                   resizing && "bg-primary",
                 )}
               />
