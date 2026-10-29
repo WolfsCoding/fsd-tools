@@ -70,6 +70,11 @@ function isAltShift(e: KeyboardEvent, code: string) {
   return e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.getModifierState("AltGraph") && e.code === code
 }
 
+/** Brings the open document's tab into view when the tab row is wider than the screen, e.g. after adding a document. */
+function scrollIntoViewRef(el: HTMLElement | null) {
+  el?.scrollIntoView({ block: "nearest", inline: "nearest" })
+}
+
 /** Copies `text`; with required fields still empty, one warning naming them replaces the usual confirmation. */
 function copyChecked(text: string, label: string, missing: string[]) {
   if (!missing.length) return copy(text, label)
@@ -403,6 +408,7 @@ export function CaseFileView({
                         type="button"
                         role="tab"
                         aria-selected={d.id === current.id}
+                        ref={d.id === current.id ? scrollIntoViewRef : undefined}
                         onClick={() => setDocId(d.id)}
                         onDoubleClick={() => setRenaming(d.id)}
                         onKeyDown={(e) => {
