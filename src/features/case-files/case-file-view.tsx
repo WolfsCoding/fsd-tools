@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useSearchParams } from "react-router"
 import {
   CircleCheckIcon,
@@ -75,6 +75,21 @@ function scrollIntoViewRef(el: HTMLElement | null) {
   el?.scrollIntoView({ block: "nearest", inline: "nearest" })
 }
 
+/**
+ * Whether the page has room for the preview next to the form. Measured on the page itself,
+ * since a split view halves it on a wide window.
+ */
+function useRoomForSide() {
+  const [room, setRoom] = useState(() => window.innerWidth >= 1280)
+  const ref = useCallback((el: HTMLDivElement | null) => {
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) => setRoom(entry.contentRect.width >= 1152))
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  return [ref, room] as const
+}
+
 /** Copies `text`; with required fields still empty, one warning naming them replaces the usual confirmation. */
 function copyChecked(text: string, label: string, missing: string[]) {
   if (!missing.length) return copy(text, label)
@@ -113,6 +128,7 @@ export function CaseFileView({
     )
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewSide, setPreviewSide] = useAtom(previewSideAtom)
+  const [pageRef, roomForSide] = useRoomForSide()
   // The list's context menu opens a case file with `{ preview: true }` to show its preview right away.
   // Handled once per navigation, while rendering (no effect needed).
   const location = useLocation()
@@ -270,7 +286,7 @@ export function CaseFileView({
   })
 
   return (
-    <div className="@container flex min-h-0 flex-1 flex-col">
+    <div ref={pageRef} className="flex min-h-0 flex-1 flex-col">
       <header className={cn("border-b px-6 pt-5", !showTabs && "pb-4")}>
         {/* On narrow screens the buttons move below the title rather than squeezing it away. */}
         <div className="flex flex-wrap items-center gap-3">
@@ -342,13 +358,11 @@ export function CaseFileView({
                 <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
                   <EyeIcon /> Vorschau
                 </DropdownMenuItem>
-                <DropdownMenuCheckboxItem
-                  checked={previewSide}
-                  onCheckedChange={setPreviewSide}
-                  className="hidden xl:flex"
-                >
-                  <PanelRightIcon /> Vorschau neben dem Formular
-                </DropdownMenuCheckboxItem>
+                {roomForSide && (
+                  <DropdownMenuCheckboxItem checked={previewSide} onCheckedChange={setPreviewSide}>
+                    <PanelRightIcon /> Vorschau neben dem Formular
+                  </DropdownMenuCheckboxItem>
+                )}
                 {pageTitle && (
                   <DropdownMenuItem onSelect={() => copy(pageTitle, "Titel")}>
                     <HeadingIcon /> Seitentitel kopieren
@@ -507,10 +521,10 @@ export function CaseFileView({
           </div>
         </div>
         {/* Next to the form only where the page itself is wide, not just the window (e.g. in a split view); else the preview opens as a dialog. */}
-        {previewSide && (
+        {previewSide && roomForSide && (
           <aside
             aria-label="Vorschau"
-            className="hidden w-[42%] max-w-3xl shrink-0 flex-col border-l animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6 @6xl:flex"
+            className="flex w-[42%] max-w-3xl shrink-0 flex-col border-l animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6"
           >
             <div className="flex h-11 shrink-0 items-center gap-2 border-b pr-2 pl-4 text-xs text-muted-foreground">
               <span className="min-w-0 flex-1 truncate">
