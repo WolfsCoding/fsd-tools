@@ -414,7 +414,7 @@ function Composer({ units, onSend }: { units: Unit[]; onSend: (text: string, uni
 
   return (
     <div className="grid gap-2 border-t p-2">
-      <div className="no-scrollbar flex gap-1 overflow-x-auto" role="group" aria-label="Vorlagen">
+      <div className="flex flex-wrap gap-1" role="group" aria-label="Vorlagen">
         {URGENT_REPORTS.map((r) => (
           <Hint key={r} label="Sofort melden">
             <button
