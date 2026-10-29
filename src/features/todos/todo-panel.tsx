@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react"
 import { ListTodoIcon, PlusIcon } from "lucide-react"
-import { EmptyList } from "@/components/no-results"
+import { EmptyList, NoResults } from "@/components/no-results"
 import { FilterMenu, SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -103,6 +103,8 @@ export function TodoPanel({
 
       {shown.length ? (
         <TodoTable todos={shown} api={api} />
+      ) : search?.query.trim() && !todos.length ? (
+        <NoResults query={search.query} onReset={() => search.onQuery("")} />
       ) : (
         <div className="grid justify-items-center rounded-lg border border-dashed py-4">
           <ListTodoIcon className="size-5 text-muted-foreground" />

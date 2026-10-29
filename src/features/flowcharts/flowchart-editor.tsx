@@ -632,6 +632,7 @@ function Preview({
               onClick={onCanvasClick}
               style={{ width: layout.width, aspectRatio: `${layout.width} / ${layout.height}` }}
               className="m-auto h-auto max-w-full shrink-0 cursor-pointer drop-shadow-xl"
+              role="img"
               aria-label={`Vorschau: ${flowchartTitle(chart)}`}
             />
           )}

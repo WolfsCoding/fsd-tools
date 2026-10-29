@@ -28,9 +28,10 @@ import { Markdown } from "@/features/fsu/markdown"
 import { useFullscreen } from "@/hooks/use-fullscreen"
 
 // Pasted reports: thick dividers, a plain line before quotes, and tables with framed cells
-// whose rows alternate between two shades.
+// whose rows alternate between two shades. Checklist items show their box instead of a bullet.
 const REPORT = cn(
-  "prose-p:my-2 prose-img:my-2 prose-img:inline-block prose-code:text-[0.8em]",
+  "wrap-break-word prose-p:my-2 prose-img:my-2 prose-img:inline-block prose-code:text-[0.8em]",
+  "[&_.task-list-item]:list-none [&_.task-list-item>input]:my-0 [&_.task-list-item>input]:-ml-5 [&_.task-list-item>input]:mr-1",
   "prose-hr:my-5 prose-hr:border-t-[3px] prose-hr:border-muted-foreground/25",
   "prose-blockquote:my-3 prose-blockquote:border-l-[3px] prose-blockquote:border-l-muted-foreground/25 prose-blockquote:pl-4 prose-blockquote:text-foreground",
   "prose-table:my-3 prose-table:border-separate prose-table:border-spacing-0 prose-table:overflow-hidden prose-table:rounded-md prose-table:ring-1 prose-table:ring-border",
@@ -286,9 +287,13 @@ function Tool({
   label,
   icon: Icon,
   run,
-  active = false,
+  active,
   disabled = false,
-}: ToolProps & { active?: boolean; disabled?: boolean }) {
+}: ToolProps & {
+  /** Set for the buttons that switch something on and off, so they read as toggles. */
+  active?: boolean
+  disabled?: boolean
+}) {
   return (
     <Hint label={label}>
       <button
@@ -296,7 +301,7 @@ function Tool({
         onClick={run}
         disabled={disabled}
         aria-label={label}
-        aria-pressed={active || undefined}
+        aria-pressed={active}
         // Keeps the selection in the text while clicking.
         onMouseDown={(e) => e.preventDefault()}
         className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-40 aria-pressed:bg-primary/15 aria-pressed:text-primary [&_svg]:size-4"
