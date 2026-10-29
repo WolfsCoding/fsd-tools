@@ -179,58 +179,61 @@ function TraceList({
   }
 
   return (
-    <div className={cn(BOX, "divide-y divide-border/60")}>
-      <div className="flex h-9 items-stretch bg-muted/50 text-xs font-medium text-muted-foreground">
-        <span className="w-10 shrink-0 border-r border-border/60" />
-        <span className="flex flex-1 items-center border-r border-border/60 px-3">Name</span>
-        {kinds.map((k) => (
-          <span key={k} className="flex flex-1 items-center border-r border-border/60 px-3">
-            {TRACE_LABELS[k].id}
-          </span>
-        ))}
-        <span className="flex flex-1 items-center px-3">Fundort</span>
-        <span className="w-10 shrink-0 border-l border-border/60" />
-      </div>
-      {traces.map((t, i) => (
-        <div key={t.id} className="flex items-stretch focus-within:bg-accent/20">
-          <span className={cn(LEAD, "text-xs font-semibold text-muted-foreground")}>{i + 1}</span>
-          <span className="min-w-0 flex-1 border-r border-border/60">
-            <Combobox
-              value={t.name}
-              onChange={(v) => setName(i, v)}
-              options={dbOptions(entries, "name")}
-              placeholder="Unbekannt"
-              aria-label={`Name (Spur ${i + 1})`}
-              className={cn(TRACE_INPUT, "text-sm")}
-            />
-          </span>
+    // Scrolls sideways on narrow screens like the other tables, so the IDs and places stay readable.
+    <div className={cn(BOX, "relative overflow-x-auto")}>
+      <div className="min-w-xl divide-y divide-border/60">
+        <div className="flex h-9 items-stretch bg-muted/50 text-xs font-medium text-muted-foreground">
+          <span className="w-10 shrink-0 border-r border-border/60" />
+          <span className="flex flex-1 items-center border-r border-border/60 px-3">Name</span>
           {kinds.map((k) => (
-            <span key={k} className="min-w-0 flex-1 border-r border-border/60">
-              <DnaPicker
-                value={t[k]}
-                kinds={[k]}
-                show="id"
-                onChange={(v) => setId(i, k, v)}
-                placeholder="Aus DNA-DB oder neu anlegen"
-                aria-label={`${TRACE_LABELS[k].id} (Spur ${i + 1})`}
+            <span key={k} className="flex flex-1 items-center border-r border-border/60 px-3">
+              {TRACE_LABELS[k].id}
+            </span>
+          ))}
+          <span className="flex flex-1 items-center px-3">Fundort</span>
+          <span className="w-10 shrink-0 border-l border-border/60" />
+        </div>
+        {traces.map((t, i) => (
+          <div key={t.id} className="flex items-stretch focus-within:bg-accent/20">
+            <span className={cn(LEAD, "text-xs font-semibold text-muted-foreground")}>{i + 1}</span>
+            <span className="min-w-0 flex-1 border-r border-border/60">
+              <Combobox
+                value={t.name}
+                onChange={(v) => setName(i, v)}
+                options={dbOptions(entries, "name")}
+                placeholder="Unbekannt"
+                aria-label={`Name (Spur ${i + 1})`}
                 className={cn(TRACE_INPUT, "text-sm")}
               />
             </span>
-          ))}
-          <span className="min-w-0 flex-1">
-            <Combobox
-              value={t.ort}
-              onChange={(v) => set(i, { ort: v })}
-              options={spots}
-              placeholder="Wo gefunden?"
-              aria-label={`Fundort (Spur ${i + 1})`}
-              className={cn(TRACE_INPUT, "text-sm")}
-            />
-          </span>
-          <RemoveCell label={`Spur ${i + 1} entfernen`} onRemove={() => onRemove(i)} />
-        </div>
-      ))}
-      <AddRow label="Spur hinzufügen" onClick={() => onChange([...traces, newTrace()])} />
+            {kinds.map((k) => (
+              <span key={k} className="min-w-0 flex-1 border-r border-border/60">
+                <DnaPicker
+                  value={t[k]}
+                  kinds={[k]}
+                  show="id"
+                  onChange={(v) => setId(i, k, v)}
+                  placeholder="Aus DNA-DB oder neu anlegen"
+                  aria-label={`${TRACE_LABELS[k].id} (Spur ${i + 1})`}
+                  className={cn(TRACE_INPUT, "text-sm")}
+                />
+              </span>
+            ))}
+            <span className="min-w-0 flex-1">
+              <Combobox
+                value={t.ort}
+                onChange={(v) => set(i, { ort: v })}
+                options={spots}
+                placeholder="Wo gefunden?"
+                aria-label={`Fundort (Spur ${i + 1})`}
+                className={cn(TRACE_INPUT, "text-sm")}
+              />
+            </span>
+            <RemoveCell label={`Spur ${i + 1} entfernen`} onRemove={() => onRemove(i)} />
+          </div>
+        ))}
+        <AddRow label="Spur hinzufügen" onClick={() => onChange([...traces, newTrace()])} />
+      </div>
     </div>
   )
 }
