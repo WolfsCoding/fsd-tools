@@ -387,7 +387,7 @@ function Preview({ design, scale, onScale }: { design: HeaderDesign; scale: numb
         </div>
       </CardContent>
 
-      <div className="border-t px-6 py-3">
+      <div className="border-t px-(--card-spacing) py-3">
         {url ? (
           <ButtonGroup className="w-full">
             <ButtonGroupText className="border-input bg-transparent text-muted-foreground dark:bg-input/30">
