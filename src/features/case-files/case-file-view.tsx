@@ -8,6 +8,7 @@ import {
   EllipsisIcon,
   EyeIcon,
   FileTextIcon,
+  HashIcon,
   HeadingIcon,
   PanelRightIcon,
   PencilIcon,
@@ -141,9 +142,9 @@ export function CaseFileView({
   const formRef = useRef<HTMLDivElement>(null)
   /** The document whose first field takes the focus once it is shown. */
   const focusDoc = useRef((location.state as { created?: boolean } | null)?.created ? caseFile.docs[0].id : undefined)
-  /** "caseFile" or the id of the document whose title is being edited. */
+  /** "caseFile", "caseNumber" or the id of the document whose title is being edited. */
   const [renaming, setRenaming] = useState<string>()
-  const renameAfterMenu = useRef(false)
+  const renameAfterMenu = useRef<"caseFile" | "caseNumber">(undefined)
   const addedFromMenu = useRef(false)
   const title = caseFileTitle(caseFile, me, templates)
   useTabTitle(title)
@@ -292,10 +293,34 @@ export function CaseFileView({
         <div className="flex flex-wrap items-center gap-3">
           <BackButton to={kind.base} label={`Alle ${kind.title}`} />
           <div className="grid min-w-32 flex-1 gap-0.5">
-            <p className="truncate text-xs text-muted-foreground">
-              {main.label} · geändert {formatRelative(caseFile.updatedAt)}
-              {caseFile.settled && <span className="font-medium text-emerald-400"> · Erledigt</span>}
-            </p>
+            {renaming === "caseNumber" ? (
+              // Clearing the number goes back to the one entered in the documents.
+              <InlineEdit
+                value={caseFile.caseNumber ?? ""}
+                allowEmpty
+                onDone={(n) => {
+                  if (n !== undefined) api.setCaseNumber(caseFile.id, n)
+                  setRenaming(undefined)
+                }}
+                placeholder="Aktennummer"
+                aria-label={`Aktennummer der ${kind.noun}`}
+                className="text-xs"
+              />
+            ) : (
+              <p className="truncate text-xs text-muted-foreground">
+                {main.label}
+                {caseFile.caseNumber && (
+                  <Hint label="Doppelklick zum Ändern">
+                    <span onDoubleClick={() => setRenaming("caseNumber")} className="select-none">
+                      {" "}
+                      · Aktennummer {caseFile.caseNumber}
+                    </span>
+                  </Hint>
+                )}{" "}
+                · geändert {formatRelative(caseFile.updatedAt)}
+                {caseFile.settled && <span className="font-medium text-emerald-400"> · Erledigt</span>}
+              </p>
+            )}
             {renaming === "caseFile" ? (
               // Clearing the title goes back to the automatic one.
               <InlineEdit
@@ -350,9 +375,9 @@ export function CaseFileView({
                 className="w-60"
                 onCloseAutoFocus={(e) => {
                   if (!renameAfterMenu.current) return
-                  renameAfterMenu.current = false
                   e.preventDefault()
-                  setRenaming("caseFile")
+                  setRenaming(renameAfterMenu.current)
+                  renameAfterMenu.current = undefined
                 }}
               >
                 <DropdownMenuItem onSelect={() => setPreviewOpen(true)}>
@@ -374,8 +399,11 @@ export function CaseFileView({
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => (renameAfterMenu.current = true)}>
+                <DropdownMenuItem onSelect={() => (renameAfterMenu.current = "caseFile")}>
                   <PencilIcon /> {kind.noun} umbenennen
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => (renameAfterMenu.current = "caseNumber")}>
+                  <HashIcon /> {caseFile.caseNumber ? "Aktennummer ändern" : "Aktennummer hinzufügen"}
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => api.setSettled(caseFile.id, !caseFile.settled)}>
                   <CircleCheckIcon /> {caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}

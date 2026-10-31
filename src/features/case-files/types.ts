@@ -25,6 +25,8 @@ export interface CaseFile<Id extends string = TemplateId> {
   id: string
   /** Set when renamed; otherwise the list shows a title derived from the main document. */
   title: string
+  /** Set by hand; otherwise the case number entered in one of its documents counts. */
+  caseNumber?: string
   /** The first one is the main document and can't be removed. */
   docs: Doc<Id>[]
   /** Marked as done; still listed, after the open ones. */
@@ -44,6 +46,7 @@ export const Doc = Schema.Struct({
 export const CaseFile = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
+  caseNumber: Schema.optionalKey(Schema.String),
   docs: Schema.Array(Doc),
   settled: Schema.optionalKey(Schema.Boolean),
   createdAt: Schema.String,

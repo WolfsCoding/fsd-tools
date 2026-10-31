@@ -98,7 +98,7 @@ const TITLE_SUSPECTS = 2
 /**
  * The title, else one made from the main document: the template, what it is about, the
  * suspects named in any of its documents and the case number, e.g. "Strafakte – Davis Street
- * – John Doe – #1234".
+ * – John Doe – 1234".
  */
 export function caseFileTitle(caseFile: CaseFile<string> | undefined, me: string, templates: Templates = TEMPLATES) {
   if (!caseFile) return "Akte"
@@ -106,7 +106,7 @@ export function caseFileTitle(caseFile: CaseFile<string> | undefined, me: string
   const main = caseFile.docs[0]
   const t = templates[main.template]
   const subject = (t.caseSubject ?? t.subject)(createReader(t, main.values, me))
-  let number = ""
+  let number = caseFile.caseNumber?.trim() ?? ""
   const suspects: string[] = []
   for (const d of caseFile.docs) {
     const dt = templates[d.template]
@@ -126,7 +126,7 @@ export function caseFileTitle(caseFile: CaseFile<string> | undefined, me: string
     t.label,
     subject,
     suspects.slice(0, TITLE_SUSPECTS).join(", ") + (more > 0 ? ` +${more}` : ""),
-    number && `#${number.replace(/^#/, "")}`,
+    number.replace(/^#/, ""),
   ]
     .filter(Boolean)
     .join(" – ")
@@ -140,6 +140,7 @@ export function caseFileText(caseFile: CaseFile<string>) {
     else if (Array.isArray(value)) value.forEach(add)
     else if (typeof value === "object" && value !== null) Object.values(value).forEach(add)
   }
+  add(caseFile.caseNumber)
   for (const d of caseFile.docs) {
     add(d.title)
     add(d.values)
@@ -360,6 +361,10 @@ export function useCaseFiles(kind: CaseFileKind) {
       },
       rename(id: string, title: string) {
         change(id, (a) => ({ ...a, title }))
+      },
+      /** An empty number goes back to the one entered in the documents. */
+      setCaseNumber(id: string, caseNumber: string) {
+        change(id, (a) => ({ ...a, caseNumber: caseNumber.replace(/^#/, "").trim() || undefined }))
       },
       setSettled(id: string, settled: boolean) {
         change(id, (a) => ({ ...a, settled: settled || undefined }))
