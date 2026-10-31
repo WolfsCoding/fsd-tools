@@ -1,8 +1,8 @@
 import * as Schema from "effect/Schema"
 import type { StoredValue } from "@/lib/storage"
 
-/** Not checked yet, registered, or not registered for the road (Kennung ZZ). */
-export const PlateStatus = Schema.Literals(["offen", "gueltig", "ungueltig"])
+/** Not checked yet, registered, not registered for the road (Kennung ZZ), or not checkable. */
+export const PlateStatus = Schema.Literals(["offen", "gueltig", "ungueltig", "nicht_pruefbar"])
 export type PlateStatus = typeof PlateStatus.Type
 
 /** A plate seen at a scene, to be checked against the registry. */

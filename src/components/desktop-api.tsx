@@ -38,7 +38,7 @@ const DocumentsBody = Schema.Struct({
 })
 const SearchBody = Schema.Struct({ q: Schema.optional(Schema.String) })
 const OpenBody = Schema.Struct({ path: Schema.String })
-/** The filters of the Kennzeichen page: `status` offen/gueltig/ungueltig, `date` heute/woche/monat. */
+/** The filters of the Kennzeichen page: `status` offen/gueltig/ungueltig/nicht_pruefbar, `date` heute/woche/monat. */
 const PlatesBody = Schema.Struct({ q: Schema.optional(Schema.String), status: Schema.optional(Schema.String), date: Schema.optional(Schema.String) })
 const PlateCreateBody = Schema.Struct({
   driver: Schema.optional(Schema.String),

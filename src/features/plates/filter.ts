@@ -5,6 +5,7 @@ export const STATUS_FILTERS: { value: PlateStatus | "alle"; label: string }[] = 
   { value: "offen", label: "Offen" },
   { value: "gueltig", label: "Gültig" },
   { value: "ungueltig", label: "Ungültig" },
+  { value: "nicht_pruefbar", label: "Nicht prüfbar" },
 ]
 export type StatusFilter = (typeof STATUS_FILTERS)[number]["value"]
 

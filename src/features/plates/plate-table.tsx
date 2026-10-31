@@ -27,6 +27,7 @@ const COLUMNS: { key: keyof Omit<PlateCheckInput, "date">; label: string; placeh
 const STATUS: Choice[] = [
   { value: "gueltig", label: "Gültig", className: "text-emerald-400" },
   { value: "ungueltig", label: "Ungültig", className: "text-red-400" },
+  { value: "nicht_pruefbar", label: "Nicht prüfbar", className: "text-amber-400" },
 ]
 
 /**

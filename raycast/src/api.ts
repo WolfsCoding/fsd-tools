@@ -116,8 +116,8 @@ export interface CreatedDocument {
   choices: Record<string, string>
 }
 
-export type PlateStatus = "offen" | "gueltig" | "ungueltig"
-export const PLATE_STATUS: Record<PlateStatus, string> = { offen: "Offen", gueltig: "Gültig", ungueltig: "Ungültig" }
+export type PlateStatus = "offen" | "gueltig" | "ungueltig" | "nicht_pruefbar"
+export const PLATE_STATUS: Record<PlateStatus, string> = { offen: "Offen", gueltig: "Gültig", ungueltig: "Ungültig", nicht_pruefbar: "Nicht prüfbar" }
 
 /** A plate seen at a scene (`/plates`); `ticket` is the markdown for a fake one. */
 export interface PlateCheck {

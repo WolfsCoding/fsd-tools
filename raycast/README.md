@@ -34,7 +34,7 @@ The desktop app listens on `127.0.0.1` (port 47821, or a free one if that's busy
 | `/offenses` | | every chargeable offense with its fine |
 | `/law-book/search` | `q` | matching paragraphs with their sections and offenses |
 | `/open` | `path`, e.g. `/law-book/to/17` | |
-| `/plates` | `q`, `status` (offen/gueltig/ungueltig), `date` (heute/woche/monat) | the plate checks, with the `ticket` markdown of a fake plate |
+| `/plates` | `q`, `status` (offen/gueltig/ungueltig/nicht_pruefbar), `date` (heute/woche/monat) | the plate checks, with the `ticket` markdown of a fake plate |
 | `/plates/create` | `driver`, `holder`, `plate`, `model`, `date`, `scene`, `status`, `open` | the new check |
 | `/plates/status` | `id`, `status` | the check |
 

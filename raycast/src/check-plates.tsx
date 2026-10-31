@@ -11,13 +11,14 @@ const FILTERS = [
   { value: "status:offen", title: "Offen", section: "Status" },
   { value: "status:gueltig", title: "Gültig", section: "Status" },
   { value: "status:ungueltig", title: "Ungültig", section: "Status" },
+  { value: "status:nicht_pruefbar", title: "Nicht prüfbar", section: "Status" },
   { value: "date:heute", title: "Heute", section: "Datum" },
   { value: "date:woche", title: "Letzte 7 Tage", section: "Datum" },
   { value: "date:monat", title: "Letzte 30 Tage", section: "Datum" },
 ]
 const SECTIONS = [...new Set(FILTERS.map((f) => f.section))]
 
-const STATUS_COLOR: Record<PlateStatus, Color> = { offen: Color.SecondaryText, gueltig: Color.Green, ungueltig: Color.Red }
+const STATUS_COLOR: Record<PlateStatus, Color> = { offen: Color.SecondaryText, gueltig: Color.Green, ungueltig: Color.Red, nicht_pruefbar: Color.Orange }
 
 export default function CheckPlates() {
   const [query, setQuery] = useState("")
