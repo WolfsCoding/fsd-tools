@@ -2,7 +2,7 @@
 // and its result, edited in the settings. "XXX" marks what is filled in by hand.
 
 import * as Schema from "effect/Schema"
-import { Snippet } from "@/features/case-files/snippets"
+import { Snippet, type SnippetsAtom } from "@/features/case-files/snippets"
 import { stored } from "@/lib/storage"
 
 const step = (id: string, title: string, text: string): Snippet => ({ id, title, text })
@@ -42,3 +42,36 @@ const ITEM_STEPS = [
 export const cyberStepsAtom = stored("forensik:vorlagen:cyber", Schema.Array(Snippet), CYBER_STEPS)
 /** The templates of the other items; the examples above until they're edited. */
 export const itemStepsAtom = stored("forensik:vorlagen:gegenstand", Schema.Array(Snippet), ITEM_STEPS)
+
+/** The usual examination of a kind of item ("Art"): templates by id, in the order they're done. */
+export interface Playbook {
+  art: string
+  steps: string[]
+}
+
+const CYBER_PLAYBOOKS: Playbook[] = [
+  {
+    art: "Smartphone",
+    steps: ["sicht", "spuren", "entsperrung", "extraktion", "kontakte", "chats", "standort", "medien"].map((s) => `cyber-${s}`),
+  },
+  { art: "Tablet", steps: ["sicht", "spuren", "entsperrung", "extraktion", "chats", "medien", "software"].map((s) => `cyber-${s}`) },
+  { art: "Laptop", steps: ["sicht", "spuren", "entsperrung", "extraktion", "chats", "medien", "software"].map((s) => `cyber-${s}`) },
+  { art: "Datenträger", steps: ["sicht", "spuren", "extraktion", "medien", "software"].map((s) => `cyber-${s}`) },
+  { art: "Funkgerät", steps: ["sicht", "spuren", "funk"].map((s) => `cyber-${s}`) },
+  { art: "Fahrzeugchip", steps: ["sicht", "fahrzeug"].map((s) => `cyber-${s}`) },
+]
+
+const ITEM_PLAYBOOKS: Playbook[] = [
+  { art: "Dokument", steps: ["sicht", "spuren", "echtheit", "register"].map((s) => `gegenstand-${s}`) },
+  { art: "Behältnis", steps: ["sicht", "spuren", "oeffnung"].map((s) => `gegenstand-${s}`) },
+  { art: "Bargeld", steps: ["sicht", "zaehlung", "markierung", "echtheit"].map((s) => `gegenstand-${s}`) },
+  { art: "Unbekannter Stoff", steps: ["sicht", "spuren", "probe"].map((s) => `gegenstand-${s}`) },
+]
+
+const PLAYBOOKS = new Map<SnippetsAtom, Playbook[]>([
+  [cyberStepsAtom, CYBER_PLAYBOOKS],
+  [itemStepsAtom, ITEM_PLAYBOOKS],
+])
+
+/** The usual examinations of the kinds of items whose templates are in `atom`. */
+export const playbooksOf = (atom: SnippetsAtom | undefined) => (atom && PLAYBOOKS.get(atom)) || []

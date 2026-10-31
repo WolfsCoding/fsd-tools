@@ -115,7 +115,12 @@ export function Combobox({
           if (anchorRef.current?.contains(e.target as Node)) e.preventDefault()
         }}
       >
-        <div {...list.listProps} className={cn(all && "max-h-72 overflow-y-auto")}>
+        <div
+          {...list.listProps}
+          // In a dialog, its scroll lock swallows the wheel outside of it, and the list is portaled out.
+          onWheel={(e) => e.stopPropagation()}
+          className={cn(all && "max-h-72 overflow-y-auto")}
+        >
           {shown.map((o, i) => {
             const option = optionValue(o)
             const hint = optionHint(o)

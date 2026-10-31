@@ -183,20 +183,16 @@ function FieldInput(props: FieldProps<Field>) {
       return <ChecksInput {...props} field={field} />
     case "choice":
       return <ChoiceInput {...props} field={field} />
-    case "table":
-      return <TableInput {...props} field={field} />
+    case "table": {
+      const Editor = field.editor
+      if (!Editor) return <TableInput {...props} field={field} />
+      const { bare: _, ...rest } = props
+      return <Editor {...rest} field={field} />
+    }
     case "custom": {
       const Component = field.component
-      return (
-        <Component
-          field={field}
-          values={props.values}
-          reader={props.reader}
-          onChange={props.onChange}
-          onUpdate={props.onUpdate}
-          docId={props.docId}
-        />
-      )
+      const { bare: _, ...rest } = props
+      return <Component {...rest} field={field} />
     }
   }
 }
@@ -295,7 +291,7 @@ export const LEAD = "flex w-10 shrink-0 items-center justify-center border-r bor
 /** Last cell of a panel row, holding its remove button. */
 export const END = "flex w-10 shrink-0 items-center justify-center border-l border-border/60"
 /** A combobox that fills its cell, without a border of its own. */
-const CELL_COMBOBOX =
+export const CELL_COMBOBOX =
   "h-10 rounded-none border-0 bg-transparent px-3 shadow-none placeholder:text-muted-foreground/60 focus-visible:bg-accent/30 focus-visible:ring-0 dark:bg-transparent"
 
 /** Header row of a panel, like a table's: the title, and the remove column if rows can be removed. */
@@ -436,15 +432,47 @@ function InlineTextInput({ field, values, onChange, suggestions, docId }: FieldP
   )
 }
 
+function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListField>) {
+  return (
+    <Labeled label={field.label} bare={bare} required={field.required} className={FULL}>
+      <PointList
+        label={field.label}
+        items={listItems(values[field.key])}
+        onChange={(next) => onChange(field.key, next)}
+        onRestore={(i, item) => onUpdate(field.key, (v) => insertAt(listItems(v), i, item))}
+        placeholder={field.fallback || undefined}
+        // Without a fallback nothing stands in for missing points, so the list may have none at all.
+        canBeEmpty={!field.fallback}
+      />
+    </Labeled>
+  )
+}
+
 /**
  * Bullet points as rows of one panel, one input per point. Enter starts the next point
  * (splitting at the cursor), Backspace in an empty one removes it, arrows move between them.
  * Points are reordered by dragging their handle.
  */
-function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListField>) {
-  const stored = listItems(values[field.key])
-  // Without a fallback nothing stands in for missing points, so the list may have none at all.
-  const canBeEmpty = !field.fallback
+export function PointList({
+  id,
+  label,
+  items: stored,
+  onChange: set,
+  onRestore,
+  placeholder,
+  canBeEmpty,
+}: {
+  id?: string
+  label: string
+  items: string[]
+  onChange: (items: string[]) => void
+  /** Puts a removed point back from the toast; without it, removing can't be undone. */
+  onRestore?: (index: number, item: string) => void
+  /** Shown in the first point while it's empty. */
+  placeholder?: string
+  /** Whether the list may have no points; otherwise an empty one stands in. */
+  canBeEmpty?: boolean
+}) {
   const items = stored.length || canBeEmpty ? stored : [""]
   const refs = useRef<(HTMLInputElement | null)[]>([])
   /** Where the cursor goes after the next change: the start, the end or a position of a point. */
@@ -462,7 +490,6 @@ function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListF
     el?.setSelectionRange(pos, pos)
   })
 
-  const set = (next: string[]) => onChange(field.key, next)
   const reorder = useReorder((from, to) => set(move(items, from, to)))
 
   /** Removes point `i`; one with text can be put back from the toast. */
@@ -470,8 +497,7 @@ function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListF
     const item = items[i]
     if (items.length > 1) splice(i, [])
     else set([])
-    if (item.trim())
-      removedToast(`Punkt ${i + 1}`, () => onUpdate(field.key, (v) => insertAt(listItems(v), i, item)))
+    if (item.trim() && onRestore) removedToast(`Punkt ${i + 1}`, () => onRestore(i, item))
   }
 
   /** Replaces point `i` with `lines` and puts the cursor at the end of the last one. */
@@ -531,46 +557,44 @@ function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListF
   }
 
   return (
-    <Labeled label={field.label} bare={bare} required={field.required} className={FULL}>
-      {/* One panel like the tables: a highlighted drag handle, then the text of the point. */}
-      <div className={cn(BOX, "divide-y divide-border/60")}>
-        <PanelHeader label={field.label} removable action={<SnippetMenu onInsert={insertSnippet} />} />
-        <ul className="divide-y divide-border/60">
-          {items.map((item, i) => (
-            <li key={i} {...reorder.row(i)} className={cn("group flex items-stretch focus-within:bg-accent/20", reorder.rowClass(i))}>
-              {/* Drag handle, like the rows of the tables. */}
-              <span
-                {...reorder.handle(i)}
-                className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
-              >
-                <GripVerticalIcon className="size-3.5 group-focus-within:text-foreground" />
-              </span>
-              <input
-                ref={(el) => {
-                  refs.current[i] = el
-                }}
-                value={item}
-                onChange={(e) => set(items.map((x, j) => (j === i ? e.target.value : x)))}
-                onKeyDown={(e) => handleKeyDown(e, i)}
-                onSelect={(e) => trackCaret(e.currentTarget, i)}
-                onFocus={(e) => trackCaret(e.currentTarget, i)}
-                onPaste={(e) => {
-                  const lines = e.clipboardData.getData("text").split(/\r?\n/).filter((l) => l.trim())
-                  if (lines.length < 2) return
-                  e.preventDefault()
-                  splice(i, item.trim() ? [item, ...lines] : lines)
-                }}
-                placeholder={i === 0 ? field.fallback || undefined : undefined}
-                aria-label={`${field.label}, Punkt ${i + 1}`}
-                className="h-10 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
-              />
-              <RemoveCell label={`Punkt ${i + 1} entfernen`} onRemove={() => remove(i)} />
-            </li>
-          ))}
-        </ul>
-        <AddRow label="Punkt hinzufügen" onClick={() => splice(items.length, [""], 0)} end />
-      </div>
-    </Labeled>
+    // One panel like the tables: a highlighted drag handle, then the text of the point.
+    <div id={id} className={cn(BOX, "divide-y divide-border/60")}>
+      <PanelHeader label={label} removable action={<SnippetMenu onInsert={insertSnippet} />} />
+      <ul className="divide-y divide-border/60">
+        {items.map((item, i) => (
+          <li key={i} {...reorder.row(i)} className={cn("group flex items-stretch focus-within:bg-accent/20", reorder.rowClass(i))}>
+            {/* Drag handle, like the rows of the tables. */}
+            <span
+              {...reorder.handle(i)}
+              className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
+            >
+              <GripVerticalIcon className="size-3.5 group-focus-within:text-foreground" />
+            </span>
+            <input
+              ref={(el) => {
+                refs.current[i] = el
+              }}
+              value={item}
+              onChange={(e) => set(items.map((x, j) => (j === i ? e.target.value : x)))}
+              onKeyDown={(e) => handleKeyDown(e, i)}
+              onSelect={(e) => trackCaret(e.currentTarget, i)}
+              onFocus={(e) => trackCaret(e.currentTarget, i)}
+              onPaste={(e) => {
+                const lines = e.clipboardData.getData("text").split(/\r?\n/).filter((l) => l.trim())
+                if (lines.length < 2) return
+                e.preventDefault()
+                splice(i, item.trim() ? [item, ...lines] : lines)
+              }}
+              placeholder={i === 0 ? placeholder : undefined}
+              aria-label={`${label}, Punkt ${i + 1}`}
+              className="h-10 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <RemoveCell label={`Punkt ${i + 1} entfernen`} onRemove={() => remove(i)} />
+          </li>
+        ))}
+      </ul>
+      <AddRow label="Punkt hinzufügen" onClick={() => splice(items.length, [""], 0)} end />
+    </div>
   )
 }
 
@@ -1225,7 +1249,7 @@ export function ChoiceCell({
 }
 
 /** A count with − and + buttons, e.g. of projectiles; empty counts as 0 and it never goes below. */
-function Counter({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+export function Counter({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
   const count = Math.max(0, Number.parseInt(value, 10) || 0)
   const step = "flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
   return (

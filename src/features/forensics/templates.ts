@@ -16,12 +16,13 @@ import {
 } from "@/features/case-files/templates"
 import { rowTraces, storeTraces } from "@/features/case-files/traces"
 import type { Row, Value, Values } from "@/features/case-files/types"
-import type { SnippetsAtom } from "@/features/case-files/snippets"
-import { sameText } from "@/lib/text"
 import { SUBSTANCES } from "./substances"
 import { SubstancesInput } from "./substances-input"
 import { cyberStepsAtom, itemStepsAtom } from "./step-templates"
-import { foundRows, randomizeSubstances, SUBSTANCES_KEY, substanceOf, toxParts } from "./tox"
+import { ITEMS_KEY, parseSteps, STEPS_KEY, storeSteps, withLegacySteps } from "./items"
+import { ItemsInput } from "./items-input"
+import type { SnippetsAtom } from "@/features/case-files/snippets"
+import { foundRows, productName, randomizeSubstances, SUBSTANCES_KEY, toxParts } from "./tox"
 
 export type ForensicsTemplateId = "ballistik" | "blut" | "stichwaffen" | "tox" | "cyber" | "gegenstand"
 
@@ -568,13 +569,13 @@ const edgedWeapons = analysis({
 
 const TOX_DATE = "DD.MM.YYYY - HH:mm"
 
-const substanceNames = (value: Value | undefined) => foundRows(value).map((row) => substanceOf(row).name)
+const substanceNames = (value: Value | undefined) => foundRows(value).map(productName)
 
 const tox = analysis({
   id: "tox",
   label: "Toxikologische Analyse",
   emoji: "🧪",
-  description: "Betäubungsmittel mit Reinheit, Streckmitteln und Stichprobe. Nur Substanzen mit Menge.",
+  description: "Betäubungsmittel mit Reinheit, Streckmitteln und Stichprobe, auch negative Ergebnisse. Nur Asservate mit Menge.",
   title: "📝 [FAST-TA] Toxikologische Analyse",
   names: (r) => substanceNames(r.raw(SUBSTANCES_KEY)),
   namesHint: "die Substanzen mit Menge",
@@ -587,7 +588,7 @@ const tox = analysis({
     {
       title: "Asservate",
       description:
-        "Je Substanz Menge, Stichprobe, Einheit und Anmerkung; der Pfeil öffnet ihre Ergebnisse. Nur Substanzen mit Menge über 0 kommen in die Analyse.",
+        "Je Asservat Substanz, Menge und Stichprobe, das Ergebnis des Tests und bei einem positiven die Analyse, Schritt für Schritt im Dialog. Nur Asservate mit Menge über 0 kommen in die Analyse.",
       fields: [
         { type: "custom", key: SUBSTANCES_KEY, label: "Substanzen", component: SubstancesInput, randomize: randomizeSubstances },
       ],
@@ -608,11 +609,14 @@ const tox = analysis({
 
 /* 5./6. Cyber forensics and other items: the items in a table, then the examination step by step. */
 
-/** The items of the analysis, one row each, with the traces at typical spots. */
-function itemsTable(spots: string[]): TableField {
+/**
+ * The items of the analysis, one row each, with the traces at typical spots and their
+ * examination; each is edited in a dialog, step by step.
+ */
+function itemsTable(spots: string[], templates: SnippetsAtom): TableField {
   return {
     type: "table",
-    key: "asservate",
+    key: ITEMS_KEY,
     label: "Asservate",
     addLabel: "Asservat",
     columns: [
@@ -622,29 +626,10 @@ function itemsTable(spots: string[]): TableField {
       { key: "abgenommen", label: "Sichergestellt von", fallback: "N/A", group: "officer", autocomplete: true },
       { key: "bes", label: "BES", fallback: "N/A", ...TAKEN_FROM },
       tracesColumn(spots, "Keine"),
-    ],
-  }
-}
-
-/** The item names entered above, for assigning the steps to them. */
-const itemNames = (values: Values) =>
-  tableRows(values.asservate)
-    .map((a) => a.bezeichnung?.trim() ?? "")
-    .filter(Boolean)
-
-/** The examination, one step per row in the order it was done; a template fills in the examination and its result. */
-function stepsTable(templates: SnippetsAtom): TableField {
-  return {
-    type: "table",
-    key: "schritte",
-    label: "Untersuchungsschritte",
-    addLabel: "Schritt",
-    columns: [
-      { key: "asservat", label: "Asservat", fallback: "", options: itemNames, carry: true },
-      { key: "untersuchung", label: "Untersuchung", fallback: "N/A", autocomplete: true },
-      { key: "ergebnis", label: "Ergebnis", fallback: "N/A", wide: true, multiline: true },
+      { key: STEPS_KEY, label: "Untersuchung", fallback: "" },
     ],
     templates: { atom: templates, fill: (t) => ({ untersuchung: t.title, ergebnis: t.text }) },
+    editor: ItemsInput,
   }
 }
 
@@ -663,30 +648,27 @@ function itemsPart(r: Reader): Part {
 }
 
 /**
- * The steps, under the item they examined in the order of the items; steps of an item not in
- * the overview follow under its name. Each step is numbered, the lines of its result are sub-points.
+ * The steps, under the item they examined in the order of the items; steps of older analyses
+ * whose item isn't in the overview follow under its name. Each step is numbered, the lines of
+ * its result are sub-points.
  */
 function stepsPart(r: Reader): Part {
-  const names = r.rows("asservate").map((a) => a.bezeichnung)
-  const groups = new Map<string, { order: number; rows: Row[] }>()
-  for (const s of r.rows("schritte")) {
-    const i = names.findIndex((n) => sameText(n, s.asservat))
-    const title = i >= 0 ? `#${i + 1} ${names[i]}` : s.asservat.trim() || "Ohne Asservat"
-    const group = groups.get(title) ?? { order: i >= 0 ? i : names.length, rows: [] }
-    groups.set(title, { ...group, rows: [...group.rows, s] })
-  }
-  const ordered = [...groups].sort(([, a], [, b]) => a.order - b.order)
+  const items = r.rows(ITEMS_KEY)
+  const listed = items.length
   const line = (label: string, text: string) => `> - <font color=${r.colors.heading}><b>${label}:</b></font>${text && ` ${text}`}`
-  const body = ordered.map(([title, { rows }]) => {
-    const lines = rows.flatMap((s, j) => {
+  const body = withLegacySteps(items, r.raw(STEPS_KEY)).flatMap((item, i) => {
+    const steps = parseSteps(item[STEPS_KEY])
+    if (!steps.length) return []
+    const title = i < listed ? `#${i + 1} ${item.bezeichnung}` : item.bezeichnung || "Ohne Asservat"
+    const lines = steps.flatMap((s, j) => {
       const result = s.ergebnis
         .split("\n")
-        .map((l) => l.trim())
+        .map((l) => r.fill(l))
         .filter(Boolean)
-      const label = `${j + 1}. ${s.untersuchung}`
-      return result.length > 1 ? [line(label, ""), ...result.map((l) => `>   - ${l}`)] : [line(label, result[0] ?? "")]
+      const label = `${j + 1}. ${r.fill(s.untersuchung) || "N/A"}`
+      return result.length > 1 ? [line(label, ""), ...result.map((l) => `>   - ${l}`)] : [line(label, result[0] ?? "N/A")]
     })
-    return `> **${title}**\n${lines.join("\n")}`
+    return [`> **${title}**\n${lines.join("\n")}`]
   })
   return { title: "Untersuchung", body: body.join("\n>\n") }
 }
@@ -695,21 +677,15 @@ function stepsPart(r: Reader): Part {
 function stepAnalysis(a: Pick<Analysis, "id" | "label" | "emoji" | "description" | "title"> & { spots: string[]; templates: SnippetsAtom }) {
   return analysis({
     ...a,
-    names: (r) => r.rows("asservate").map((row) => row.bezeichnung),
+    names: (r) => r.rows(ITEMS_KEY).map((row) => row.bezeichnung),
     namesHint: "die Asservate",
     findings: ["DNA-Proben", "Fingerabdrücke"],
-    found: (r) => traceFindings(tableRows(r.raw("asservate"))),
+    found: (r) => traceFindings(tableRows(r.raw(ITEMS_KEY))),
     sections: [
       {
         title: "Asservate",
-        description: "Schritt 1: Jedes untersuchte Asservat in eine Zeile.",
-        fields: [itemsTable(a.spots)],
-      },
-      {
-        title: "Untersuchung",
-        description:
-          "Schritt 2: Jede Untersuchung in eine Zeile, in der Reihenfolge, in der sie gemacht wurde. „Aus Vorlage“ fügt einen Schritt mit vorbereitetem Ergebnis ein.",
-        fields: [stepsTable(a.templates)],
+        description: "Jedes untersuchte Asservat mit seinen Spuren und der Untersuchung, Schritt für Schritt im Dialog.",
+        fields: [itemsTable(a.spots, a.templates)],
       },
     ],
     sample: {
@@ -720,8 +696,8 @@ function stepAnalysis(a: Pick<Analysis, "id" | "label" | "emoji" | "description"
         abgenommen: "RANG Name - Department",
         bes: "NAME",
         spuren: SAMPLE_TRACES,
+        schritte: storeSteps([{ id: "sample", untersuchung: "[Untersuchung]", ergebnis: "XXX" }]),
       })),
-      schritte: [1, 2].map(() => ({ asservat: "[Bezeichnung]", untersuchung: "[Untersuchung]", ergebnis: "XXX" })),
     },
     parts: (r) => [itemsPart(r), stepsPart(r)],
   })

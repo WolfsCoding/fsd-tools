@@ -131,7 +131,7 @@ export function TracesCell({
   )
 }
 
-function TraceList({
+export function TraceList({
   kinds,
   spots,
   traces,

@@ -61,6 +61,24 @@ export function joinAnd(items: string[]) {
   return items.length < 2 ? (items[0] ?? "") : `${items.slice(0, -1).join(", ")} und ${items.at(-1)}`
 }
 
+/**
+ * The substances that are narcotics under § 14 TO, fined per unit. Not: medication (Sudafed),
+ * alcohol and other chemicals.
+ */
+export const NARCOTICS = new Set([
+  "weedsamen",
+  "grasknollen",
+  "joints",
+  "kokablaetter",
+  "kokain",
+  "mdma",
+  "meth",
+  "lsd",
+  "fentanyl",
+  "glatzkoepfe",
+  "heroin",
+])
+
 const GC = "mittels Gaschromatographie (GC) bestimmt"
 const CUT =
   "Streckmittel werden häufig hinzugefügt, um das Volumen der Droge zu erhöhen und den Gewinn zu maximieren, können jedoch gesundheitliche Risiken bergen."
@@ -478,3 +496,179 @@ export const SUBSTANCES: Substance[] = [
 ]
 
 export const SUBSTANCE_BY_KEY = new Map(SUBSTANCES.map((s) => [s.key, s]))
+
+/** A point of the finding of a test that wasn't positive: its bold title, then the text. */
+export type FindingPreset = [title: string, text: string]
+
+export const CHEMICAL = "Chemische Analyse"
+export const MICROSCOPIC = "Mikroskopische Analyse"
+export const QUANTITATIVE = "Quantitative Analyse"
+export const CONCLUSION = "Schlussfolgerung"
+
+/** Points of a test that wasn't positive, fitting what the substance was taken for. */
+export const SUBSTANCE_FINDINGS: Record<string, { negativ: FindingPreset[]; unklar: FindingPreset[] }> = {
+  weedsamen: {
+    negativ: [
+      [MICROSCOPIC, "Bei den Samen handelt es sich nicht um Cannabissamen, sondern um Samen einer anderen Pflanze (z. B. Vogelfutter)."],
+      [MICROSCOPIC, "Die Samen sind taub und nicht keimfähig."],
+    ],
+    unklar: [
+      [MICROSCOPIC, "Die Samen waren zu stark beschädigt, um sie eindeutig zu bestimmen."],
+      [CONCLUSION, "Eine Bestimmung ist erst nach einem Keimversuch möglich."],
+    ],
+  },
+  grasknollen: {
+    negativ: [
+      [QUANTITATIVE, "Bei dem Pflanzenmaterial handelt es sich um CBD-Hanf ohne relevanten THC-Gehalt."],
+      [MICROSCOPIC, "Das Pflanzenmaterial stammt nicht von Cannabis (z. B. eine Kräuter- oder Teemischung)."],
+      [CHEMICAL, "Der Farbreaktionstest auf THC zeigte keine Grünfärbung."],
+    ],
+    unklar: [
+      [MICROSCOPIC, "Das Pflanzenmaterial war verschimmelt bzw. zersetzt."],
+      [CHEMICAL, "Der Farbreaktionstest auf THC zeigte nur eine schwache Färbung."],
+      [QUANTITATIVE, "Der THC-Gehalt lag nahe der Nachweisgrenze."],
+    ],
+  },
+  joints: {
+    negativ: [
+      [CHEMICAL, "Der Joint enthielt ausschließlich Tabak."],
+      [CHEMICAL, "Der Joint enthielt eine legale Kräutermischung ohne THC."],
+    ],
+    unklar: [
+      [QUANTITATIVE, "Der Joint war größtenteils abgebrannt, für eine Analyse blieb zu wenig Material."],
+      [CONCLUSION, "Der Joint enthielt eine unbekannte Kräutermischung; synthetische Cannabinoide konnten nicht ausgeschlossen werden."],
+    ],
+  },
+  kokablaetter: {
+    negativ: [
+      [MICROSCOPIC, "Bei den Blättern handelt es sich nicht um Kokablätter (z. B. Lorbeer- oder Teeblätter)."],
+      [QUANTITATIVE, "Es wurden keine Kokainalkaloide nachgewiesen."],
+    ],
+    unklar: [
+      [MICROSCOPIC, "Die Blätter waren zu stark getrocknet bzw. zerfallen, um sie eindeutig zu bestimmen."],
+      [QUANTITATIVE, "Der Alkaloidgehalt lag unter der Nachweisgrenze."],
+    ],
+  },
+  kokain: {
+    negativ: [
+      [CHEMICAL, "Der Kobaltthiocyanat-Test zeigte keine Blaufärbung."],
+      [CONCLUSION, "Das Pulver enthielt kein Kokain, sondern Lidocain bzw. Koffein."],
+      [CONCLUSION, "Es handelt sich um Backpulver, Mehl oder Puderzucker."],
+    ],
+    unklar: [
+      [CHEMICAL, "Der Kobaltthiocyanat-Test zeigte nur eine schwache Blaufärbung."],
+      [CONCLUSION, "Beigemischte Lokalanästhetika (z. B. Lidocain) verfälschen den Schnelltest."],
+    ],
+  },
+  sudafed: {
+    negativ: [
+      [QUANTITATIVE, "Die Tabletten enthielten kein Pseudoephedrin."],
+      [CONCLUSION, "Es handelt sich um ein anderes, frei verkäufliches Erkältungsmittel."],
+    ],
+    unklar: [
+      [MICROSCOPIC, "Die Prägung der Tabletten war nicht lesbar."],
+      [CONCLUSION, "Die Tabletten waren zerbrochen bzw. zerrieben, eine Zuordnung zum Präparat ist nicht möglich."],
+    ],
+  },
+  mdma: {
+    negativ: [
+      [CHEMICAL, "Der Marquis-Test zeigte keine Schwarz-Violettfärbung."],
+      [CONCLUSION, "Die Tabletten enthielten kein MDMA, sondern ausschließlich Koffein."],
+      [CONCLUSION, "Es handelt sich um Traubenzucker- oder Vitamintabletten."],
+    ],
+    unklar: [
+      [CHEMICAL, "Der Marquis-Test zeigte eine untypische Färbung."],
+      [CONCLUSION, "Es wurden Hinweise auf ein anderes Amphetaminderivat gefunden (z. B. MDA oder MDEA)."],
+    ],
+  },
+  meth: {
+    negativ: [
+      [CHEMICAL, "Der Simon-Test zeigte keine Blaufärbung."],
+      [CONCLUSION, "Bei den Kristallen handelt es sich um Kandiszucker, Salz oder Alaun."],
+    ],
+    unklar: [
+      [CHEMICAL, "Der Marquis-Test zeigte eine Orangefärbung, der Simon-Test blieb jedoch uneindeutig."],
+      [CONCLUSION, "Rückstände aus der Herstellung verfälschen das Ergebnis."],
+    ],
+  },
+  lsd: {
+    negativ: [
+      [CHEMICAL, "Der Ehrlich-Test zeigte keine Violettfärbung."],
+      [CONCLUSION, "Das Löschpapier enthielt kein LSD."],
+    ],
+    unklar: [
+      [CHEMICAL, "Der Ehrlich-Test zeigte nur eine schwache Färbung."],
+      [CONCLUSION, "Es wurden Hinweise auf eine andere Substanz gefunden (z. B. NBOMe)."],
+    ],
+  },
+  maische: {
+    negativ: [
+      [QUANTITATIVE, "Die Maische war noch nicht vergoren, es wurde kein Ethanol nachgewiesen."],
+      [CONCLUSION, "Es handelt sich um Fruchtsaft ohne Alkohol."],
+    ],
+    unklar: [
+      [QUANTITATIVE, "Die Gärung war noch nicht abgeschlossen, der Ethanolgehalt kann sich noch ändern."],
+      [MICROSCOPIC, "Die Probe war mit Schimmel bzw. Bakterien belastet."],
+    ],
+  },
+  moonshine: {
+    negativ: [
+      [QUANTITATIVE, "Die Flüssigkeit enthielt keinen Alkohol (z. B. Wasser)."],
+      [CONCLUSION, "Es handelt sich um handelsüblichen Alkohol mit unbedenklichem Methanolgehalt."],
+    ],
+    unklar: [
+      [QUANTITATIVE, "Der Methanolgehalt lag nahe der Nachweisgrenze."],
+      [QUANTITATIVE, "Die Probe war mit Fremdstoffen verunreinigt, der Alkoholgehalt ließ sich nicht genau bestimmen."],
+    ],
+  },
+  fentanyl: {
+    negativ: [
+      [CHEMICAL, "Der Fentanyl-Teststreifen zeigte ein negatives Ergebnis."],
+      [CONCLUSION, "Es handelt sich um ein legales Schmerzmittel (z. B. Paracetamol oder Ibuprofen)."],
+    ],
+    unklar: [
+      [CHEMICAL, "Der Fentanyl-Teststreifen zeigte ein schwaches bzw. uneindeutiges Ergebnis."],
+      [CONCLUSION, "Es wurden Hinweise auf ein anderes Opioid bzw. ein Fentanyl-Analogon gefunden."],
+    ],
+  },
+  glatzkoepfe: {
+    negativ: [
+      [MICROSCOPIC, "Es handelt sich um Speisepilze (z. B. Champignons) ohne Psilocybin."],
+      [QUANTITATIVE, "Es wurde kein Psilocybin bzw. Psilocin nachgewiesen."],
+    ],
+    unklar: [
+      [MICROSCOPIC, "Die Pilze waren zu stark getrocknet bzw. zerfallen, um sie zu bestimmen."],
+      [CONCLUSION, "Es konnte nicht ausgeschlossen werden, dass es sich um eine giftige Pilzart handelt."],
+    ],
+  },
+  heroin: {
+    negativ: [
+      [CHEMICAL, "Der Marquis-Test zeigte keine Violettfärbung."],
+      [CONCLUSION, "Das Pulver enthielt kein Heroin, sondern ein Gemisch aus Paracetamol und Koffein."],
+    ],
+    unklar: [
+      [CHEMICAL, "Der Marquis-Test zeigte nur eine schwache Färbung."],
+      [CONCLUSION, "Es wurden Hinweise auf ein anderes Opioid gefunden."],
+    ],
+  },
+  chemikalien: {
+    negativ: [
+      [CHEMICAL, "Bei der Flüssigkeit handelt es sich um eine harmlose Haushaltschemikalie."],
+      [CONCLUSION, "Es wurden keine Ausgangsstoffe für die Herstellung von Betäubungsmitteln nachgewiesen."],
+    ],
+    unklar: [
+      [CHEMICAL, "Die Flasche enthielt ein Gemisch mehrerer Stoffe, das nicht vollständig bestimmt werden konnte."],
+      [CONCLUSION, "Die Beschriftung der Flasche stimmt nicht mit dem Inhalt überein."],
+    ],
+  },
+  desinfektion: {
+    negativ: [
+      [CONCLUSION, "Es handelt sich um ein handelsübliches Desinfektionsmittel."],
+      [CHEMICAL, "Es wurden keine verbotenen Zusätze nachgewiesen."],
+    ],
+    unklar: [
+      [CHEMICAL, "Die Zusammensetzung weicht vom handelsüblichen Produkt ab."],
+      [QUANTITATIVE, "Der Alkoholgehalt ließ sich nicht genau bestimmen."],
+    ],
+  },
+}

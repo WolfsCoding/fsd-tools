@@ -34,6 +34,7 @@ import type { DnaEntry } from "@/features/dna-db/types"
 import { HEADER_API } from "@/features/headers/paths"
 import { formatTraces, lookupLabel, rowLookup, rowTraces, type DbField, type TraceKind } from "./traces"
 import type { Row, Value, Values } from "./types"
+import type { Suggestions } from "./use-case-files"
 
 export type TemplateId =
   | "strafakte"
@@ -129,13 +130,15 @@ export interface ChecksField extends BaseField {
  */
 export type UpdateValue = (key: string, fn: (value: Value | undefined) => Value) => void
 
-/** What a custom field's component gets to edit its value. */
-export interface CustomFieldProps {
-  field: CustomField
+/** What a custom field's component (or a table's `editor`) gets to edit its value. */
+export interface CustomFieldProps<F extends Field = CustomField> {
+  field: F
   values: Values
   reader: Reader
   onChange: (key: string, value: Value) => void
   onUpdate: UpdateValue
+  /** Values entered elsewhere, offered in fields of the same group. */
+  suggestions: Suggestions
   docId: string
 }
 
@@ -263,6 +266,8 @@ export interface TableField extends BaseField {
   ownRow?: (me: { name: string; rank: string }) => Row
   /** Editable templates that add a row from the menu next to the add button; `fill` makes the row of one. */
   templates?: { atom: SnippetsAtom; fill: (template: Snippet) => Row }
+  /** Edits the rows with its own component instead of the table; they're still read and rendered as its columns. */
+  editor?: ComponentType<CustomFieldProps<TableField>>
 }
 
 export type Field = TextField | ListField | DateTimeField | ChecksField | ChoiceField | TableField | CustomField
