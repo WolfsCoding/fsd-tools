@@ -27,11 +27,13 @@ import {
 } from "./markdown"
 import type { Colors } from "./markdown"
 import { ChargesInput } from "./charges-input"
+import { BLOCKS_KEY, BlockEditor } from "./block-editor"
+import { blocksMarkdown, readBlocks } from "./blocks"
 import { EntryForm } from "./entry-form"
 import { roll, type Range } from "./range"
 import type { Snippet, SnippetsAtom } from "./snippets"
 import type { DnaEntry } from "@/features/dna-db/types"
-import { HEADER_API } from "@/features/headers/paths"
+import { headerImage } from "@/features/headers/paths"
 import { formatTraces, lookupLabel, rowLookup, rowTraces, type DbField, type TraceKind } from "./traces"
 import type { Row, Value, Values } from "./types"
 import type { Suggestions } from "./use-case-files"
@@ -45,6 +47,7 @@ export type TemplateId =
   | "aussage-zeuge"
   | "aussage-officer"
   | "aussage-beschuldigter"
+  | "eigene"
   | "eintrag"
 
 interface BaseField {
@@ -146,6 +149,7 @@ export interface CustomFieldProps<F extends Field = CustomField> {
 export interface DocFormProps {
   values: Values
   onChange: (key: string, value: Value) => void
+  onUpdate: UpdateValue
 }
 
 /** A field with its own input, for values none of the other fields fit. */
@@ -538,11 +542,7 @@ export function tableRows(value: Value | undefined): Row[] {
 
 /* Field groups and blocks several templates share. */
 
-/** A VPD header from the hosted header API. */
-export function headerImage(title: string) {
-  const params = new URLSearchParams({ title, subtitle: "Vinewood Police Department", logo: "vpd", scale: "2" })
-  return `${HEADER_API}?${params.toString().replaceAll("+", "%20")}`
-}
+export { headerImage }
 
 const CRIMINAL_BANNER = headerImage("Strafakte")
 const COLLECTIVE_BANNER = headerImage("Sammelakte")
@@ -1440,6 +1440,20 @@ const entry: Template = {
   render: (r) => r.filled("text"),
 }
 
+/** A case file built from scratch out of blocks: Abschnitte, text, lists, tables and fields. */
+const ownFile: Template = {
+  id: "eigene",
+  label: "Eigene Akte",
+  emoji: "🧩",
+  description: "Von Grund auf selbst gebaut: Abschnitte, Text, Listen, Tabellen und Felder.",
+  standalone: true,
+  attachable: [],
+  sections: [],
+  form: BlockEditor,
+  subject: () => "",
+  render: (r) => blocksMarkdown(readBlocks(r.raw(BLOCKS_KEY)), r),
+}
+
 export const TEMPLATES: Record<TemplateId, Template> = {
   strafakte: criminalFile,
   sammelakte: collectiveFile,
@@ -1449,5 +1463,6 @@ export const TEMPLATES: Record<TemplateId, Template> = {
   "aussage-zeuge": witnessStatement,
   "aussage-officer": officerStatement,
   "aussage-beschuldigter": suspectStatement,
+  eigene: ownFile,
   eintrag: entry,
 }

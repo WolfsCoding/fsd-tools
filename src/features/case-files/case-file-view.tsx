@@ -537,7 +537,11 @@ export function CaseFileView({
             {/* Keyed by document, so switching documents fades the new one in. */}
             <div key={current.id} ref={formRef} className="animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
               {template.form ? (
-                <template.form values={current.values} onChange={(key, value) => api.setValue(caseFile.id, current.id, key, value)} />
+                <template.form
+                  values={current.values}
+                  onChange={(key, value) => api.setValue(caseFile.id, current.id, key, value)}
+                  onUpdate={(key, fn) => api.updateValue(caseFile.id, current.id, key, fn)}
+                />
               ) : (
                 <DocForm
                   template={template}
