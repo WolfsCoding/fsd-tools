@@ -1,6 +1,7 @@
 import { useRef, useState } from "react"
 import { EllipsisIcon, EyeIcon, GripVerticalIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
+import { DateTimePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useReorder } from "@/components/use-reorder"
@@ -82,12 +83,11 @@ export function PlateTable({ checks, api, onAdd }: { checks: PlateCheck[]; api: 
                 </td>
               ))}
               <td className="border-r border-border/60 p-0">
-                <input
-                  type="datetime-local"
+                <DateTimePicker
                   value={check.date}
-                  onChange={(e) => api.updateCheck(check.id, { date: e.target.value })}
+                  onChange={(date) => api.updateCheck(check.id, { date })}
                   aria-label={`Datum (Zeile ${i + 1})`}
-                  className={cn(CELL_INPUT, "scheme-dark")}
+                  className={cn(CELL_INPUT, "rounded-none border-0 focus-visible:ring-0")}
                 />
               </td>
               <td className="border-r border-border/60 p-0">

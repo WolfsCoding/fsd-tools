@@ -22,6 +22,7 @@ export function StepDialog({
   title,
   steps,
   saveLabel = "Speichern",
+  missing,
   onSave,
   onCancel,
 }: {
@@ -29,6 +30,8 @@ export function StepDialog({
   title: string
   steps: Step[]
   saveLabel?: string
+  /** Why it can't be saved yet, e.g. "Ablage fehlt"; shown next to the disabled save button. */
+  missing?: string
   onSave: () => void
   onCancel: () => void
 }) {
@@ -40,7 +43,9 @@ export function StepDialog({
         onInteractOutside={(e) => e.preventDefault()}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        {open && <Steps title={title} steps={steps} saveLabel={saveLabel} onSave={onSave} onCancel={onCancel} />}
+        {open && (
+          <Steps title={title} steps={steps} saveLabel={saveLabel} missing={missing} onSave={onSave} onCancel={onCancel} />
+        )}
       </DialogContent>
     </Dialog>
   )
@@ -68,12 +73,14 @@ function Steps({
   title,
   steps,
   saveLabel,
+  missing,
   onSave,
   onCancel,
 }: {
   title: string
   steps: Step[]
   saveLabel: string
+  missing?: string
   onSave: () => void
   onCancel: () => void
 }) {
@@ -93,7 +100,7 @@ function Steps({
   return (
     <>
       <DialogPanel className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden p-0 sm:flex-row">
-        <nav aria-label="Schritte" className="shrink-0 border-b bg-muted/30 p-4 sm:w-56 sm:border-r sm:border-b-0 sm:p-5">
+        <nav aria-label="Schritte" className="shrink-0 overflow-auto border-b bg-muted/30 p-4 sm:w-56 sm:border-r sm:border-b-0 sm:p-5">
           <DialogTitle className="mb-4 truncate pr-8 sm:mb-6 sm:pr-0">{title}</DialogTitle>
           <ol className="flex gap-2 sm:flex-col sm:gap-0">
             {steps.map((s, i) => (
@@ -112,10 +119,10 @@ function Steps({
                   type="button"
                   onClick={() => setAt(i)}
                   aria-current={i === index ? "step" : undefined}
-                  className="group flex items-start gap-3 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-full sm:pb-6"
+                  className="group flex items-center gap-3 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-full sm:pb-6"
                 >
                   <Marker n={i + 1} state={state(i)} />
-                  <span className="hidden min-w-0 gap-0.5 pt-1 sm:grid">
+                  <span className="hidden min-w-0 gap-0.5 sm:grid">
                     <span
                       className={cn(
                         "text-sm font-medium",
@@ -152,7 +159,8 @@ function Steps({
             <ChevronLeftIcon /> Zurück
           </Button>
         )}
-        <Button variant={last ? "default" : "outline"} onClick={onSave}>
+        {missing && <span className="text-xs text-muted-foreground">{missing}</span>}
+        <Button variant={last ? "default" : "outline"} onClick={onSave} disabled={!!missing}>
           {saveLabel}
         </Button>
         {!last && (

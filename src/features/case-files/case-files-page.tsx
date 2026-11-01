@@ -1,42 +1,42 @@
-import { useCallback, useMemo, useState, type ReactNode } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router"
 import {
+  ChevronDownIcon,
   CircleCheckIcon,
   EllipsisIcon,
   EyeIcon,
   FileTextIcon,
+  FolderInputIcon,
   FolderOpenIcon,
   PencilIcon,
   PlusIcon,
   Trash2Icon,
   type LucideIcon,
 } from "lucide-react"
-import { Explorer, EXPLORER_CARD, EXPLORER_CARDS } from "@/components/explorer"
-import { Hint } from "@/components/hint"
+import { toast } from "sonner"
+import { cn } from "cn"
+import { Explorer } from "@/components/explorer"
 import { InlineEdit } from "@/components/inline-edit"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
-import { formatDateTime } from "@/lib/format-date"
+import { readFolder } from "@/lib/folder"
+import { formatDateAndTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
-import { CaseFileView } from "./case-file-view"
-import { casePath, searchTemplates, standaloneTemplates, templateGroups, type CaseFileKind } from "./kind"
+import { CaseFileView, StatusBadge } from "./case-file-view"
+import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
+import { ablageLabel, aktenzeichen, CASE_TYPES, caseTypeOf } from "./case-types"
+import { casePath, type CaseFileKind } from "./kind"
+import { NewCaseFileDialog, type NewCaseFile } from "./new-case-file-dialog"
 import { POLICE_FILES_KIND } from "./police-files"
 import type { CaseFile } from "./types"
 import { caseFileText, caseFileTitle, useCaseFiles, useOwnName, type CaseFilesApi } from "./use-case-files"
-import { TemplateList } from "./template-list"
 import { WithIds } from "./with-ids"
 
 /** Case files filled in from the department's templates and copied out as markdown. */
@@ -45,11 +45,31 @@ export function CaseFilesPage({ kind = POLICE_FILES_KIND }: { kind?: CaseFileKin
   const { createCaseFile, deleteCaseFile, restoreCaseFile } = api
   const me = useOwnName()
   const navigate = useNavigate()
+  /** The type the "Neue Akte" dialog starts with; closed while undefined. */
+  const [creating, setCreating] = useState<string>()
 
   const create = useCallback(
-    (template: string) => navigate(casePath(kind, createCaseFile(template)), { state: { created: true } }),
+    ({ template, details, values }: NewCaseFile) => {
+      setCreating(undefined)
+      navigate(casePath(kind, createCaseFile(template, values, details)))
+    },
     [createCaseFile, kind, navigate],
   )
+
+  /** A folder of Markdown files as a new Eigene Akte, each file an Eigener Eintrag named like it. */
+  const importFolder = async () => {
+    const folder = await readFolder()
+    if (!folder) return
+    if (!folder.files.length) return void toast.error(`Keine .md-Dateien in „${folder.name}“`)
+    const id = createCaseFile("eigene", undefined, { type: "eigene", title: folder.name })
+    for (const file of folder.files) {
+      const docId = api.addDoc(id, "eintrag")
+      // "02 Notiz.md", as "Als Ordner speichern" numbers them, is titled "Notiz".
+      api.setValues(id, docId, { titel: file.name.replace(/\.md$/i, "").replace(/^\d+\s+/, ""), text: file.text })
+    }
+    navigate(casePath(kind, id))
+    toast.success(`„${folder.name}“ mit ${folder.files.length === 1 ? "1 Eintrag" : `${folder.files.length} Einträgen`} importiert`)
+  }
 
   const onDelete = useCallback(
     (caseFile: CaseFile<string>) => {
@@ -62,97 +82,74 @@ export function CaseFilesPage({ kind = POLICE_FILES_KIND }: { kind?: CaseFileKin
   // One line per case file: typing changes the case files on every key, but this only when a title changes,
   // so the palette doesn't register its commands again each time.
   const listed = api.caseFiles
-    .map((a) => [a.id, caseFileTitle(a, me, kind.templates), kind.templates[a.docs[0].template].label].join("\t"))
+    .map((a) => [a.id, caseFileTitle(a, me, kind.templates), aktenzeichen(a)].join("\t"))
     .join("\n")
   const commandGroups = useMemo<CommandGroupDef[]>(
     () => [
       {
         heading: kind.title,
-        items: standaloneTemplates(kind).map((t) => ({
+        items: CASE_TYPES.map((t) => ({
           id: `${kind.id}:new:${t.id}`,
           label: `Neue ${t.label}`,
           icon: PlusIcon,
-          onSelect: () => create(t.id),
+          onSelect: () => setCreating(t.id),
         })),
       },
       {
         heading: `Alle ${kind.title}`,
         actionLabel: `${kind.noun} öffnen`,
         items: (listed ? listed.split("\n") : []).map((line) => {
-          const [id, label, template] = line.split("\t")
+          const [id, label, number] = line.split("\t")
           return {
             id: `${kind.id}:${id}`,
             label,
-            keywords: [template],
+            keywords: number ? [number] : [],
             icon: FileTextIcon,
             onSelect: () => navigate(casePath(kind, id)),
           }
         }),
       },
     ],
-    [listed, kind, navigate, create],
+    [listed, kind, navigate],
   )
   useRegisterCommands(kind.id, commandGroups)
 
+  const onNew = () => setCreating(CASE_TYPES[0].id)
+
   return (
-    <Routes>
-      <Route index element={<CaseFileList kind={kind} api={api} me={me} onCreate={create} onDelete={onDelete} />} />
-      <Route
-        path=":akteId"
-        element={<CaseFileRoute kind={kind} api={api} me={me} onCreate={create} onDelete={onDelete} />}
+    <>
+      <Routes>
+        <Route index element={<CaseFileList kind={kind} api={api} me={me} onNew={onNew} onImport={importFolder} onDelete={onDelete} />} />
+        <Route path=":akteId" element={<CaseFileRoute kind={kind} api={api} onDelete={onDelete} />} />
+      </Routes>
+      <NewCaseFileDialog
+        type={creating}
+        kind={kind}
+        caseFiles={api.caseFiles}
+        onCreate={create}
+        onClose={() => setCreating(undefined)}
       />
-    </Routes>
+    </>
   )
 }
 
-interface ListProps {
-  kind: CaseFileKind
-  api: CaseFilesApi
-  me: string
-  onCreate: (template: string) => void
-  onDelete: (caseFile: CaseFile<string>) => void
-}
-
-function CaseFileRoute(props: ListProps) {
-  const { akteId: caseFileId } = useParams()
-  const caseFile = props.api.caseFiles.find((a) => a.id === caseFileId)
-  if (!caseFile) return <Navigate to=".." replace />
-  return <CaseFileView key={caseFile.id} kind={props.kind} caseFile={caseFile} api={props.api} onDelete={props.onDelete} />
-}
-
-function NewCaseFileMenu({
+function CaseFileRoute({
   kind,
-  onCreate,
-  hint,
-  children,
+  api,
+  onDelete,
 }: {
   kind: CaseFileKind
-  onCreate: (template: string) => void
-  /** Tooltip of the trigger. */
-  hint?: string
-  children: ReactNode
+  api: CaseFilesApi
+  onDelete: (caseFile: CaseFile<string>) => void
 }) {
-  return (
-    <DropdownMenu>
-      <Hint label={hint}>
-        <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
-      </Hint>
-      <DropdownMenuContent align="end" className="w-64">
-        {templateGroups(kind).map((g, i) => (
-          <DropdownMenuGroup key={g.label}>
-            {i > 0 && <DropdownMenuSeparator />}
-            <DropdownMenuLabel>{g.label}</DropdownMenuLabel>
-            {g.templates.map((t) => (
-              <DropdownMenuItem key={t.id} onSelect={() => onCreate(t.id)}>
-                <span aria-hidden>{t.emoji}</span> {t.menuLabel ?? t.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuGroup>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
+  const { akteId: caseFileId } = useParams()
+  const caseFile = api.caseFiles.find((a) => a.id === caseFileId)
+  if (!caseFile) return <Navigate to=".." replace />
+  return <CaseFileView key={caseFile.id} kind={kind} caseFile={caseFile} api={api} onDelete={onDelete} />
 }
+
+/** Room right of a column, so the columns stand apart. */
+const GAP = "pr-20"
 
 /** What can be done with a case file of the list; shown in its context menu and its ⋯ menu. */
 interface ItemAction {
@@ -162,18 +159,33 @@ interface ItemAction {
   destructive?: boolean
 }
 
-function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
+function CaseFileList({
+  kind,
+  api,
+  me,
+  onNew,
+  onImport,
+  onDelete,
+}: {
+  kind: CaseFileKind
+  api: CaseFilesApi
+  me: string
+  onNew: () => void
+  onImport: () => void
+  onDelete: (caseFile: CaseFile<string>) => void
+}) {
   const [query, setQuery] = useState("")
   const [renamingId, setRenamingId] = useState<string>()
   const navigate = useNavigate()
+  const { entries } = useDnaEntries()
 
-  // Searched in the title, the template and everything entered.
+  // Searched in the title, the Aktenzeichen, the type, the Ablage and everything entered.
   const texts = useMemo(() => new Map(api.caseFiles.map((a) => [a.id, caseFileText(a).toLowerCase()])), [api.caseFiles])
   const q = query.trim().toLowerCase()
   const shown = q
     ? api.caseFiles.filter(
         (a) =>
-          [caseFileTitle(a, me, kind.templates), kind.templates[a.docs[0].template].label].some((s) =>
+          [caseFileTitle(a, me, kind.templates), aktenzeichen(a), caseTypeOf(a)?.label ?? "", ablageLabel(a, entries)].some((s) =>
             s.toLowerCase().includes(q),
           ) || texts.get(a.id)?.includes(q),
       )
@@ -191,96 +203,84 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
   ]
 
   const row = (a: CaseFile<string>) => {
-    const main = kind.templates[a.docs[0].template]
-    const attached = a.docs.length - 1
-    // The list is sorted by the last change, so that's the date it shows.
-    const meta = (
-      <span className="text-xs text-muted-foreground">
-        {main.label} · geändert {formatDateTime(a.updatedAt)}
-        {attached > 0 && ` · +${attached} ${attached === 1 ? "Dokument" : "Dokumente"}`}
-      </span>
-    )
-    const icon = a.settled ? (
-      <CircleCheckIcon aria-label="Erledigt" className="inline size-3.5 align-[-2px] text-emerald-400" />
-    ) : (
-      <span aria-hidden>{main.emoji}</span>
-    )
-    // While renaming, the row is no link, so clicks into the field don't navigate.
-    if (renamingId === a.id)
-      return (
-        <div key={a.id} className={EXPLORER_CARD}>
-          <span className="flex items-center gap-1 text-sm font-medium">
-            {icon}
-            <InlineEdit
-              value={caseFileTitle(a, me, kind.templates)}
-              allowEmpty
-              onDone={(title) => {
-                if (title !== undefined) api.rename(a.id, title)
-                setRenamingId(undefined)
-              }}
-              placeholder={caseFileTitle({ ...a, title: "" }, me, kind.templates)}
-              aria-label={`Titel der ${kind.noun}`}
-            />
-          </span>
-          {meta}
-        </div>
-      )
+    const title = caseFileTitle(a, me, kind.templates)
+    const number = aktenzeichen(a)
     return (
-      <div key={a.id} className="group/item relative">
-        <ContextMenu>
-          <ContextMenuTrigger asChild>
-            <Link
-              to={casePath(kind, a.id)}
-              onKeyDown={(e) => {
-                if (e.key === "F2") {
-                  e.preventDefault()
-                  setRenamingId(a.id)
-                }
-              }}
-              className={EXPLORER_CARD}
-            >
-              <WithIds text={caseFileTitle(a, me, kind.templates)} className="text-sm font-medium">
-                {icon}{" "}
-              </WithIds>
-              {meta}
-            </Link>
-          </ContextMenuTrigger>
-          {/* Not refocusing the row keeps the focus in the title field after "Umbenennen". */}
-          <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
-            {actions(a).map((x) => (
-              <ContextMenuItem key={x.label} variant={x.destructive ? "destructive" : undefined} onSelect={x.onSelect}>
-                <x.icon /> {x.label}
-              </ContextMenuItem>
-            ))}
-          </ContextMenuContent>
-        </ContextMenu>
-        {/* The same actions without a right click; shown on hover and focus. */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              aria-label={`Aktionen für „${caseFileTitle(a, me, kind.templates)}“`}
-              className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-            >
-              <EllipsisIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-            {actions(a).map((x) => (
-              <DropdownMenuItem key={x.label} variant={x.destructive ? "destructive" : undefined} onSelect={x.onSelect}>
-                <x.icon /> {x.label}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+      <ContextMenu key={a.id}>
+        <ContextMenuTrigger asChild>
+          {/* The name's link covers the whole row, so any cell opens the case file. */}
+          <TableRow className="group/item relative">
+            <TableCell className={cn(GAP, "tabular-nums")}>{number || <span className="text-muted-foreground">—</span>}</TableCell>
+            <TableCell className={cn(GAP, "tabular-nums")}>{formatDateAndTime(a.createdAt)}</TableCell>
+            <TableCell className={GAP}>
+              <StatusBadge settled={a.settled} />
+            </TableCell>
+            <TableCell className={cn(GAP, "max-w-56 truncate")}>
+              {a.ablage ? <WithIds text={ablageLabel(a, entries)} /> : <span className="text-muted-foreground">—</span>}
+            </TableCell>
+            <TableCell className="w-full max-w-0 truncate font-medium">
+              {renamingId === a.id ? (
+                // Clearing the title goes back to the automatic one.
+                <InlineEdit
+                  value={title}
+                  allowEmpty
+                  onDone={(t) => {
+                    if (t !== undefined) api.rename(a.id, t)
+                    setRenamingId(undefined)
+                  }}
+                  placeholder={caseFileTitle({ ...a, title: "" }, me, kind.templates)}
+                  aria-label={`Titel der ${kind.noun}`}
+                />
+              ) : (
+                <Link
+                  to={casePath(kind, a.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "F2") {
+                      e.preventDefault()
+                      setRenamingId(a.id)
+                    }
+                  }}
+                  className="outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
+                >
+                  <WithIds text={title} />
+                </Link>
+              )}
+            </TableCell>
+            <TableCell className="relative w-0 py-0 pr-2">
+              {/* The same actions without a right click; shown on hover and focus. */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    aria-label={`Aktionen für „${title}“`}
+                    className="text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                  >
+                    <EllipsisIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+                  {actions(a).map((x) => (
+                    <DropdownMenuItem key={x.label} variant={x.destructive ? "destructive" : undefined} onSelect={x.onSelect}>
+                      <x.icon /> {x.label}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </TableCell>
+          </TableRow>
+        </ContextMenuTrigger>
+        {/* Not refocusing the row keeps the focus in the title field after "Umbenennen". */}
+        <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
+          {actions(a).map((x) => (
+            <ContextMenuItem key={x.label} variant={x.destructive ? "destructive" : undefined} onSelect={x.onSelect}>
+              <x.icon /> {x.label}
+            </ContextMenuItem>
+          ))}
+        </ContextMenuContent>
+      </ContextMenu>
     )
   }
-
-  const open = shown.filter((a) => !a.settled)
-  const settled = shown.filter((a) => a.settled)
-  const templates = searchTemplates(kind, query)
 
   return (
     <Explorer
@@ -288,43 +288,62 @@ function CaseFileList({ kind, api, me, onCreate, onDelete }: ListProps) {
       toolbar={
         <>
           <SearchField value={query} onChange={setQuery} focusKey aria-label={`${kind.title} durchsuchen`} />
-          <NewCaseFileMenu kind={kind} onCreate={onCreate} hint={`Neue ${kind.noun}`}>
-            <Button>
+          <ButtonGroup>
+            {/* Its transparent right border would show the page between the two blue halves. */}
+            <Button onClick={onNew} className="border-r-0">
               <PlusIcon /> Neue {kind.noun}
             </Button>
-          </NewCaseFileMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                {/* The divider is drawn inside the blue, so it is exactly as tall as the buttons' fill. */}
+                <Button
+                  size="icon"
+                  aria-label={`Weitere Wege, eine ${kind.noun} anzulegen`}
+                  className="relative before:absolute before:inset-y-0 before:left-0 before:w-px before:bg-primary-foreground/25"
+                >
+                  <ChevronDownIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-auto">
+                <DropdownMenuItem onSelect={onImport}>
+                  <FolderInputIcon /> Aus Ordner importieren
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ButtonGroup>
         </>
       }
     >
-      <div className="grid gap-4">
-        {api.caseFiles.length === 0 && <Home kind={kind} onCreate={onCreate} />}
-        {open.length > 0 && (
-          <section className="grid gap-1.5">
-            <ListHeading>Offen</ListHeading>
-            <nav className={EXPLORER_CARDS}>{open.map(row)}</nav>
-          </section>
-        )}
-        {settled.length > 0 && (
-          <section className="grid gap-1.5">
-            <ListHeading>Erledigt</ListHeading>
-            <nav className={EXPLORER_CARDS}>{settled.map(row)}</nav>
-          </section>
-        )}
-        <TemplateList kind={kind} templates={templates} onCreate={onCreate} />
-      </div>
-      {q && shown.length === 0 && templates.length === 0 && (
-        <NoResults query={query} onReset={() => setQuery("")} />
+      {api.caseFiles.length === 0 ? (
+        <Home kind={kind} onNew={onNew} />
+      ) : (
+        shown.length > 0 && (
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className={GAP}>Aktenzeichen</TableHead>
+                  <TableHead className={GAP}>Datum</TableHead>
+                  <TableHead className={GAP}>Status</TableHead>
+                  <TableHead className={GAP}>Ablage</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead className="w-0">
+                    <span className="sr-only">Aktionen</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>{shown.map(row)}</TableBody>
+            </Table>
+          </div>
+        )
       )}
+      {q && shown.length === 0 && api.caseFiles.length > 0 && <NoResults query={query} onReset={() => setQuery("")} />}
     </Explorer>
   )
 }
 
-function ListHeading({ children }: { children: ReactNode }) {
-  return <h3 className="px-1 text-xs font-medium text-muted-foreground">{children}</h3>
-}
-
-/** Shown above the templates while nothing was created yet. */
-function Home({ kind, onCreate }: { kind: CaseFileKind; onCreate: (template: string) => void }) {
+/** Shown while nothing was created yet. */
+function Home({ kind, onNew }: { kind: CaseFileKind; onNew: () => void }) {
   return (
     <Empty className="p-6">
       <EmptyHeader>
@@ -335,11 +354,9 @@ function Home({ kind, onCreate }: { kind: CaseFileKind; onCreate: (template: str
         <EmptyDescription>{kind.empty.description}</EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
-        <NewCaseFileMenu kind={kind} onCreate={onCreate}>
-          <Button>
-            <PlusIcon /> Neue {kind.noun}
-          </Button>
-        </NewCaseFileMenu>
+        <Button onClick={onNew}>
+          <PlusIcon /> Neue {kind.noun}
+        </Button>
       </EmptyContent>
     </Empty>
   )

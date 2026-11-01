@@ -10,6 +10,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Combobox } from "@/components/combobox"
@@ -184,13 +185,19 @@ function DnaEntryForm({
                   onChange={(gender) => setProfile((p) => ({ ...p, gender }))}
                   options={GENDERS}
                 />
+              ) : key === "birthDate" ? (
+                <DatePicker
+                  id="dna-birthDate"
+                  value={profile.birthDate}
+                  onChange={(birthDate) => setProfile((p) => ({ ...p, birthDate }))}
+                  placeholder="TT.MM.JJJJ"
+                />
               ) : (
                 <Input
                   id={`dna-${key}`}
                   type={key === "email" ? "email" : key === "phone" ? "tel" : "text"}
                   value={profile[key]}
                   onChange={(e) => setProfile((p) => ({ ...p, [key]: e.target.value }))}
-                  placeholder={key === "birthDate" ? "TT.MM.JJJJ" : undefined}
                 />
               )}
             </div>

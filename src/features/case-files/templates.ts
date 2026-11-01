@@ -47,6 +47,7 @@ export type TemplateId =
   | "aussage-zeuge"
   | "aussage-officer"
   | "aussage-beschuldigter"
+  | "verwaltungsakte"
   | "eigene"
   | "eintrag"
 
@@ -150,6 +151,7 @@ export interface DocFormProps {
   values: Values
   onChange: (key: string, value: Value) => void
   onUpdate: UpdateValue
+  onEditingChange?: (editing: boolean) => void
 }
 
 /** A field with its own input, for values none of the other fields fit. */
@@ -283,6 +285,8 @@ export interface Section {
   /** Rights read out to the person (the Belehrung), shown above the fields. */
   notice?: string
   fields: Field[]
+  /** Shown in a tab of its own next to the case file's details instead of in the form; never in the Markdown. */
+  tab?: boolean
 }
 
 export interface Template<Id extends string = TemplateId> {
@@ -301,6 +305,8 @@ export interface Template<Id extends string = TemplateId> {
   sections: Section[]
   /** Shown instead of the sections, e.g. the own entry, which reads like a note until it is edited. */
   form?: ComponentType<DocFormProps>
+  /** As the Beschreibung, it shows its Markdown until "Bearbeiten" in its header, as every Bericht does. */
+  editable?: boolean
   /** Values of a new document, e.g. prefilled table rows. */
   initial?: Values
   /** Placeholder values of the empty template (e.g. "XXX" rows), so it shows how it's filled in; defaults to `initial`. */
@@ -644,6 +650,73 @@ const CLOSED_BY: TextField = {
   offers: ["officer", "sao"],
 }
 
+/** A person named "Beschuldigter" among the people of a case file. */
+const isAccused = (row: Row) => /^beschuldig/i.test(row.rolle ?? "")
+
+/** The tabs of a case file next to its details; kept in the main document. */
+export const CASE_TABS: Section[] = [
+  {
+    title: "Tatbestände",
+    description: "Straftaten aus dem Gesetzbuch wählen und die Strafe berechnen.",
+    tab: true,
+    fields: [{ type: "custom", key: "strafen", label: "Straftaten", component: ChargesInput }],
+  },
+  {
+    title: "Termine",
+    description: "Anhörungen, Verhandlungen und Fristen.",
+    tab: true,
+    fields: [
+      {
+        type: "table",
+        key: "termine",
+        label: "Termine",
+        addLabel: "Termin",
+        columns: [
+          { key: "datum", label: "Datum & Uhrzeit", fallback: "TT.MM.JJJJ HH:mm" },
+          { key: "termin", label: "Termin", fallback: "N/A", suggestions: ["Anhörung", "Verhandlung", "Frist"], wide: true },
+          { key: "mit", label: "Mit", fallback: "N/A", group: "person", autocomplete: true },
+          { key: "notiz", label: "Notiz", fallback: "--", wide: true },
+        ],
+      },
+    ],
+  },
+  {
+    title: "Beteiligte Personen",
+    description: "Beschuldigte, Geschädigte, Zeugen und Officer.",
+    tab: true,
+    fields: [
+      {
+        type: "table",
+        key: "beteiligte",
+        label: "Beteiligte Personen",
+        addLabel: "Person",
+        columns: [
+          {
+            key: "name",
+            label: "Name",
+            fallback: "N/A",
+            group: (row) => {
+              if (isAccused(row)) return "suspect"
+              if (/^zeug/i.test(row.rolle ?? "")) return "witness"
+              return /^officer/i.test(row.rolle ?? "") ? "officer" : "person"
+            },
+            autocomplete: true,
+            // Accused are picked from the DNA database.
+            lookup: { ...PERSON, only: isAccused },
+          },
+          {
+            key: "rolle",
+            label: "Rolle",
+            fallback: "Beschuldigter",
+            suggestions: ["Beschuldigter", "Geschädigter", "Zeuge", "Officer"],
+          },
+          { key: "notiz", label: "Notiz", fallback: "--", wide: true },
+        ],
+      },
+    ],
+  },
+]
+
 /** Where an investigation stands; `informed` is the field saying who informed the State Attorney Office. */
 const investigationStatus = (informed: TextField, preposition: string): ChecksField => ({
   type: "checks",
@@ -790,11 +863,7 @@ const criminalFile: Template = {
       fields: [TODOS],
     },
     OTHER_SECTION,
-    {
-      title: "Strafrechner",
-      description: "Straftaten aus dem Gesetzbuch wählen und die Strafe berechnen. Erscheint nicht im Markdown.",
-      fields: [{ type: "custom", key: "strafen", label: "Straftaten", component: ChargesInput }],
-    },
+    ...CASE_TABS,
   ],
   initial: {
     todos: todoRows("Fingerabdrücke nehmen", "DNA-Probe nehmen", "Zeuge `XY` befragen"),
@@ -871,6 +940,7 @@ const investigationFile: Template = {
       ],
     },
     OTHER_SECTION,
+    ...CASE_TABS,
   ],
   initial: {
     todos: todoRows("Forensische Berichte anfertigen", "Befragung von `XY`"),
@@ -936,6 +1006,7 @@ const collectiveFile: Template = {
       fields: [TODOS],
     },
     OTHER_SECTION,
+    ...CASE_TABS,
   ],
   initial: {
     todos: todoRows("Alle Beschuldigten in die Akte aufnehmen", "Aussage von `XY` aufnehmen"),
@@ -956,6 +1027,21 @@ const collectiveFile: Template = {
       section(r, "5. Sonstige Informationen:", bullets(r.lines("sonstiges"))),
       legend(r, "6. Legende:"),
     ) + "\n\n---",
+}
+
+const administrativeFile: Template = {
+  id: "verwaltungsakte",
+  label: "Verwaltungsakte",
+  emoji: "📝",
+  description: "Verwaltungsvorgang ohne Beschuldigten, z. B. eine Beschwerde oder ein Antrag.",
+  standalone: true,
+  attachable: ["bericht", "aussage-zeuge", "aussage-officer", "aussage-beschuldigter"],
+  // Built from blocks like the own case file.
+  sections: CASE_TABS,
+  form: BlockEditor,
+  editable: true,
+  subject: () => "",
+  render: (r) => blocksMarkdown(readBlocks(r.raw(BLOCKS_KEY)), r),
 }
 
 const reportTitle = (r: Reader) => `🔴 Beschuldigter: ${r.text("name")}`
@@ -1146,6 +1232,7 @@ const speeding: Template = {
       description: "Verstöße gegen die Sicherungspflichten; nur angehakte zählen.",
       fields: [{ type: "checks", key: "sicherungspflichten", label: "Sicherungspflichten", options: SAFETY_DUTIES }],
     },
+    ...CASE_TABS,
   ],
   subject: (r) => r.filled("ort"),
   render: (r) =>
@@ -1447,9 +1534,11 @@ const ownFile: Template = {
   emoji: "🧩",
   description: "Von Grund auf selbst gebaut: Abschnitte, Text, Listen, Tabellen und Felder.",
   standalone: true,
-  attachable: [],
-  sections: [],
+  attachable: ["bericht", "aussage-zeuge", "aussage-officer", "aussage-beschuldigter"],
+  // Only its tabs; the form is the block editor.
+  sections: CASE_TABS,
   form: BlockEditor,
+  editable: true,
   subject: () => "",
   render: (r) => blocksMarkdown(readBlocks(r.raw(BLOCKS_KEY)), r),
 }
@@ -1457,6 +1546,7 @@ const ownFile: Template = {
 export const TEMPLATES: Record<TemplateId, Template> = {
   strafakte: criminalFile,
   sammelakte: collectiveFile,
+  verwaltungsakte: administrativeFile,
   ermittlungsakte: investigationFile,
   bericht: report,
   geschwindigkeit: speeding,

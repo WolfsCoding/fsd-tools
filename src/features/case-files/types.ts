@@ -18,6 +18,8 @@ export interface Doc<Id extends string = TemplateId> {
   /** Set when renamed; otherwise the tab shows who or what the document is about. */
   title?: string
   values: Values
+  /** When it was added; documents from before this was kept have none. */
+  createdAt?: string
 }
 
 /** A case file: its main document plus attached ones (e.g. one report per suspect). */
@@ -31,6 +33,10 @@ export interface CaseFile<Id extends string = TemplateId> {
   docs: Doc<Id>[]
   /** Marked as done; still listed, after the open ones. */
   settled?: boolean
+  /** One of `CASE_TYPES`; case files from before the types were kept take it from their main document. */
+  type?: string
+  /** Who the case file is filed with. */
+  ablage?: string
   createdAt: string
   updatedAt: string
 }
@@ -41,6 +47,7 @@ export const Doc = Schema.Struct({
   template: Schema.String,
   title: Schema.optionalKey(Schema.String),
   values: Values,
+  createdAt: Schema.optionalKey(Schema.String),
 })
 
 export const CaseFile = Schema.Struct({
@@ -49,6 +56,8 @@ export const CaseFile = Schema.Struct({
   caseNumber: Schema.optionalKey(Schema.String),
   docs: Schema.Array(Doc),
   settled: Schema.optionalKey(Schema.Boolean),
+  type: Schema.optionalKey(Schema.String),
+  ablage: Schema.optionalKey(Schema.String),
   createdAt: Schema.String,
   updatedAt: Schema.String,
 })

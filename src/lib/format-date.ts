@@ -32,6 +32,13 @@ export function formatDate(iso: string | Date) {
   return dateOnly.format(new Date(iso))
 }
 
+const timeOnly = new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit" })
+
+/** e.g. "29.09.2026 09:00" */
+export function formatDateAndTime(iso: string | Date) {
+  return `${formatDate(iso)} ${timeOnly.format(new Date(iso))}`
+}
+
 const relative = new Intl.RelativeTimeFormat("de-DE", { numeric: "auto" })
 
 /** e.g. "in 3 Stunden", "morgen", "vor 5 Minuten" */

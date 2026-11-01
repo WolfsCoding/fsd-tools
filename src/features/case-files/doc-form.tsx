@@ -1,9 +1,7 @@
 import { Fragment, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import {
-  CalendarIcon,
   CheckIcon,
   ChevronDownIcon,
-  ClockIcon,
   DicesIcon,
   EyeIcon,
   GripVerticalIcon,
@@ -30,13 +28,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { useSettingsDialog } from "@/hooks/use-settings"
 import type { DnaEntry } from "@/features/dna-db/types"
-import { formatDate } from "@/lib/format-date"
+import { DatePicker, DateTimePicker } from "@/components/date-picker"
 import { sameText, textKey } from "@/lib/text"
 import { removedToast } from "@/lib/undo"
 import { Combobox, type ComboboxOption } from "@/components/combobox"
 import { DnaPicker } from "./dna-picker"
 import { SnippetMenu, TemplateMenu } from "./snippet-menu"
-import { localNow, ME } from "./markdown"
+import { ME } from "./markdown"
 import { rangeLabel, roll, type Range } from "./range"
 import { TracesCell } from "./traces-cell"
 import { dbValue, rowLookup, rowTraces, storeTraces, type DbField, type TraceKind } from "./traces"
@@ -59,6 +57,7 @@ import {
   type ListField,
   type Lookup,
   type Reader,
+  type Section,
   type TableField,
   type Template,
   type TextField,
@@ -113,7 +112,8 @@ export function DocForm({
   // Only the headers are cards; the opened content has no background of its own.
   return (
     <Accordion type="multiple" value={open} onValueChange={setOpen} className="overflow-hidden rounded-lg border">
-      {template.sections.map((s, i) => (
+      {/* The tabs come after the other sections, so leaving them out keeps the others' indexes. */}
+      {template.sections.filter((s) => !s.tab).map((s, i) => (
         <AccordionItem key={i} value={String(i)}>
           {/* The caret replaces the component's chevron on the right. */}
           <AccordionTrigger className="items-center justify-start gap-3 rounded-none bg-card py-3.5 pr-5 pl-4 hover:bg-accent/30 hover:no-underline **:data-[slot=accordion-trigger-icon]:hidden">
@@ -142,6 +142,18 @@ export function DocForm({
         </AccordionItem>
       ))}
     </Accordion>
+  )
+}
+
+/** A section's fields without its panel, e.g. in a tab of the case file. */
+export function SectionFields({ section, ...props }: Omit<FieldProps<Field>, "field" | "bare"> & { section: Section }) {
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-4">
+      <Notice text={section.notice} />
+      {section.fields.map((f) => (
+        <FieldInput key={f.key} {...props} field={f} bare={section.fields.length === 1} />
+      ))}
+    </div>
   )
 }
 
@@ -257,22 +269,7 @@ function TextInput({ field, values, reader, onChange, suggestions, docId }: Fiel
       ) : field.suggestions || field.autocomplete ? (
         <Combobox id={id} value={value} onChange={(v) => onChange(field.key, v)} options={options} placeholder={placeholder} />
       ) : field.today ? (
-        <div className="relative">
-          <Input
-            id={id}
-            value={value}
-            onChange={(e) => onChange(field.key, e.target.value)}
-            placeholder={placeholder}
-            className="pr-20"
-          />
-          <button
-            type="button"
-            onClick={() => onChange(field.key, formatDate(new Date()))}
-            className="absolute inset-y-1 right-1 flex items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <CalendarIcon className="size-3.5" /> Heute
-          </button>
-        </div>
+        <DatePicker id={id} value={value} onChange={(v) => onChange(field.key, v)} placeholder={placeholder} />
       ) : (
         <Input
           id={id}
@@ -603,41 +600,14 @@ function DateTimeInput({ field, values, onChange }: FieldProps<DateTimeField>) {
   const value = str(values[field.key])
   return (
     <Labeled id={id} label={field.label} className={SHORT}>
-      {value ? (
-        <div className="relative">
-          <Input
-            id={id}
-            type="datetime-local"
-            value={value}
-            onChange={(e) => onChange(field.key, e.target.value)}
-            className="pr-9 scheme-dark"
-          />
-          <Hint label="Zurück auf automatisch">
-            <button
-              type="button"
-              onClick={() => onChange(field.key, "")}
-              aria-label="Zeit leeren"
-              className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-muted-foreground hover:text-foreground"
-            >
-              <XIcon className="size-3.5" />
-            </button>
-          </Hint>
-        </div>
-      ) : (
-        <div className="flex h-9 items-center rounded-lg border border-dashed pr-1 pl-2.5">
-          <Hint label="Beim Kopieren werden Datum und Uhrzeit des Kopierens eingesetzt">
-            <span className="flex-1 truncate text-sm text-muted-foreground">Automatisch</span>
-          </Hint>
-          <button
-            id={id}
-            type="button"
-            onClick={() => onChange(field.key, localNow())}
-            className="flex h-7 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <ClockIcon className="size-3.5" /> Jetzt
-          </button>
-        </div>
-      )}
+      {/* Always a label: without one the Hint drops its wrapper, which remounts the picker and closes it. */}
+      <Hint
+        label={
+          value ? "Leeren setzt es zurück auf automatisch" : "Beim Kopieren werden Datum und Uhrzeit des Kopierens eingesetzt"
+        }
+      >
+        <DateTimePicker id={id} value={value} onChange={(v) => onChange(field.key, v)} placeholder="Automatisch" />
+      </Hint>
     </Labeled>
   )
 }

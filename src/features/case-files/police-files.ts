@@ -19,7 +19,7 @@ export const policeFilesAtom = stored(POLICE_FILES_KEY, Schema.Array(CaseFile), 
 export const legacyForensicsAtom = stored(LEGACY_FORENSICS_KEY, Schema.Array(CaseFile), NO_CASE_FILES)
 
 /** Akten that collect evidence; the analyses can be attached to them. */
-const TAKES_ANALYSES: string[] = ["strafakte", "ermittlungsakte", "sammelakte"]
+const TAKES_ANALYSES: string[] = ["strafakte", "ermittlungsakte", "sammelakte", "verwaltungsakte", "eigene"]
 
 /** `templates` where the Akten of `TAKES_ANALYSES` can also attach every analysis. */
 function withAnalyses(templates: Record<string, Template<string>>) {

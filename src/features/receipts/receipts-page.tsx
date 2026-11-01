@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { CopyIcon, ImageDownIcon, PlusIcon, ReceiptIcon, RotateCcwIcon, SlidersHorizontalIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
+import { DateTimePicker } from "@/components/date-picker"
 import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -201,17 +202,7 @@ function ReceiptForm({
           <Label htmlFor="receipt-date">
             Datum <span className="font-normal text-muted-foreground">(leer = jetzt)</span>
           </Label>
-          <div className="flex gap-2">
-            <Input
-              id="receipt-date"
-              type="datetime-local"
-              value={receipt.date}
-              onChange={(e) => onChange({ date: e.target.value })}
-            />
-            <Button variant="outline" onClick={() => onChange({ date: "" })} disabled={!receipt.date}>
-              Jetzt
-            </Button>
-          </div>
+          <DateTimePicker id="receipt-date" value={receipt.date} onChange={(date) => onChange({ date })} placeholder="Jetzt" />
         </div>
 
         <div className="grid gap-2">

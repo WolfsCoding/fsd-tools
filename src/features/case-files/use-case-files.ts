@@ -1,6 +1,7 @@
 import { useAtom } from "@effect/atom-react"
 import * as Schema from "effect/Schema"
 import { useCallback, useMemo } from "react"
+import { move } from "@/components/use-reorder"
 import { stored } from "@/lib/storage"
 import { sameText, textKey } from "@/lib/text"
 import type { CaseFileKind } from "./kind"
@@ -289,14 +290,8 @@ function newDoc(kind: CaseFileKind, template: string, docs: Doc<string>[] = [], 
     const from = sources.find((d) => d.values[key] !== undefined)
     if (from) values[key] = structuredClone(from.values[key])
   }
-  return { id, template, values }
+  return { id, template, values, createdAt: now() }
 }
-
-/**
- * Case files created in this session and not changed since. They are drafts: leaving one
- * (`discardDraft`) deletes it, so case files opened by mistake don't pile up.
- */
-const drafts = new Set<string>()
 
 /** The stored case files of `kind`, newest first, and everything that changes them. */
 export function useCaseFiles(kind: CaseFileKind) {
@@ -315,12 +310,10 @@ export function useCaseFiles(kind: CaseFileKind) {
     [stored, kind],
   )
 
-  /** Applies `fn` to case file `id`, which then is no draft anymore. */
+  /** Applies `fn` to case file `id`. */
   const change = useCallback(
-    (id: string, fn: (a: CaseFile<string>) => CaseFile<string>) => {
-      drafts.delete(id)
-      setCaseFiles((prev) => prev.map((a) => (a.id === id ? { ...fn(a), updatedAt: now() } : a)))
-    },
+    (id: string, fn: (a: CaseFile<string>) => CaseFile<string>) =>
+      setCaseFiles((prev) => prev.map((a) => (a.id === id ? { ...fn(a), updatedAt: now() } : a))),
     [setCaseFiles],
   )
 
@@ -334,25 +327,23 @@ export function useCaseFiles(kind: CaseFileKind) {
   const actions = useMemo(
     () => ({
       /**
-       * Creates a case file and returns its id. With `values` (e.g. taken over from an
-       * operation) they fill its main document over the template's initial ones and the case
-       * file counts as edited; without, it is a draft (see `drafts`).
+       * Creates a case file and returns its id. `values` (e.g. taken over from an operation)
+       * fill its main document over the template's initial ones; `details` are what the
+       * "Neue Akte" dialog asks for.
        */
-      createCaseFile(template: string, values?: Values) {
+      createCaseFile(
+        template: string,
+        values?: Values,
+        details?: Partial<Pick<CaseFile<string>, "title" | "type" | "caseNumber" | "ablage">>,
+      ) {
         const at = now()
         const main = newDoc(kind, template)
         if (values) main.values = { ...main.values, ...structuredClone(values) }
-        const caseFile: CaseFile<string> = { id: uid(), title: "", docs: [main], createdAt: at, updatedAt: at }
-        if (!values) drafts.add(caseFile.id)
+        const caseFile: CaseFile<string> = { id: uid(), title: "", ...details, docs: [main], createdAt: at, updatedAt: at }
         setCaseFiles((prev) => [...prev, caseFile])
         return caseFile.id
       },
-      /** Deletes case file `id` without asking while it is a draft nothing was entered in. */
-      discardDraft(id: string) {
-        if (drafts.delete(id)) setCaseFiles((prev) => prev.filter((a) => a.id !== id))
-      },
       deleteCaseFile(id: string) {
-        drafts.delete(id)
         setCaseFiles((prev) => prev.filter((a) => a.id !== id))
       },
       /** Puts back a case file removed with `deleteCaseFile`. */
@@ -365,6 +356,9 @@ export function useCaseFiles(kind: CaseFileKind) {
       /** An empty number goes back to the one entered in the documents. */
       setCaseNumber(id: string, caseNumber: string) {
         change(id, (a) => ({ ...a, caseNumber: caseNumber.replace(/^#/, "").trim() || undefined }))
+      },
+      setAblage(id: string, ablage: string) {
+        change(id, (a) => ({ ...a, ablage: ablage.trim() || undefined }))
       },
       setSettled(id: string, settled: boolean) {
         change(id, (a) => ({ ...a, settled: settled || undefined }))
@@ -389,6 +383,11 @@ export function useCaseFiles(kind: CaseFileKind) {
         const docId = uid()
         change(id, (a) => ({ ...a, docs: [...a.docs, newDoc(kind, template, a.docs, docId)] }))
         return docId
+      },
+      /** Moves an attached document from index `from` to `to`; the main document stays first. */
+      moveDoc(id: string, from: number, to: number) {
+        if (from < 1 || to < 1) return
+        change(id, (a) => ({ ...a, docs: move(a.docs, from, to) }))
       },
       removeDoc(id: string, docId: string) {
         change(id, (a) => ({ ...a, docs: a.docs.filter((d, i) => i === 0 || d.id !== docId) }))
