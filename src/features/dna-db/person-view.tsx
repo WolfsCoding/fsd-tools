@@ -93,7 +93,7 @@ function PersonView({
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       <header className="grid gap-3 border-b bg-card px-6 py-4">
         <div className="flex items-center gap-3">
-          <BackButton to={DNA_DB_BASE} label="Zur DNA-DB" />
+          <BackButton to={DNA_DB_BASE} label="Zu den Personen" />
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <UserIcon className="size-4" />
           </span>

@@ -133,7 +133,7 @@ function DnaEntryForm({
           <DialogDescription>
             {entry
               ? "Aktualisiere die Daten dieses Eintrags."
-              : "Füge der DNA-Datenbank eine Person oder eine noch unbekannte Spur hinzu."}
+              : "Füge eine Person oder eine noch unbekannte Spur hinzu."}
           </DialogDescription>
         </DialogHeader>
 

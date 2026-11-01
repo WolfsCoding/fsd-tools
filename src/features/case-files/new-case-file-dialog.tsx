@@ -178,7 +178,7 @@ function Steps({
               id={ids.ablage}
               label="Ablage"
               required
-              hint="Eine Person aus der DNA-Datenbank; wer noch fehlt, wird angelegt."
+              hint="Eine Person aus „Personen“; wer noch fehlt, wird angelegt."
               className=""
             >
               <DnaPicker

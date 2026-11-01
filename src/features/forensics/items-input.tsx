@@ -112,7 +112,7 @@ function itemSteps(draft: Draft, context: Context): Step[] {
     },
     {
       title: "Spuren",
-      description: "DNA und Fingerabdrücke: von wem sie sind und wo sie gefunden wurden. Neue IDs kommen in die DNA-Datenbank.",
+      description: "DNA und Fingerabdrücke: von wem sie sind und wo sie gefunden wurden. Neue IDs kommen zu den Personen.",
       content: <TracesStep {...draft} field={context.field} />,
     },
     {

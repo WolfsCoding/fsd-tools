@@ -43,7 +43,7 @@ export function DnaPicker({
   kinds: TraceKind[]
   /** Also takes people without an ID of the `kinds`, stored by name; new entries may then be a name. */
   names?: boolean
-  /** Names entered elsewhere (with `names`), e.g. the suspects of the case file; picking one keeps it as it is. */
+  /** Names entered elsewhere (with `names`), e.g. the suspects of the case file; picking one adds it to the database. */
   extra?: string[]
   /** Shows just the ID (e.g. next to a name column of its own) or just the name, instead of both. */
   show?: "id" | "name"
@@ -95,8 +95,10 @@ export function DnaPicker({
 
   function pick(option: Option) {
     if ("entry" in option) onChange(firstRef(option.entry, kinds) || option.entry.name.trim(), option.entry)
-    else if ("name" in option) onChange(option.name)
-    else {
+    else if ("name" in option) {
+      addEntry({ name: option.name, dnaId: "", fingerprintId: "" })
+      onChange(option.name)
+    } else {
       const kind = option.create
       const input: DnaEntryInput =
         kind === "name"

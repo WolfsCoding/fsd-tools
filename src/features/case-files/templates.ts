@@ -701,8 +701,8 @@ export const CASE_TABS: Section[] = [
               return /^officer/i.test(row.rolle ?? "") ? "officer" : "person"
             },
             autocomplete: true,
-            // Accused are picked from the DNA database.
-            lookup: { ...PERSON, only: isAccused },
+            // Everyone is picked from the DNA database, or added to it.
+            lookup: PERSON,
           },
           {
             key: "rolle",

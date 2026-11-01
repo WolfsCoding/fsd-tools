@@ -117,7 +117,7 @@ export function TracesCell({
               </DialogTitle>
               <DialogDescription>
                 Von wem sie {kinds.length > 1 ? "sind" : "ist"} und wo gefunden. Ohne Namen wird sie mit ihrer ID oder als
-                „Unbekannt“ geschrieben; neue IDs kommen in die DNA-Datenbank.
+                „Unbekannt“ geschrieben; neue IDs kommen zu den Personen.
               </DialogDescription>
             </DialogHeader>
             {draft && <TraceList kinds={kinds} spots={spots} traces={draft} onChange={update} onRemove={remove} />}
@@ -205,7 +205,7 @@ export function TraceList({
                   kinds={[k]}
                   show="id"
                   onChange={(v) => setId(i, k, v)}
-                  placeholder="Aus DNA-DB oder neu anlegen"
+                  placeholder="Aus Personen oder neu anlegen"
                   aria-label={`${TRACE_LABELS[k].id} (Spur ${i + 1})`}
                   className={cn(TRACE_INPUT, "text-sm")}
                 />

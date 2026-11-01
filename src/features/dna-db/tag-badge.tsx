@@ -16,13 +16,13 @@ const TAG_DOT: Record<TagColor, string> = {
 }
 
 const TAG_BADGE: Record<TagColor, string> = {
-  slate: "border-slate-500/30 bg-slate-500/10 text-slate-700 dark:text-slate-300",
-  red: "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
-  amber: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  sky: "border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300",
-  violet: "border-violet-500/30 bg-violet-500/10 text-violet-700 dark:text-violet-300",
-  pink: "border-pink-500/30 bg-pink-500/10 text-pink-700 dark:text-pink-300",
+  slate: "bg-slate-600 text-white",
+  red: "bg-red-600 text-white",
+  amber: "bg-amber-500 text-amber-950",
+  emerald: "bg-emerald-600 text-white",
+  sky: "bg-sky-600 text-white",
+  violet: "bg-violet-600 text-white",
+  pink: "bg-pink-600 text-white",
 }
 
 export function TagDot({ color, className }: { color: TagColor; className?: string }) {
@@ -41,7 +41,7 @@ export function TagBadge({
   return (
     <span
       className={cn(
-        "inline-flex h-5 items-center gap-1 rounded-full border px-2 text-xs font-medium whitespace-nowrap",
+        "inline-flex h-5 items-center gap-1 rounded-sm px-2 text-xs font-semibold whitespace-nowrap",
         TAG_BADGE[tag.color],
         onRemove && "pr-0.5",
       )}
@@ -52,7 +52,7 @@ export function TagBadge({
           type="button"
           onClick={onRemove}
           aria-label={`Tag „${tag.name}“ entfernen`}
-          className="rounded-full p-0.5 opacity-70 hover:bg-foreground/10 hover:opacity-100"
+          className="rounded-sm p-0.5 opacity-70 hover:bg-black/15 hover:opacity-100"
         >
           <XIcon className="size-3" />
         </button>

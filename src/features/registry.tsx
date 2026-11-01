@@ -72,8 +72,8 @@ export interface Feature {
 export const features: Feature[] = [
   {
     path: DNA_DB_BASE.slice(1),
-    title: "DNA-DB",
-    description: "Durchsuchbare Datenbank für DNA- und Fingerabdruck-IDs",
+    title: "Personen",
+    description: "Durchsuchbare Datenbank für Personen, DNA- und Fingerabdruck-IDs",
     icon: DnaIcon,
     element: <DnaDbPage />,
     storage: { entries: [dnaEntriesAtom, dnaDismissedAtom] },

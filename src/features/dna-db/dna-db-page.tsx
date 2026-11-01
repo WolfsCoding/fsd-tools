@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState, type KeyboardEvent, type MouseEvent } from "react"
-import { DnaIcon, FileTextIcon, FolderIcon, PlusIcon, UserIcon } from "lucide-react"
+import { DnaIcon, PlusIcon, UserIcon } from "lucide-react"
 import { Link, Route, Routes, useNavigate, useSearchParams } from "react-router"
 import { cn } from "cn"
 import { DataPagination } from "@/components/data-pagination"
@@ -7,13 +7,6 @@ import { InlineEdit } from "@/components/inline-edit"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyContent,
@@ -30,7 +23,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { caseFilePath } from "@/features/case-files/paths"
 import {
   useRegisterCommands,
   type CommandGroupDef,
@@ -38,7 +30,7 @@ import {
 import { pageCount } from "@/lib/pagination"
 import { textKey } from "@/lib/text"
 import { removedToast } from "@/lib/undo"
-import { mentionsOf, useCaseFileMentions, type CaseFileMention } from "./case-file-mentions"
+import { mentionsOf, useCaseFileMentions } from "./case-file-mentions"
 import { DnaCaseNumbersDialog } from "./dna-case-numbers-dialog"
 import { DnaEntryDialog } from "./dna-entry-dialog"
 import { DnaEntryContextMenu } from "./dna-entry-menu"
@@ -208,7 +200,7 @@ function EntryList() {
   const commandGroups = useMemo<CommandGroupDef[]>(
     () => [
       {
-        heading: "DNA-DB",
+        heading: "Personen",
         items: [
           {
             id: "dna-db:new",
@@ -281,10 +273,10 @@ function EntryList() {
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead>Name</TableHead>
+                  <TableHead>Geschlecht</TableHead>
+                  <TableHead>Telefonnummer</TableHead>
                   <TableHead>DNA-ID</TableHead>
                   <TableHead>Fingerabdruck-ID</TableHead>
-                  <TableHead>Tags</TableHead>
-                  <TableHead>Akten</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody ref={bodyRef} className="stagger-in">
@@ -339,30 +331,22 @@ function EntryList() {
                               {entryName(entry)}
                             </Link>
                           )}
+                          {entry.tags?.length ? (
+                            <div className="flex flex-wrap gap-1">
+                              {entry.tags.map((tag) => (
+                                <TagBadge key={tag.name} tag={tag} />
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                       </TableCell>
+                      <TableCell>{entry.gender?.trim() || <span className="text-muted-foreground">---</span>}</TableCell>
+                      <TableCell>{entry.phone?.trim() || <span className="text-muted-foreground">---</span>}</TableCell>
                       <TableCell>
                         <IdChip value={entry.dnaId} label="DNA-ID" />
                       </TableCell>
                       <TableCell>
                         <IdChip value={entry.fingerprintId} label="Fingerabdruck-ID" />
-                      </TableCell>
-                      <TableCell>
-                        {entry.tags?.length ? (
-                          <div className="flex flex-wrap gap-1">
-                            {entry.tags.map((tag) => (
-                              <TagBadge key={tag.name} tag={tag} />
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">---</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <CaseCounter count={entry.caseNumbers?.length ?? 0} onClick={() => setEditingCasesId(entry.id)} />
-                          <MentionsButton mentions={mentionsOf(mentions, entry)} />
-                        </div>
                       </TableCell>
                     </TableRow>
                   </DnaEntryContextMenu>
@@ -430,7 +414,7 @@ function NoEntries({ onCreate }: { onCreate: () => void }) {
         </EmptyMedia>
         <EmptyTitle>Noch keine Einträge</EmptyTitle>
         <EmptyDescription>
-          Lege den ersten Eintrag an, um die DNA-Datenbank zu füllen.
+          Lege den ersten Eintrag an, um die Personen-Datenbank zu füllen.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>
@@ -445,57 +429,4 @@ function NoEntries({ onCreate }: { onCreate: () => void }) {
 function sortByName(entries: DnaEntry[]) {
   // Unknown ones (without a name) go last.
   return [...entries].sort((a, b) => Number(!a.name.trim()) - Number(!b.name.trim()) || a.name.localeCompare(b.name))
-}
-
-/** How many case numbers the entry has ("3 Akten"); opens the dialog that manages them. */
-function CaseCounter({ count, onClick }: { count: number; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      // Don't let a quick double-click on the counter open the edit dialog.
-      onDoubleClick={(e) => e.stopPropagation()}
-      aria-label={`Aktennummern verwalten (${count})`}
-      className={
-        count
-          ? "inline-flex cursor-pointer items-center gap-1.5 rounded-md border bg-muted/60 px-2 py-0.5 text-xs transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          : "inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      }
-    >
-      <FolderIcon className="size-3.5" />
-      {count} {count === 1 ? "Akte" : "Akten"}
-    </button>
-  )
-}
-
-/** How many Akten mention the entry, with links to them; nothing while none does. */
-function MentionsButton({ mentions }: { mentions: CaseFileMention[] }) {
-  if (!mentions.length) return null
-  const label = `Erwähnt in ${mentions.length} ${mentions.length === 1 ? "Akte" : "Akten"}`
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          // Don't let a quick double-click on the button open the edit dialog.
-          onDoubleClick={(e) => e.stopPropagation()}
-          aria-label={label}
-          className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-xs text-sky-300 transition-colors hover:bg-sky-500/20 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          <FileTextIcon className="size-3.5" />
-          {mentions.length}
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="max-h-80 w-64 overflow-y-auto">
-        <DropdownMenuLabel>Erwähnt in</DropdownMenuLabel>
-        {mentions.map((m) => (
-          <DropdownMenuItem key={m.id} asChild>
-            <Link to={caseFilePath(m.id)}>
-              <FileTextIcon /> <span className="truncate">{m.title}</span>
-            </Link>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
 }
