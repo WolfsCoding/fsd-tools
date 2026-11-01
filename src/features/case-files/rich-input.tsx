@@ -1,0 +1,209 @@
+import { useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type HTMLAttributes, type KeyboardEvent, type ReactNode, type Ref } from "react"
+import { BanIcon, BoldIcon, CodeIcon } from "lucide-react"
+import { cn } from "cn"
+import { Hint } from "@/components/hint"
+import { caretOf, setCaret, textLength } from "./caret"
+import { parseRich, richMarkdown, sliceRuns, TEXT_COLORS, type Format, type Run } from "./rich-text"
+
+/** Inline code, as the Markdown shows it once pasted; the same in the text and in the headings. */
+export const CHIP = "inline-block rounded bg-muted px-1.5 font-mono text-[0.8em] leading-5"
+
+/** The runs shown in `el`: its text, formatted by the elements around each piece. */
+function readRuns(el: HTMLElement) {
+  const runs: Run[] = []
+  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    const run: Run = { text: n.textContent ?? "" }
+    for (let p = n.parentElement; p && p !== el; p = p.parentElement) {
+      if (p.tagName === "STRONG" || p.tagName === "B") run.bold = true
+      if (p.tagName === "CODE") run.code = true
+      run.color ??= p.dataset.color ?? p.getAttribute("color") ?? undefined
+    }
+    runs.push(run)
+  }
+  return runs
+}
+
+function renderRuns(el: HTMLElement, runs: readonly Run[]) {
+  el.replaceChildren(
+    ...runs.map((r) => {
+      let node: Node = document.createTextNode(r.text)
+      const wrap = (tag: string) => {
+        const e = document.createElement(tag)
+        e.append(node)
+        node = e
+        return e
+      }
+      if (r.code) wrap("code").className = CHIP
+      if (r.bold) wrap("strong")
+      if (r.color) {
+        const e = wrap("span")
+        e.dataset.color = r.color
+        e.style.color = r.color
+      }
+      return node
+    }),
+  )
+  // A line break at the end only shows with something after it.
+  if (runs[runs.length - 1]?.text.endsWith("\n")) el.append(document.createElement("br"))
+}
+
+interface RichInputProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  inputRef: (el: HTMLElement | null) => void
+}
+
+/**
+ * A text field showing its Markdown formatted: bold, code and colors. The browser only types
+ * plain text into it; line breaks and pastes go through the runs.
+ */
+export function RichInput({ value, onChange, placeholder, inputRef, className, onKeyDown, onPaste, ...props }: RichInputProps) {
+  const el = useRef<HTMLDivElement>(null)
+  /** The value the text shows, so typing doesn't render it again under the cursor. */
+  const shown = useRef<string>(null)
+
+  useLayoutEffect(() => {
+    const node = el.current
+    if (!node || shown.current === value) return
+    const caret = document.activeElement === node ? caretOf(node) : null
+    renderRuns(node, parseRich(value))
+    shown.current = value
+    if (caret) setCaret(node, Math.min(caret.start, textLength(node)), Math.min(caret.end, textLength(node)))
+  })
+
+  function emit(runs: readonly Run[]) {
+    const md = richMarkdown(runs)
+    shown.current = md
+    onChange(md)
+  }
+
+  function insert(node: HTMLElement, added: Run[]) {
+    const { start, end } = caretOf(node)
+    const runs = readRuns(node)
+    const next = [...sliceRuns(runs, 0, start), ...added, ...sliceRuns(runs, end)]
+    renderRuns(node, next)
+    setCaret(node, start + added.reduce((n, r) => n + r.text.length, 0))
+    emit(next)
+  }
+
+  return (
+    <div
+      ref={(node) => {
+        el.current = node
+        inputRef(node)
+      }}
+      contentEditable="plaintext-only"
+      suppressContentEditableWarning
+      role="textbox"
+      aria-multiline
+      data-block-input
+      data-placeholder={placeholder}
+      data-empty={value ? undefined : ""}
+      onInput={(e) => emit(readRuns(e.currentTarget))}
+      onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+        onKeyDown?.(e)
+        if (e.defaultPrevented || e.key !== "Enter" || !e.shiftKey) return
+        e.preventDefault()
+        const { start } = caretOf(e.currentTarget)
+        const before = sliceRuns(readRuns(e.currentTarget), start - 1, start)[0]
+        insert(e.currentTarget, [{ ...before, text: "\n" }])
+      }}
+      onPaste={(e: ClipboardEvent<HTMLDivElement>) => {
+        onPaste?.(e)
+        if (e.defaultPrevented) return
+        e.preventDefault()
+        insert(e.currentTarget, parseRich(e.clipboardData.getData("text/plain")))
+      }}
+      className={cn(
+        "min-w-[1ch] whitespace-pre-wrap break-words outline-none before:pointer-events-none before:text-muted-foreground/60 data-empty:before:content-[attr(data-placeholder)]",
+        className,
+      )}
+      {...props}
+    />
+  )
+}
+
+/** Formats the selected text: bold, code and a color, of the offered ones or any typed in. */
+export function FormatBar({
+  format,
+  bold,
+  onFormat,
+  style,
+  ref,
+}: {
+  format: { bold: boolean; code: boolean; color?: string }
+  /** False where the text is bold as a whole. */
+  bold: boolean
+  onFormat: (format: Format) => void
+  style: CSSProperties
+  ref: Ref<HTMLDivElement>
+}) {
+  const [color, setColor] = useState("")
+  const typed = color.trim()
+  const valid = !!typed && CSS.supports("color", typed)
+
+  return (
+    <div
+      ref={ref}
+      style={style}
+      // Pressing a button keeps the text selected; only the color field takes the cursor.
+      onMouseDown={(e) => e.target instanceof HTMLInputElement || e.preventDefault()}
+      className="absolute z-20 flex -translate-y-full items-center gap-0.5 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+    >
+      {bold && (
+        <Tool label="Fett (Strg+B)" active={format.bold} onClick={() => onFormat({ bold: !format.bold })}>
+          <BoldIcon className="size-3.5" />
+        </Tool>
+      )}
+      <Tool label="Code (Strg+E)" active={format.code} onClick={() => onFormat({ code: !format.code })}>
+        <CodeIcon className="size-3.5" />
+      </Tool>
+      <span className="mx-1 h-4 w-px bg-border" />
+      <Tool label="Ohne Farbe" active={!format.color} onClick={() => onFormat({ color: null })}>
+        <BanIcon className="size-3.5" />
+      </Tool>
+      {TEXT_COLORS.map((c) => (
+        <Tool key={c} label={c} active={format.color?.toLowerCase() === c.toLowerCase()} onClick={() => onFormat({ color: c })}>
+          <span className="size-3.5 rounded-full border border-border" style={{ background: c }} />
+        </Tool>
+      ))}
+      <input
+        value={color}
+        onChange={(e) => setColor(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return
+          e.preventDefault()
+          if (valid) onFormat({ color: typed })
+        }}
+        placeholder="#Farbe"
+        aria-label="Eigene Farbe, mit Enter setzen"
+        className={cn(
+          "ml-1 h-6 w-20 rounded border bg-transparent px-1.5 font-mono text-xs outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring",
+          typed && !valid && "text-destructive",
+        )}
+        style={valid ? { color: typed } : undefined}
+      />
+    </div>
+  )
+}
+
+function Tool({ label, active, onClick, children }: { label: string; active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <Hint label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        onClick={onClick}
+        className={cn(
+          "flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground",
+          active && "bg-accent text-foreground",
+        )}
+      >
+        {children}
+      </button>
+    </Hint>
+  )
+}

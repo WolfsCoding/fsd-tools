@@ -49,9 +49,9 @@ export function doc(...blocks: string[]) {
 }
 
 /** A centered banner image with the document title. */
-export function banner(src: string) {
+export function banner(src: string, width = "800px") {
   return `<center>
-    <img src="${src}" width="800px" />
+    <img src="${src}" width="${width}" />
 </center>`
 }
 

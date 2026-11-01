@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from "react"
 import {
   ArrowDownToLineIcon,
   ArrowLeftToLineIcon,
@@ -48,6 +48,7 @@ import {
   blockOf,
   headerSrc,
   isTextish,
+  markdownBlocks,
   NUMBER_PATTERN,
   NUMBER_TITLE,
   readBlocks,
@@ -59,6 +60,9 @@ import {
   type BlockType,
   type TextishBlock,
 } from "./blocks"
+import { caretOf, setCaret, textLength } from "./caret"
+import { CHIP, FormatBar, RichInput } from "./rich-input"
+import { formatAt, formatRich, plainText, splitRich, withoutBold, type Format } from "./rich-text"
 import type { DocFormProps } from "./templates"
 import { useColors } from "./use-case-files"
 
@@ -103,9 +107,38 @@ function matches(query: string) {
 type TableB = Extract<Block, { type: "table" }>
 type FieldsB = Extract<Block, { type: "fields" }>
 
-const insertAt = <T,>(items: readonly T[], index: number, item: T) => [...items.slice(0, index), item, ...items.slice(index)]
+/** Where the cursor goes: a position, or a selection from and to. */
+type Caret = "start" | "end" | number | readonly [number, number]
+
+const insertAt =<T,>(items: readonly T[], index: number, item: T) => [...items.slice(0, index), item, ...items.slice(index)]
 
 const newId = () => crypto.randomUUID()
+
+/** The key of a block's first input; a divider has none. */
+const inputKey = (b: Block) =>
+  b.type === "table"
+    ? `${b.id}:h0`
+    : b.type === "fields"
+      ? `${b.id}:k0`
+      : b.type === "header"
+        ? `${b.id}:title`
+        : b.type === "divider"
+          ? undefined
+          : b.id
+
+interface History {
+  undo: string[]
+  redo: string[]
+  typed: { id: string; at: number }
+}
+
+/** Keeps `state` to go back to before a change; typing on in the same block within a second stays one step. */
+function record(h: History, state: string, typing?: string) {
+  const now = Date.now()
+  if (!typing || typing !== h.typed.id || now - h.typed.at > 1000) h.undo.push(state)
+  h.typed = { id: typing ?? "", at: now }
+  h.redo = []
+}
 /** Shown while the page is empty. */
 const START: Block[] = [{ id: "start", type: "text", text: "" }]
 
@@ -113,8 +146,6 @@ const START: Block[] = [{ id: "start", type: "text", text: "" }]
 // for values, thick rules and two-shaded tables.
 const QUOTE = "border-l-[3px] border-l-muted-foreground/25 pl-4 text-sm leading-6"
 const RULE = "border-t-[3px] border-muted-foreground/25"
-const CHIP = "inline-block rounded bg-muted px-1.5 font-mono text-[0.8em] leading-5"
-const AREA = "field-sizing-content w-full min-w-0 resize-none bg-transparent outline-none placeholder:text-muted-foreground/60"
 const CHIP_INPUT = cn(CHIP, "field-sizing-content max-w-full min-w-[3ch] outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring")
 /** Where the + and the handle sit, level with the first line of each block. */
 const GUTTER_TOP: Record<BlockType, string> = {
@@ -148,21 +179,47 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
   const { colors } = useColors()
   const stored = readBlocks(values[BLOCKS_KEY])
   const blocks = stored.length ? stored : START
-  const set = (next: readonly Block[]) => onChange(BLOCKS_KEY, writeBlocks(next))
+  /** Earlier and undone states of the blocks, for Strg+Z and Strg+Y; the last change typed. */
+  const history = useRef<History>({ undo: [], redo: [], typed: { id: "", at: 0 } })
+  function set(next: readonly Block[], typing?: string) {
+    record(history.current, writeBlocks(stored), typing)
+    onChange(BLOCKS_KEY, writeBlocks(next))
+  }
+  /** Goes back one change, or forward again after going back. */
+  function undo(redo: boolean) {
+    const h = history.current
+    const [from, to] = redo ? [h.redo, h.undo] : [h.undo, h.redo]
+    const state = from.pop()
+    if (state === undefined) return
+    to.push(writeBlocks(stored))
+    h.typed = { id: "", at: 0 }
+    const restored = readBlocks(state)
+    // The cursor goes to the first block that changed, or the last one if the change was at the end;
+    // it mustn't be lost with a removed block, or the next Strg+Z goes to the browser.
+    const changed = restored.find((b, i) => JSON.stringify(b) !== JSON.stringify(stored[i])) ?? restored[restored.length - 1]
+    const key = changed && inputKey(changed)
+    if (key) focusAfter(key, "end")
+    else root.current?.focus()
+    setSlash(null)
+    onChange(BLOCKS_KEY, state)
+  }
   const reorder = useReorder((from, to) => set(move([...blocks], from, to)))
   const [slash, setSlash] = useState<{ id: string; active: number } | null>(null)
   const [menu, setMenu] = useState<string | null>(null)
   const root = useRef<HTMLDivElement>(null)
-  const refs = useRef(new Map<string, HTMLTextAreaElement | HTMLInputElement>())
+  const refs = useRef(new Map<string, HTMLElement>())
   /** Where the cursor goes after the next change. */
-  const focusNext = useRef<{ key: string; at: "start" | "end" | number } | null>(null)
+  const focusNext = useRef<{ key: string; at: Caret } | null>(null)
+  /** The text selected in a block, which the format bar formats; where it is in the block's row. */
+  const [selection, setSelection] = useState<{ id: string; start: number; end: number; left: number; top: number } | null>(null)
+  const formatBar = useRef<HTMLDivElement>(null)
 
-  function focus(key: string, at: "start" | "end" | number = "start") {
+  function focus(key: string, at: Caret = "start") {
     const el = refs.current.get(key)
     if (!el) return
     el.focus()
-    const pos = at === "start" ? 0 : at === "end" ? el.value.length : at
-    el.setSelectionRange(pos, pos)
+    if (typeof at === "object") setCaret(el, at[0], at[1])
+    else setCaret(el, at === "start" ? 0 : at === "end" ? textLength(el) : at)
   }
 
   useLayoutEffect(() => {
@@ -172,27 +229,47 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
     focus(next.key, next.at)
   })
 
-  const ref = (key: string) => (el: HTMLTextAreaElement | HTMLInputElement | null) => {
+  useEffect(() => {
+    const onSelect = () => {
+      const el = document.activeElement
+      // The color field of the bar takes the cursor while the selection is kept.
+      if (formatBar.current?.contains(el)) return
+      const id = el instanceof HTMLElement ? el.dataset.formatId : undefined
+      const sel = getSelection()
+      const row = el?.closest("[data-block-row]")
+      if (!id || !sel?.rangeCount || sel.isCollapsed || !row || !(el instanceof HTMLElement)) return setSelection(null)
+      const at = sel.getRangeAt(0).getBoundingClientRect()
+      const box = row.getBoundingClientRect()
+      setSelection({ id, ...caretOf(el), left: Math.max(at.left - box.left, 0), top: at.top - box.top - 6 })
+    }
+    document.addEventListener("selectionchange", onSelect)
+    return () => document.removeEventListener("selectionchange", onSelect)
+  }, [])
+
+  const ref = (key: string) => (el: HTMLElement | null) => {
     if (el) refs.current.set(key, el)
     else refs.current.delete(key)
   }
-  const focusAfter = (key: string, at: "start" | "end" | number = "start") => (focusNext.current = { key, at })
-  const replace = (id: string, next: Block | Block[]) => set(blocks.flatMap((b) => (b.id === id ? next : [b])))
-  const update = <B extends Block>(b: B, patch: Partial<B>) => replace(b.id, { ...b, ...patch })
+  const focusAfter = (key: string, at: Caret = "start") => (focusNext.current = { key, at })
+  /** `typing` names the block typed in; changes to the same one a moment apart undo together. */
+  const replace = (id: string, next: Block | Block[], typing?: string) => set(blocks.flatMap((b) => (b.id === id ? next : [b])), typing)
+  const update = <B extends Block,>(b: B, patch: Partial<B>, typing?: string) => replace(b.id, { ...b, ...patch }, typing)
 
   function insertAfter(i: number, b: Block) {
     set([...blocks.slice(0, i + 1), b, ...blocks.slice(i + 1)])
   }
 
   /** Turns `b` into a block of `type`, keeping `text` where the new one has text. */
-  function convert(b: Block, type: BlockType, text = "", at: "start" | "end" = "start") {
+  function convert(b: Block, type: BlockType, md = "", at: "start" | "end" = "start") {
     setSlash(null)
+    // An Abschnitt is written as code, a Hinweis as bold, so their text can't have those.
+    const text = type === "section" || type === "header" ? plainText(md) : type === "note" ? withoutBold(md) : md
     if (type === "divider") {
       const after = blockOf("text", newId(), text)
       focusAfter(after.id)
       return replace(b.id, [blockOf("divider", b.id), after])
     }
-    focusAfter(type === "table" ? `${b.id}:h0` : type === "fields" ? `${b.id}:k0` : type === "header" ? `${b.id}:title` : b.id, at)
+    focusAfter(inputKey(blockOf(type, b.id)) ?? b.id, at)
     replace(b.id, blockOf(type, b.id, text))
   }
 
@@ -232,13 +309,18 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
 
   /** Moves the cursor to the input before or after `el`; false if there is none. */
   function moveFocus(el: HTMLElement, by: -1 | 1) {
-    const all = [...(root.current?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("[data-block-input]") ?? [])]
-    const next = all[all.indexOf(el as HTMLInputElement) + by]
+    const all = [...(root.current?.querySelectorAll<HTMLElement>("[data-block-input]") ?? [])]
+    const next = all[all.indexOf(el) + by]
     if (!next) return false
     next.focus()
-    const pos = by < 0 ? next.value.length : 0
-    next.setSelectionRange(pos, pos)
+    setCaret(next, by < 0 ? textLength(next) : 0)
     return true
+  }
+
+  /** Sets `format` on the selected text of `b`, which stays selected. */
+  function applyFormat(b: TextishBlock, format: Format, start: number, end: number) {
+    focusAfter(b.id, [start, end])
+    update(b, { text: formatRich(b.text, start, end, format) })
   }
 
   function changeText(b: TextishBlock, text: string) {
@@ -248,10 +330,32 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
       if (hit) return convert(b, hit[1], text.slice(hit[0].length), "end")
       setSlash(SLASH.test(text) ? { id: b.id, active: 0 } : null)
     }
-    update(b, { text })
+    update(b, { text }, b.id)
   }
 
-  function textKeyDown(e: KeyboardEvent<HTMLTextAreaElement>, b: TextishBlock, i: number, items: typeof BLOCKS | null) {
+  /** Pasted Markdown of several lines becomes its blocks, put in where the cursor is. */
+  function paste(e: ClipboardEvent<HTMLDivElement>, b: TextishBlock, i: number) {
+    const text = e.clipboardData.getData("text/plain")
+    if (!text.includes("\n")) return
+    const parsed = markdownBlocks(text, newId)
+    // Plain lines stay text, as typed.
+    if (!parsed.length || (parsed.length === 1 && parsed[0].type === "text")) return
+    e.preventDefault()
+    const { start, end } = caretOf(e.currentTarget)
+    const [before, after] = splitRich(b.text, start, end)
+    const last = parsed[parsed.length - 1]
+    if (isTextish(last)) focusAfter(last.id, "end")
+    setSlash(null)
+    set([
+      ...blocks.slice(0, i),
+      ...(before.trim() && !SLASH.test(before) ? [{ ...b, text: before }] : []),
+      ...parsed,
+      ...(after.trim() ? [{ ...b, id: newId(), text: after }] : []),
+      ...blocks.slice(i + 1),
+    ])
+  }
+
+  function textKeyDown(e: KeyboardEvent<HTMLDivElement>, b: TextishBlock, i: number, items: typeof BLOCKS | null) {
     const el = e.currentTarget
     if (items && slash) {
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -268,16 +372,23 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
         return setSlash(null)
       }
     }
-    const start = el.selectionStart
-    const end = el.selectionEnd
+    const { start, end } = caretOf(el)
     const list = b.type === "bullet" || b.type === "check"
+    const key = e.key.toLowerCase()
+    if ((e.ctrlKey || e.metaKey) && (key === "b" || key === "e")) {
+      e.preventDefault()
+      if (start === end || b.type === "section" || (key === "b" && b.type === "note")) return
+      const now = formatAt(b.text, start, end)
+      return applyFormat(b, key === "b" ? { bold: !now.bold } : { code: !now.code }, start, end)
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       // Enter on an empty point ends the list.
       if (list && !b.text) return convert(b, "text")
-      const after = blockOf(list ? b.type : "text", newId(), b.text.slice(end))
+      const [head, tail] = splitRich(b.text, start, end)
+      const after = blockOf(list ? b.type : "text", newId(), tail)
       focusAfter(after.id)
-      set([...blocks.slice(0, i), { ...b, text: b.text.slice(0, start) }, after, ...blocks.slice(i + 1)])
+      set([...blocks.slice(0, i), { ...b, text: head }, after, ...blocks.slice(i + 1)])
     } else if (e.key === "Backspace" && start === 0 && end === 0) {
       // At the start a block first becomes text, then joins the one before.
       if (b.type !== "text") {
@@ -288,7 +399,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
       if (!prev) return
       if (isTextish(prev)) {
         e.preventDefault()
-        focusAfter(prev.id, prev.text.length)
+        focusAfter(prev.id, plainText(prev.text).length)
         set([...blocks.slice(0, i - 1), { ...prev, text: prev.text + b.text }, ...blocks.slice(i + 1)])
       } else if (prev.type === "divider") {
         e.preventDefault()
@@ -299,7 +410,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
         moveFocus(el, -1)
         set(blocks.filter((x) => x !== b))
       }
-    } else if ((e.key === "ArrowUp" && start === 0) || (e.key === "ArrowDown" && end === el.value.length)) {
+    } else if ((e.key === "ArrowUp" && start === 0) || (e.key === "ArrowDown" && end === textLength(el))) {
       if (moveFocus(el, e.key === "ArrowUp" ? -1 : 1)) e.preventDefault()
     }
   }
@@ -315,7 +426,19 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
   let number = 0
 
   return (
-    <div ref={root}>
+    <div
+      ref={root}
+      // Takes the cursor after an undo leaves no input to put it in, so Strg+Z still lands here.
+      tabIndex={-1}
+      className="outline-none"
+      onKeyDown={(e) => {
+        const key = e.key.toLowerCase()
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || (key !== "z" && key !== "y")) return
+        // The browser's own undo would only reach into the field with the cursor.
+        e.preventDefault()
+        undo(key === "y" || e.shiftKey)
+      }}
+    >
       {blocks.map((b, i) => {
         const prevType = blocks[i - 1]?.type
         const nextType = blocks[i + 1]?.type
@@ -327,16 +450,16 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
 
         const area = (className: string, placeholder: string) =>
           isTextish(b) && (
-            <textarea
-              ref={ref(b.id)}
-              data-block-input
-              rows={1}
+            <RichInput
+              inputRef={ref(b.id)}
+              data-format-id={b.type === "section" ? undefined : b.id}
               value={b.text}
               placeholder={placeholder}
               aria-label={typeName(b.type)}
-              onChange={(e) => changeText(b, e.target.value)}
+              onChange={(text) => changeText(b, text)}
               onKeyDown={(e) => textKeyDown(e, b, i, items)}
-              className={cn(AREA, className)}
+              onPaste={(e) => paste(e, b, i)}
+              className={className}
             />
           )
 
@@ -347,7 +470,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
               <div className={cn(QUOTE, "flex flex-wrap items-baseline gap-1")} style={{ color: colors.heading }}>
                 <code className={cn(CHIP, "select-none")}>{number}.</code>
                 <code className={cn(CHIP, "flex max-w-full items-baseline")}>
-                  {area("w-auto max-w-full placeholder:text-current/50", "Abschnitt")}:
+                  {area("max-w-full before:text-current/50", "Abschnitt")}:
                 </code>
               </div>
             )
@@ -359,7 +482,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                   {/* An empty line has no quote in the Markdown, so it shows none until it is written in. */}
                   <div className={cn(QUOTE, !b.text && "border-l-transparent focus-within:border-l-muted-foreground/25")}>
                     {area(
-                      cn(blocks.length > 1 && "placeholder:opacity-0 focus:placeholder:opacity-100"),
+                      cn(blocks.length > 1 && "before:opacity-0 focus:before:opacity-100"),
                       "Tippe / für Bausteine oder schreib einfach los",
                     )}
                   </div>
@@ -463,7 +586,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
             body = (
               <div className="relative">
                 {b.title.trim() ? (
-                  <img src={headerSrc(b.title)} width={800} alt={`Header-Bild: ${b.title.trim()}`} className="mx-auto max-w-full" />
+                  <img src={headerSrc(b.title)} width={b.width ?? 800}alt={`Header-Bild: ${b.title.trim()}`} className="mx-auto max-w-full" />
                 ) : (
                   <div className="flex h-28 justify-center rounded-md border border-dashed pt-6 text-muted-foreground">
                     <ImageIcon className="size-4" />
@@ -483,11 +606,11 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
             break
           }
           case "table":
-            body = <TableBlock block={b} inputRef={ref} onChange={(patch) => update(b, patch)} focus={focus} focusAfter={focusAfter} />
+            body = <TableBlock block={b} inputRef={ref} onChange={(patch) => update(b, patch, b.id)} focus={focus} focusAfter={focusAfter} />
             break
           case "fields":
             body = (
-              <FieldsBlock block={b} inputRef={ref} onChange={(patch) => update(b, patch)} focus={focus} onAddField={(at) => addField(b, at)} />
+              <FieldsBlock block={b} inputRef={ref} onChange={(patch) => update(b, patch, b.id)} focus={focus} onAddField={(at) => addField(b, at)} />
             )
             break
         }
@@ -506,7 +629,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
           >
             {/* Every Abschnitt after the first, and a header image, are set off by a rule, as in the Markdown. */}
             {i > 0 && (b.type === "section" || b.type === "header" || prevType === "header") && <hr className={cn(RULE, "my-5 ml-12")} />}
-            <div className="relative pl-12">
+            <div data-block-row className="relative pl-12">
               <div
                 className={cn(
                   "absolute left-0 flex gap-0.5 opacity-0 transition-opacity group-focus-within/block:opacity-100 group-hover/block:opacity-100",
@@ -595,6 +718,15 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                 </DropdownMenu>
               </div>
               {body}
+              {selection?.id === b.id && isTextish(b) && (
+                <FormatBar
+                  ref={formatBar}
+                  format={formatAt(b.text, selection.start, selection.end)}
+                  bold={b.type !== "note"}
+                  onFormat={(format) => applyFormat(b, format, selection.start, selection.end)}
+                  style={{ left: selection.left, top: selection.top }}
+                />
+              )}
             </div>
           </div>
         )

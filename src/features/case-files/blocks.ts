@@ -33,7 +33,13 @@ const FieldsBlock = Schema.Struct({
 })
 const DividerBlock = Schema.Struct({ id: Schema.String, type: Schema.Literal("divider") })
 /** A header image: the VPD header with this title, or an image link of its own. */
-const HeaderBlock = Schema.Struct({ id: Schema.String, type: Schema.Literal("header"), title: Schema.String })
+const HeaderBlock = Schema.Struct({
+  id: Schema.String,
+  type: Schema.Literal("header"),
+  title: Schema.String,
+  /** The `width` of the picture, e.g. "200px"; the banners' 800px while unset. */
+  width: Schema.optionalKey(Schema.String),
+})
 
 export const Block = Schema.Union([TextBlock, CheckBlock, TableBlock, FieldsBlock, DividerBlock, HeaderBlock])
 export type Block = typeof Block.Type
@@ -97,6 +103,100 @@ export function rowNumber(pattern: string, i: number) {
   const m = /\d+/.exec(first)
   if (!m) return first
   return first.slice(0, m.index) + String(Number(m[0]) + i).padStart(m[0].length, "0") + first.slice(m.index + m[0].length)
+}
+
+/**
+ * Blocks from pasted Markdown, as the case files write it: colored or `#` headings, quoted lines,
+ * lists, tables, fields, rules and banner images. Rules around headings and images are left out,
+ * since the Markdown of the blocks puts them there again.
+ */
+export function markdownBlocks(markdown: string, newId: () => string): Block[] {
+  const lines = markdown
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .split(/\r?\n/)
+    .map((l) => l.trim().replace(/^>\s?/, "").trim())
+  const out: Block[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const prev = out[out.length - 1]
+    /** Right under the line before, with no empty line between them. */
+    const glued = i > 0 && !!lines[i - 1]
+    if (!line || /^<\/?center>$/i.test(line)) continue
+    const img = /<img\s[^>]*src="([^"]+)"/i.exec(line) ?? /^!\[[^\]]*\]\(([^)\s]+)/.exec(line)
+    if (img) {
+      const width = /\swidth="([^"]+)"/i.exec(line)?.[1]
+      out.push({ id: newId(), type: "header", title: img[1], ...(width && { width }) })
+      continue
+    }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line)) {
+      out.push({ id: newId(), type: "divider" })
+      continue
+    }
+    const heading = /^<font[^>]*>\s*<b>(.*)<\/b>\s*<\/font>$/i.exec(line) ?? /^#{1,6}\s+(.*)$/.exec(line)
+    if (heading) {
+      const text = heading[1].replace(/`/g, "").trim().replace(/^\d+\.\s*/, "").replace(/:$/, "")
+      out.push({ id: newId(), type: "section", text })
+      continue
+    }
+    if (line.startsWith("|")) {
+      const rows: string[][] = []
+      for (; lines[i]?.startsWith("|"); i++) {
+        const cells = tableCells(lines[i])
+        if (!cells.every((c) => /^:?-+:?$/.test(c))) rows.push(cells)
+      }
+      i--
+      if (rows.length) out.push(tableOf(newId(), rows))
+      continue
+    }
+    const check = /^[-*+]\s+\[([ xX])\]\s+(.*)$/.exec(line)
+    if (check) {
+      out.push({ id: newId(), type: "check", text: check[2], checked: check[1] !== " " })
+      continue
+    }
+    const bullet = /^[-*+]\s+(.*)$/.exec(line)
+    if (bullet) {
+      out.push({ id: newId(), type: "bullet", text: bullet[1] })
+      continue
+    }
+    const field = /^\*\*(.+?):\*\*\s*(.+)$/.exec(line)
+    if (field) {
+      const f = { label: field[1].trim(), value: field[2].trim().replace(/^`([^`]*)`$/, "$1") }
+      if (glued && prev?.type === "fields") out[out.length - 1] = { ...prev, fields: [...prev.fields, f] }
+      else out.push({ id: newId(), type: "fields", fields: [f] })
+      continue
+    }
+    const note = /^\*\*([^*]+)\*\*$/.exec(line)
+    if (note) {
+      out.push({ id: newId(), type: "note", text: note[1] })
+      continue
+    }
+    if (glued && prev?.type === "text") out[out.length - 1] = { ...prev, text: `${prev.text}\n${line}` }
+    else out.push({ id: newId(), type: "text", text: line })
+  }
+  return out.filter((b, i) => {
+    if (b.type !== "divider") return true
+    const before = out[i - 1]?.type
+    const after = out[i + 1]?.type
+    return !!before && !!after && before !== "header" && before !== "divider" && after !== "section" && after !== "header"
+  })
+}
+
+/** The cells of a Markdown table row, without the inline code the case files put around them. */
+function tableCells(row: string) {
+  return row
+    .replace(/^\||\|$/g, "")
+    .split(/(?<!\\)\|/)
+    .map((c) => c.trim().replace(/^`([^`]*)`$/, "$1").replace(/\\\|/g, "|"))
+}
+
+/** A table block from the header and the rows; a first column counting up like the numbering becomes it. */
+function tableOf(id: string, rows: string[][]): Block {
+  const width = Math.max(...rows.map((r) => r.length))
+  const [head, ...body] = rows.map((r) => Array.from({ length: width }, (_, j) => r[j] ?? ""))
+  const first = body[0]?.[0] ?? ""
+  if (width > 1 && /\d/.test(first) && body.every((r, i) => r[0] === rowNumber(first, i)))
+    return { id, type: "table", columns: head.slice(1), rows: body.map((r) => r.slice(1)), numberTitle: head[0], numberPattern: first }
+  return { id, type: "table", columns: head, rows: body.length ? body : [head.map(() => "")], numbered: false }
 }
 
 /** The picture of a header block: its own link, else the VPD header with its title. */
@@ -171,7 +271,7 @@ function blockMarkdown(b: Block, r: Style) {
       return "---"
     case "header": {
       const title = r.fill(b.title).trim()
-      return title && banner(headerSrc(title))
+      return title && banner(headerSrc(title), b.width)
     }
     case "table": {
       const rows = b.rows.filter((row) => row.some((c) => c.trim()))
