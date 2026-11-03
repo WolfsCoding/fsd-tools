@@ -240,6 +240,14 @@ export function firstRef(entry: DnaEntry, kinds: TraceKind[]) {
   return ""
 }
 
+/** A person given by name or by an ID of the `kinds`, as the database knows them; the name is "" while unknown. */
+export function lookupPerson(entries: DnaEntry[], kinds: TraceKind[], value: string) {
+  const byId = findById(entries, kinds, value)
+  if (byId || looksLikeId(value)) return { name: byId?.entry.name ?? "", id: value }
+  const entry = findEntry(entries, "name", value)
+  return { name: entry?.name || value, id: entry ? firstRef(entry, kinds) : "" }
+}
+
 /**
  * A cell looked up in the DNA database as the document shows it, following the database:
  * name and ID ("Max Muster (D-0042)") where the row has no other cell for them, else just its
@@ -253,10 +261,8 @@ export function lookupLabel(row: Row, key: string, lookup: Lookup, entries: DnaE
   }
   if (lookup.or) {
     if (!value) return ""
-    const byId = findById(entries, lookup.or, value)
-    if (byId || looksLikeId(value)) return personLabel(byId?.entry.name ?? "", value)
-    const entry = findEntry(entries, "name", value)
-    return personLabel(entry?.name || value, entry ? firstRef(entry, lookup.or) : "")
+    const person = lookupPerson(entries, lookup.or, value)
+    return personLabel(person.name, person.id)
   }
   // The name of the person whose ID is in the row.
   for (const [from, k] of Object.entries(lookup.fill ?? {}) as [DbField, string][]) {

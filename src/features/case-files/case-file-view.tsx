@@ -9,18 +9,16 @@ import {
   EllipsisIcon,
   EyeIcon,
   FilePlusIcon,
-  FilesIcon,
   FileTextIcon,
   FolderDownIcon,
   FolderIcon,
   GripVerticalIcon,
   HashIcon,
   HeadingIcon,
-  PanelRightIcon,
   PencilIcon,
   PlayIcon,
   Trash2Icon,
-  XIcon,
+  UserIcon,
   type LucideIcon,
 } from "lucide-react"
 import { toast } from "sonner"
@@ -33,7 +31,6 @@ import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible"
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -49,12 +46,9 @@ import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-p
 import { useTabTitle } from "@/hooks/use-tabs"
 import { copy } from "@/lib/clipboard"
 import { formatDate, formatLongDateTime, formatRelative } from "@/lib/format-date"
-import { useAtom } from "@effect/atom-react"
-import * as Schema from "effect/Schema"
-import { stored } from "@/lib/storage"
 import { removedToast } from "@/lib/undo"
 import { saveFolder } from "@/lib/folder"
-import { ablageLabel, aktenzeichen, caseTypeOf } from "./case-types"
+import { ablagePerson, aktenzeichen, caseTypeOf } from "./case-types"
 import { DnaPicker } from "./dna-picker"
 import { DocForm, MeHint, SectionFields } from "./doc-form"
 import { withNow } from "./markdown"
@@ -72,17 +66,13 @@ import {
 } from "./use-case-files"
 import { WithIds } from "./with-ids"
 
-// Whether the markdown is shown next to the form on wide screens. Only how the page looks,
-// so it isn't part of the backups.
-const previewSideAtom = stored("case-files:preview-side", Schema.Boolean, false)
-
 /** Whether a key event is Alt+Shift+`code` on its own; AltGr (Ctrl+Alt on Windows) types characters instead. */
 function isAltShift(e: KeyboardEvent, code: string) {
   return e.altKey && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.getModifierState("AltGraph") && e.code === code
 }
 
 /**
- * Whether the page has room for the preview next to the form. Measured on the page itself,
+ * Whether the page has room for the Markdown next to the form. Measured on the page itself,
  * since a split view halves it on a wide window.
  */
 function useRoomForSide() {
@@ -165,7 +155,6 @@ export function CaseFileView({
 
   /** The document shown in the preview dialog. */
   const [previewId, setPreviewId] = useState<string>()
-  const [previewSide, setPreviewSide] = useAtom(previewSideAtom)
   const reorder = useReorder((from, to) => api.moveDoc(caseFile.id, from + 1, to + 1))
   const [pageRef, roomForSide] = useRoomForSide()
 
@@ -198,6 +187,7 @@ export function CaseFileView({
 
   const { colors } = useColors()
   const { entries: dnaEntries } = useDnaEntries()
+  const ablage = ablagePerson(caseFile, dnaEntries)
   const readerOf = useCallback(
     (d: Doc<string>) => createReader(templates[d.template], d.values, me, colors, identity.department, dnaEntries),
     [templates, me, colors, identity.department, dnaEntries],
@@ -237,7 +227,6 @@ export function CaseFileView({
 
   const previewDoc = caseFile.docs.find((d) => d.id === previewId)
   const preview = previewDoc ? withNow(markdownOf(previewDoc)) : ""
-  const sidePreview = withNow(mainMarkdown)
 
   // The palette and the shortcut run the latest actions, but are registered again only when their labels change.
   const latest = useRef({ copyMain: () => copyDoc(main), copyAll, shownTitle: () => titleOf(previewDoc ?? main) })
@@ -321,26 +310,28 @@ export function CaseFileView({
     ]
   })
 
-  /** Berichte, and a Beschreibung whose template asks for it, show their Markdown until "Bearbeiten". */
-  const locked = (d: Doc<string>) => (d !== main || !!templates[d.template].editable) && !editing.includes(d.id)
+  /** The Beschreibung and every Bericht show their Markdown until "Bearbeiten". */
+  const locked = (d: Doc<string>) => !editing.includes(d.id)
 
   const editButton = (d: Doc<string>) =>
     editing.includes(d.id) ? (
-      <Button size="sm" onClick={() => setEditingOf(d.id, false)}>
+      <Button variant="outline" size="sm" onClick={() => setEditingOf(d.id, false)}>
         <CheckIcon /> Fertig
       </Button>
     ) : (
-      <Button variant="ghost" size="sm" onClick={() => setEditingOf(d.id, true)}>
+      <Button variant="outline" size="sm" onClick={() => setEditingOf(d.id, true)}>
         <PencilIcon /> Bearbeiten
       </Button>
     )
 
+  function rendered(d: Doc<string>) {
+    const markdown = withNow(markdownOf(d)).trim()
+    return markdown ? <NoteMarkdown>{markdown}</NoteMarkdown> : <p className="text-sm text-muted-foreground italic">Noch leer</p>
+  }
+
   function formOf(d: Doc<string>) {
     const t = templates[d.template]
-    if (locked(d)) {
-      const markdown = withNow(markdownOf(d)).trim()
-      return markdown ? <NoteMarkdown>{markdown}</NoteMarkdown> : <p className="text-sm text-muted-foreground italic">Noch leer</p>
-    }
+    if (locked(d)) return rendered(d)
     const onChange = (key: string, value: Doc<string>["values"][string]) => api.setValue(caseFile.id, d.id, key, value)
     const onUpdate = (key: string, fn: Parameters<CaseFilesApi["updateValue"]>[3]) => api.updateValue(caseFile.id, d.id, key, fn)
     if (t.form) return <t.form values={d.values} onChange={onChange} onUpdate={onUpdate} onEditingChange={(on) => setEditingOf(d.id, on)} />
@@ -539,11 +530,6 @@ export function CaseFileView({
                 <DropdownMenuItem onSelect={() => setPreviewId(main.id)}>
                   <EyeIcon /> Vorschau
                 </DropdownMenuItem>
-                {roomForSide && (
-                  <DropdownMenuCheckboxItem checked={previewSide} onCheckedChange={setPreviewSide}>
-                    <PanelRightIcon /> Vorschau neben dem Formular
-                  </DropdownMenuCheckboxItem>
-                )}
                 <DropdownMenuItem onSelect={() => copy(titleOf(main), "Titel")}>
                   <HeadingIcon /> Seitentitel kopieren
                 </DropdownMenuItem>
@@ -587,8 +573,8 @@ export function CaseFileView({
           </div>
         </div>
 
-        <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-1 text-xs">
-          <Meta label="Az.">
+        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 text-xs sm:grid-cols-4">
+          <Meta label="Aktenzeichen">
             {renaming === "caseNumber" ? (
               // Clearing the number goes back to the one entered in the documents.
               <InlineEdit
@@ -607,23 +593,33 @@ export function CaseFileView({
             )}
           </Meta>
           <Meta label="Typ">{type?.label ?? mainTemplate.label}</Meta>
-          <Meta label="Ablage">
-            {renaming === "ablage" ? (
-              <AblagePicker
-                value={caseFile.ablage ?? ""}
-                // Every case file has an Ablage, so emptying the field keeps the one it has.
-                onChange={(v) => v.trim() && api.setAblage(caseFile.id, v)}
-                onDone={() => setRenaming(undefined)}
-              />
-            ) : (
-              <Editable onEdit={() => setRenaming("ablage")}>
-                <WithIds text={ablageLabel(caseFile, dnaEntries) || "—"} />
-              </Editable>
-            )}
-          </Meta>
           <Meta label="Erstellt">{formatDate(caseFile.createdAt)}</Meta>
           <Meta label="Geändert">{formatRelative(caseFile.updatedAt)}</Meta>
         </dl>
+
+        <div className="mt-5 grid justify-items-start gap-2.5">
+          <h2 className="text-sm font-semibold">Ablage</h2>
+          {renaming === "ablage" ? (
+            <AblagePicker
+              value={caseFile.ablage ?? ""}
+              // Every case file has an Ablage, so emptying the field keeps the one it has.
+              onChange={(v) => v.trim() && api.setAblage(caseFile.id, v)}
+              onDone={() => setRenaming(undefined)}
+            />
+          ) : (
+            <Editable onEdit={() => setRenaming("ablage")}>
+              <span className="flex items-center gap-3">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <UserIcon className="size-5" />
+                </span>
+                <span className="grid gap-0.5">
+                  <span className="font-semibold">{ablage ? ablage.name.trim() || "Unbekannt" : "—"}</span>
+                  {ablage?.id && <span className="text-sm text-muted-foreground">{ablage.id.trim().toUpperCase()}</span>}
+                </span>
+              </span>
+            </Editable>
+          )}
+        </div>
 
         {tabs.length > 0 && (
           <div role="tablist" aria-label={`Teile der ${kind.noun}`} className="-mx-3 mt-3 flex items-center gap-0.5 no-scrollbar overflow-x-auto">
@@ -683,36 +679,27 @@ export function CaseFileView({
               />
             </Panel>
           ) : (
-            <div className="grid gap-6">
+            <div className="grid gap-8">
               <MeHint me={mainReader.me} />
               <Panel
                 id="beschreibung"
-                icon={FileTextIcon}
                 title="Beschreibung"
-                description={type?.label ?? mainTemplate.label}
-                actions={
-                  <>
-                    {mainTemplate.editable && editButton(main)}
-                    <Button variant="outline" size="sm" onClick={() => setPreviewId(main.id)}>
-                      <EyeIcon /> Vorschau
-                    </Button>
-                  </>
-                }
+                actions={editButton(main)}
               >
-                {formOf(main)}
+                {roomForSide && !locked(main) ? (
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="min-w-0">{formOf(main)}</div>
+                    <div className="min-w-0 border-l pl-6">{rendered(main)}</div>
+                  </div>
+                ) : (
+                  formOf(main)
+                )}
               </Panel>
+              {(reports.length > 0 || attachItems) && <hr />}
               {(reports.length > 0 || attachItems) && (
                 <Panel
                   id="berichte"
-                  icon={FilesIcon}
                   title="Berichte"
-                  description={
-                    reports.length > 1
-                      ? `${reports.length} Berichte · zum Sortieren am Griff ziehen`
-                      : reports.length === 1
-                        ? "1 Bericht"
-                        : "Noch keine Berichte"
-                  }
                   actions={
                     attachItems && (
                       <DropdownMenu>
@@ -748,25 +735,6 @@ export function CaseFileView({
             </div>
           )}
         </div>
-        {/* Next to the form only where the page itself is wide, not just the window (e.g. in a split view); else the preview opens as a dialog. */}
-        {previewSide && roomForSide && !tab && (
-          <aside
-            aria-label="Vorschau"
-            className="flex w-[42%] max-w-3xl shrink-0 flex-col border-l animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6"
-          >
-            <div className="flex h-11 shrink-0 items-center gap-2 border-b pr-2 pl-4 text-xs text-muted-foreground">
-              <span className="min-w-0 flex-1 truncate">
-                Vorschau der Beschreibung · {sidePreview.split("\n").length.toLocaleString("de-DE")} Zeilen Markdown
-              </span>
-              <Hint label="Vorschau ausblenden">
-                <Button variant="ghost" size="icon-xs" aria-label="Vorschau ausblenden" onClick={() => setPreviewSide(false)}>
-                  <XIcon />
-                </Button>
-              </Hint>
-            </div>
-            <MarkdownText text={sidePreview} />
-          </aside>
-        )}
       </div>
 
       <Dialog open={!!previewDoc} onOpenChange={(o) => !o && setPreviewId(undefined)}>
@@ -823,33 +791,23 @@ export function StatusBadge({ settled }: { settled?: boolean }) {
   )
 }
 
-/** One part of the case file, e.g. the Beschreibung: a card with a header bar, set apart from the others. */
+/** One part of the case file, e.g. the Beschreibung: a heading with its actions, then its content. */
 function Panel({
   id,
-  icon: Icon,
   title,
   description,
   actions,
   children,
 }: {
   id: string
-  icon?: LucideIcon
   title: string
   description?: string
   actions?: ReactNode
   children: ReactNode
 }) {
   return (
-    <section
-      aria-labelledby={id}
-      className="overflow-hidden rounded-xl border bg-card/40 animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1"
-    >
-      <div className="flex flex-wrap items-center gap-3 border-b bg-muted/40 px-5 py-3.5">
-        {Icon && (
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-background ring-1 ring-border">
-            <Icon className="size-4 text-muted-foreground" />
-          </span>
-        )}
+    <section aria-labelledby={id} className="grid gap-4 animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="mr-auto grid min-w-0 gap-0.5">
           <h2 id={id} className="truncate text-lg font-semibold">
             {title}
@@ -858,7 +816,7 @@ function Panel({
         </div>
         {actions}
       </div>
-      <div className="p-5">{children}</div>
+      <div>{children}</div>
     </section>
   )
 }
@@ -873,7 +831,7 @@ function AblagePicker({ value, onChange, onDone }: { value: string; onChange: (v
     input?.select()
   }, [])
   return (
-    <div ref={ref} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && onDone()} className="w-60">
+    <div ref={ref} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && onDone()} className="w-full max-w-60">
       <DnaPicker
         value={value}
         onChange={onChange}
@@ -890,9 +848,9 @@ function AblagePicker({ value, onChange, onDone }: { value: string; onChange: (v
 /** One detail of the case file in the header, e.g. its Aktenzeichen. */
 function Meta({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-baseline gap-1.5">
-      <dt className="text-muted-foreground">{label}:</dt>
-      <dd className="font-medium">{children}</dd>
+    <div className="flex min-w-0 items-baseline gap-1.5">
+      <dt className="shrink-0 text-muted-foreground">{label}:</dt>
+      <dd className="min-w-0 font-medium break-words">{children}</dd>
     </div>
   )
 }

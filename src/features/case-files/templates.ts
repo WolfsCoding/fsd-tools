@@ -305,8 +305,6 @@ export interface Template<Id extends string = TemplateId> {
   sections: Section[]
   /** Shown instead of the sections, e.g. the own entry, which reads like a note until it is edited. */
   form?: ComponentType<DocFormProps>
-  /** As the Beschreibung, it shows its Markdown until "Bearbeiten" in its header, as every Bericht does. */
-  editable?: boolean
   /** Values of a new document, e.g. prefilled table rows. */
   initial?: Values
   /** Placeholder values of the empty template (e.g. "XXX" rows), so it shows how it's filled in; defaults to `initial`. */
@@ -1039,7 +1037,6 @@ const administrativeFile: Template = {
   // Built from blocks like the own case file.
   sections: CASE_TABS,
   form: BlockEditor,
-  editable: true,
   subject: () => "",
   render: (r) => blocksMarkdown(readBlocks(r.raw(BLOCKS_KEY)), r),
 }
@@ -1538,7 +1535,6 @@ const ownFile: Template = {
   // Only its tabs; the form is the block editor.
   sections: CASE_TABS,
   form: BlockEditor,
-  editable: true,
   subject: () => "",
   render: (r) => blocksMarkdown(readBlocks(r.raw(BLOCKS_KEY)), r),
 }

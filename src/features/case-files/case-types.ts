@@ -1,6 +1,6 @@
 import type { DnaEntry } from "@/features/dna-db/types"
 import { PERSON } from "./templates"
-import { lookupLabel } from "./traces"
+import { lookupLabel, lookupPerson } from "./traces"
 import type { CaseFile } from "./types"
 
 /** A type of case file, as in the department's records system. */
@@ -35,6 +35,12 @@ export function caseTypeOf(caseFile: CaseFile<string>) {
 /** The Ablage as the DNA database knows them, e.g. "Ryan Shaw (D-0042)"; "" without one. */
 export function ablageLabel(caseFile: CaseFile<string>, entries: DnaEntry[]) {
   return caseFile.ablage ? lookupLabel({ ablage: caseFile.ablage }, "ablage", PERSON, entries) : ""
+}
+
+/** The Ablage's name and ID as the DNA database knows them; none without one. */
+export function ablagePerson(caseFile: CaseFile<string>, entries: DnaEntry[]) {
+  const value = caseFile.ablage?.trim()
+  return value ? lookupPerson(entries, PERSON.or ?? [], value) : undefined
 }
 
 /** The case number behind its type's prefix, e.g. "Js 18970/26"; "" without a number. */
