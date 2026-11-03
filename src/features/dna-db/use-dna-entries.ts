@@ -4,7 +4,7 @@ import { useCallback, useEffect } from "react"
 import { stored } from "@/lib/storage"
 import { sameText } from "@/lib/text"
 import { sameTag } from "./tags"
-import { DnaEntry, PROFILE_FIELDS, type DnaEntryInput } from "./types"
+import { DnaEntry, PROFILE_FIELDS, type DnaEntryInput, type DnaTag } from "./types"
 
 export const DNA_ENTRIES_KEY = "dna-db:entries"
 const EMPTY: DnaEntry[] = []
@@ -122,13 +122,21 @@ export function useDnaEntries() {
   const updateEntry = useCallback(
     (id: string, input: Partial<DnaEntryInput> | ((entry: DnaEntry) => Partial<DnaEntryInput>)) => {
       const now = new Date().toISOString()
-      setEntries((prev) =>
-        prev.map((e) => {
+      setEntries((prev) => {
+        let tags: readonly DnaTag[] | undefined
+        const next = prev.map((e) => {
           if (e.id !== id) return e
           const changes = typeof input === "function" ? input(e) : input
+          tags = changes.tags
           return { ...e, ...changes, ...ids(changes), updatedAt: now }
-        }),
-      )
+        })
+        if (!tags) return next
+        // A name has one color, so a tag colored anew takes it on every entry.
+        const colorOf = (t: DnaTag) => tags!.find((n) => sameTag(n.name, t.name))?.color ?? t.color
+        return next.map((e) =>
+          e.id === id || !e.tags?.some((t) => colorOf(t) !== t.color) ? e : { ...e, tags: e.tags.map((t) => ({ ...t, color: colorOf(t) })) },
+        )
+      })
     },
     [setEntries],
   )

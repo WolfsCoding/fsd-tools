@@ -12,12 +12,16 @@ export const TAG_COLORS = [
   "pink",
 ] as const
 
-export type TagColor = (typeof TAG_COLORS)[number]
+export type TagPreset = (typeof TAG_COLORS)[number]
+
+/** One of the presets, or any color as "#rrggbb". */
+export const TagColor = Schema.Union([Schema.Literals(TAG_COLORS), Schema.String.check(Schema.isPattern(/^#[0-9a-f]{6}$/))])
+export type TagColor = typeof TagColor.Type
 
 /** Tags live on the entries; a name has one color across all entries. */
 export const DnaTag = Schema.Struct({
   name: Schema.String,
-  color: Schema.Literals(TAG_COLORS),
+  color: TagColor,
 })
 export type DnaTag = StoredValue<typeof DnaTag>
 

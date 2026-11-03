@@ -1,7 +1,7 @@
 import { sameText, textKey } from "@/lib/text"
-import { TAG_COLORS, type DnaEntry, type DnaTag, type TagColor } from "./types"
+import { TAG_COLORS, type DnaEntry, type DnaTag, type TagColor, type TagPreset } from "./types"
 
-export const TAG_COLOR_NAMES: Record<TagColor, string> = {
+export const TAG_COLOR_NAMES: Record<TagPreset, string> = {
   slate: "Grau",
   red: "Rot",
   amber: "Gelb",
@@ -11,8 +11,16 @@ export const TAG_COLOR_NAMES: Record<TagColor, string> = {
   pink: "Pink",
 }
 
-export function isTagColor(value: unknown): value is TagColor {
-  return TAG_COLORS.includes(value as TagColor)
+export function isTagPreset(color: TagColor): color is TagPreset {
+  return (TAG_COLORS as readonly string[]).includes(color)
+}
+
+/** A typed hex color, e.g. "3B82F6" or "#38f", as "#rrggbb"; none for anything else. */
+export function toHex(text: string) {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(text.trim())
+  if (!m) return undefined
+  const digits = m[1].length === 3 ? [...m[1]].map((c) => c + c).join("") : m[1]
+  return `#${digits.toLowerCase()}`
 }
 
 /** Tag names are the same ignoring case and outer spaces. */
