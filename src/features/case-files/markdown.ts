@@ -1,3 +1,5 @@
+import { parseRich, richMarkdown } from "./rich-text"
+
 // Building blocks of the HP case file markdown. The output is pasted into the
 // homestate editor, which renders the inline HTML (banners, colors).
 
@@ -74,9 +76,15 @@ export function numbered(title: string) {
   return m ? `${code(m[1])} ${code(m[2])}` : title
 }
 
-/** Text as inline code; backticks and line breaks would end it early. */
+/**
+ * Text as inline code; backticks and line breaks would end it early. Bold or colored text stays
+ * so, as code inside a <font> or a <code> tag (see `richMarkdown`).
+ */
 export function code(text: string) {
-  return "`" + text.replace(/`/g, "'").replace(/\s*\n\s*/g, " ") + "`"
+  const flat = text.replace(/\s*\n\s*/g, " ")
+  const runs = parseRich(flat)
+  if (runs.some((r) => r.bold || r.color)) return richMarkdown(runs.map((r) => ({ ...r, code: true })))
+  return "`" + flat.replace(/`/g, "'") + "`"
 }
 
 /** `> **LABEL:** \`value\`` lines. */
@@ -100,7 +108,7 @@ export function table(headers: string[], rows: string[][]) {
 
 /** A table cell as inline code; pipes would end the cell early. */
 export function cell(text: string) {
-  return code(text.replace(/\|/g, "\\|"))
+  return code(text).replace(/\|/g, "\\|")
 }
 
 /** A quoted table whose cells are already formatted; every table numbers its rows `#1`, `#2`, … under "#". */

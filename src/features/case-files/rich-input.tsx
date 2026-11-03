@@ -1,9 +1,9 @@
-import { useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type HTMLAttributes, type KeyboardEvent, type ReactNode, type Ref } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type CSSProperties, type HTMLAttributes, type KeyboardEvent, type ReactNode, type Ref } from "react"
 import { BanIcon, BoldIcon, CodeIcon } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { caretOf, setCaret, textLength } from "./caret"
-import { groups, parseRich, richMarkdown, sliceRuns, TEXT_COLORS, type Format, type Run } from "./rich-text"
+import { formatAt, formatRich, groups, parseRich, richMarkdown, sliceRuns, TEXT_COLORS, type Format, type Run } from "./rich-text"
 
 /** Inline code, as the Markdown shows it once pasted; the same in the text and in the headings. */
 export const CHIP = "inline-block rounded bg-muted px-1.5 font-mono text-[0.8em] leading-5"
@@ -61,28 +61,31 @@ interface RichInputProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"
   onChange: (value: string) => void
   placeholder: string
   inputRef: (el: HTMLElement | null) => void
+  /** The text is code as a whole, put in inline code by the template: shown as code, written without its marks. */
+  code?: boolean
 }
 
 /**
  * A text field showing its Markdown formatted: bold, code and colors. The browser only types
  * plain text into it; line breaks and pastes go through the runs.
  */
-export function RichInput({ value, onChange, placeholder, inputRef, className, onKeyDown, onPaste, ...props }: RichInputProps) {
+export function RichInput({ value, onChange, placeholder, inputRef, code, className, onKeyDown, onPaste, ...props }: RichInputProps) {
   const el = useRef<HTMLDivElement>(null)
   /** The value the text shows, so typing doesn't render it again under the cursor. */
   const shown = useRef<string>(null)
+  const show = (node: HTMLElement, runs: readonly Run[]) => renderRuns(node, code ? runs.map((r) => ({ ...r, code: true })) : runs)
 
   useLayoutEffect(() => {
     const node = el.current
     if (!node || shown.current === value) return
     const caret = document.activeElement === node ? caretOf(node) : null
-    renderRuns(node, parseRich(value))
+    show(node, parseRich(value))
     shown.current = value
     if (caret) setCaret(node, Math.min(caret.start, textLength(node)), Math.min(caret.end, textLength(node)))
   })
 
   function emit(runs: readonly Run[]) {
-    const md = richMarkdown(runs)
+    const md = richMarkdown(code ? runs.map((r) => ({ ...r, code: false })) : runs)
     shown.current = md
     onChange(md)
   }
@@ -91,7 +94,7 @@ export function RichInput({ value, onChange, placeholder, inputRef, className, o
     const { start, end } = caretOf(node)
     const runs = readRuns(node)
     const next = [...sliceRuns(runs, 0, start), ...added, ...sliceRuns(runs, end)]
-    renderRuns(node, next)
+    show(node, next)
     setCaret(node, start + added.reduce((n, r) => n + r.text.length, 0))
     emit(next)
   }
@@ -109,7 +112,16 @@ export function RichInput({ value, onChange, placeholder, inputRef, className, o
       data-block-input
       data-placeholder={placeholder}
       data-empty={value ? undefined : ""}
-      onInput={(e) => emit(readRuns(e.currentTarget))}
+      onInput={(e) => {
+        const node = e.currentTarget
+        const runs = readRuns(node)
+        emit(runs)
+        // Text typed at the edge of the code lands outside it; it is put back in.
+        if (!code || ![...node.childNodes].some((n) => n.nodeType === Node.TEXT_NODE)) return
+        const caret = caretOf(node)
+        show(node, runs)
+        setCaret(node, caret.start, caret.end)
+      }}
       onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
         onKeyDown?.(e)
         if (e.defaultPrevented || e.key !== "Enter" || !e.shiftKey) return
@@ -133,10 +145,111 @@ export function RichInput({ value, onChange, placeholder, inputRef, className, o
   )
 }
 
+/**
+ * A rich text field with its own format bar over the selected text, and Strg+B and Strg+E.
+ * `singleLine` keeps it to one line, like an input.
+ */
+export function RichField({
+  value,
+  onChange,
+  inputRef,
+  onKeyDown,
+  singleLine,
+  code,
+  ...props
+}: Omit<RichInputProps, "inputRef"> & { inputRef?: (el: HTMLElement | null) => void; singleLine?: boolean }) {
+  const el = useRef<HTMLElement>(null)
+  const bar = useRef<HTMLDivElement>(null)
+  /** The selected text, and where the bar goes: above it, in the window. */
+  const [selection, setSelection] = useState<{ start: number; end: number; left: number; top: number } | null>(null)
+  /** The selection to put back once a format is shown. */
+  const reselect = useRef<[number, number]>(null)
+
+  useEffect(() => {
+    const onSelect = () => {
+      const active = document.activeElement
+      // The color field of the bar takes the cursor while the selection is kept.
+      if (bar.current?.contains(active)) return
+      const sel = getSelection()
+      if (!el.current || active !== el.current || !sel?.rangeCount || sel.isCollapsed) return setSelection(null)
+      const at = sel.getRangeAt(0).getBoundingClientRect()
+      setSelection({ ...caretOf(el.current), left: at.left, top: at.top - 6 })
+    }
+    document.addEventListener("selectionchange", onSelect)
+    // The bar stays with the text while the page scrolls.
+    document.addEventListener("scroll", onSelect, true)
+    return () => {
+      document.removeEventListener("selectionchange", onSelect)
+      document.removeEventListener("scroll", onSelect, true)
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    const node = el.current
+    if (reselect.current && node) {
+      node.focus()
+      setCaret(node, ...reselect.current)
+      reselect.current = null
+    }
+    // A transformed parent, e.g. a dialog, moves a fixed element with it; the bar is moved back over the text.
+    const b = bar.current
+    if (!b || !selection) return
+    const box = b.getBoundingClientRect()
+    b.style.left = `${parseFloat(b.style.left) + selection.left - box.left}px`
+    b.style.top = `${parseFloat(b.style.top) + selection.top - box.bottom}px`
+  })
+
+  function format(f: Format, start: number, end: number) {
+    reselect.current = [start, end]
+    onChange(formatRich(value, start, end, f))
+  }
+
+  return (
+    <>
+      <RichInput
+        {...props}
+        code={code}
+        value={value}
+        // A pasted line break would end the line early.
+        onChange={(v) => onChange(singleLine ? v.replace(/\s*\n\s*/g, " ") : v)}
+        inputRef={(node) => {
+          el.current = node
+          inputRef?.(node)
+        }}
+        onKeyDown={(e) => {
+          onKeyDown?.(e)
+          if (e.defaultPrevented) return
+          const key = e.key.toLowerCase()
+          if (singleLine && e.key === "Enter") return e.preventDefault()
+          if (!(e.ctrlKey || e.metaKey) || (key !== "b" && key !== "e")) return
+          // Code as a whole has nothing to switch to code.
+          if (code && key === "e") return e.preventDefault()
+          e.preventDefault()
+          const { start, end } = caretOf(e.currentTarget)
+          if (start === end) return
+          const now = formatAt(value, start, end)
+          format(key === "b" ? { bold: !now.bold } : { code: !now.code }, start, end)
+        }}
+      />
+      {selection && (
+        <FormatBar
+          ref={bar}
+          format={formatAt(value, selection.start, selection.end)}
+          bold
+          code={!code}
+          onFormat={(f) => format(f, selection.start, selection.end)}
+          style={{ position: "fixed", left: selection.left, top: selection.top }}
+        />
+      )}
+    </>
+  )
+}
+
 /** Formats the selected text: bold, code and a color, of the offered ones or any typed in. */
 export function FormatBar({
   format,
   bold,
+  code = true,
   onFormat,
   style,
   ref,
@@ -144,6 +257,8 @@ export function FormatBar({
   format: { bold: boolean; code: boolean; color?: string }
   /** False where the text is bold as a whole. */
   bold: boolean
+  /** False where the text is code as a whole. */
+  code?: boolean
   onFormat: (format: Format) => void
   style: CSSProperties
   ref: Ref<HTMLDivElement>
@@ -154,16 +269,18 @@ export function FormatBar({
       style={style}
       // Pressing a button keeps the text selected; only the color field takes the cursor.
       onMouseDown={(e) => e.target instanceof HTMLInputElement || e.preventDefault()}
-      className="absolute z-20 flex -translate-y-full items-center gap-0.5 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+      className="absolute z-50 flex -translate-y-full items-center gap-0.5 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
     >
       {bold && (
         <Tool label="Fett (Strg+B)" active={format.bold} onClick={() => onFormat({ bold: !format.bold })}>
           <BoldIcon className="size-3.5" />
         </Tool>
       )}
-      <Tool label="Code (Strg+E)" active={format.code} onClick={() => onFormat({ code: !format.code })}>
-        <CodeIcon className="size-3.5" />
-      </Tool>
+      {code && (
+        <Tool label="Code (Strg+E)" active={format.code} onClick={() => onFormat({ code: !format.code })}>
+          <CodeIcon className="size-3.5" />
+        </Tool>
+      )}
       <span className="mx-1 h-4 w-px bg-border" />
       <Tool label="Ohne Farbe" active={!format.color} onClick={() => onFormat({ color: null })}>
         <BanIcon className="size-3.5" />

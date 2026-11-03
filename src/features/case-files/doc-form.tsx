@@ -1,4 +1,4 @@
-import { Fragment, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
+import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import {
   CheckIcon,
   ChevronDownIcon,
@@ -32,10 +32,13 @@ import { DatePicker, DateTimePicker } from "@/components/date-picker"
 import { sameText, textKey } from "@/lib/text"
 import { removedToast } from "@/lib/undo"
 import { Combobox, type ComboboxOption } from "@/components/combobox"
+import { caretOf, setCaret, textLength } from "./caret"
 import { DnaPicker } from "./dna-picker"
 import { SnippetMenu, TemplateMenu } from "./snippet-menu"
 import { ME } from "./markdown"
 import { rangeLabel, roll, type Range } from "./range"
+import { RichField } from "./rich-input"
+import { plainText, splitRich } from "./rich-text"
 import { TracesCell } from "./traces-cell"
 import { dbValue, rowLookup, rowTraces, storeTraces, type DbField, type TraceKind } from "./traces"
 import {
@@ -271,12 +274,16 @@ function TextInput({ field, values, reader, onChange, suggestions, docId }: Fiel
       ) : field.today ? (
         <DatePicker id={id} value={value} onChange={(v) => onChange(field.key, v)} placeholder={placeholder} />
       ) : (
-        <Input
+        <RichField
           id={id}
+          aria-label={field.label}
+          singleLine
+          code={!field.plain}
           value={value}
-          onChange={(e) => onChange(field.key, e.target.value)}
+          onChange={(v) => onChange(field.key, v)}
           placeholder={placeholder}
           inputMode={field.numeric ? "numeric" : undefined}
+          className="min-h-9 w-full rounded-lg border border-input px-2.5 py-2 text-sm leading-5 transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
         />
       )}
     </Labeled>
@@ -471,7 +478,7 @@ export function PointList({
   canBeEmpty?: boolean
 }) {
   const items = stored.length || canBeEmpty ? stored : [""]
-  const refs = useRef<(HTMLInputElement | null)[]>([])
+  const refs = useRef<(HTMLElement | null)[]>([])
   /** Where the cursor goes after the next change: the start, the end or a position of a point. */
   const focusNext = useRef<{ index: number; at: "start" | "end" | number } | null>(null)
   /** The point and selection the cursor was last in, where a snippet goes. */
@@ -482,10 +489,19 @@ export function PointList({
     if (!next) return
     focusNext.current = null
     const el = refs.current[next.index]
-    el?.focus()
-    const pos = typeof next.at === "number" ? next.at : next.at === "end" ? (el?.value.length ?? 0) : 0
-    el?.setSelectionRange(pos, pos)
+    if (!el) return
+    el.focus()
+    setCaret(el, next.at === "start" ? 0 : next.at === "end" ? textLength(el) : next.at)
   })
+
+  useEffect(() => {
+    const onSelect = () => {
+      const index = refs.current.findIndex((r) => r && r === document.activeElement)
+      if (index >= 0) caret.current = { index, ...caretOf(refs.current[index]!) }
+    }
+    document.addEventListener("selectionchange", onSelect)
+    return () => document.removeEventListener("selectionchange", onSelect)
+  }, [])
 
   const reorder = useReorder((from, to) => set(move(items, from, to)))
 
@@ -517,30 +533,23 @@ export function PointList({
       set([...filled, ...lines])
       return
     }
-    const item = items[at.index]
-    const before = item.slice(0, at.start)
-    const after = item.slice(at.end)
+    const [before, after] = splitRich(items[at.index], at.start, at.end)
     const last = lines.length - 1
     const next = lines.map((l, j) => (j === 0 ? before : "") + l + (j === last ? after : ""))
-    const pos = (last === 0 ? before.length : 0) + lines[last].length
+    const pos = (last === 0 ? plainText(before).length : 0) + plainText(lines[last]).length
     caret.current = { index: at.index + last, start: pos, end: pos }
     focusNext.current = { index: at.index + last, at: pos }
     set([...items.slice(0, at.index), ...next, ...items.slice(at.index + 1)])
   }
 
-  /** Remembers where the cursor is in point `i`, for `insertSnippet`. */
-  function trackCaret(el: HTMLInputElement, i: number) {
-    caret.current = { index: i, start: el.selectionStart ?? el.value.length, end: el.selectionEnd ?? el.value.length }
-  }
-
-  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>, i: number) {
-    const el = e.currentTarget
+  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>, i: number) {
     if (e.key === "Enter") {
+      // Also with Shift: a point is one line of the list.
       e.preventDefault()
-      const pos = el.selectionStart ?? el.value.length
-      splice(i, [el.value.slice(0, pos), el.value.slice(pos)])
+      const { start, end } = caretOf(e.currentTarget)
+      splice(i, splitRich(items[i], start, end))
       focusNext.current = { index: i + 1, at: "start" }
-    } else if (e.key === "Backspace" && el.value === "" && (items.length > 1 || canBeEmpty)) {
+    } else if (e.key === "Backspace" && items[i] === "" && (items.length > 1 || canBeEmpty)) {
       e.preventDefault()
       splice(i, [])
       focusNext.current = { index: Math.max(0, i - 1), at: "end" }
@@ -567,24 +576,22 @@ export function PointList({
             >
               <GripVerticalIcon className="size-3.5 group-focus-within:text-foreground" />
             </span>
-            <input
-              ref={(el) => {
+            <RichField
+              inputRef={(el) => {
                 refs.current[i] = el
               }}
               value={item}
-              onChange={(e) => set(items.map((x, j) => (j === i ? e.target.value : x)))}
+              onChange={(v) => set(items.map((x, j) => (j === i ? v : x)))}
               onKeyDown={(e) => handleKeyDown(e, i)}
-              onSelect={(e) => trackCaret(e.currentTarget, i)}
-              onFocus={(e) => trackCaret(e.currentTarget, i)}
               onPaste={(e) => {
                 const lines = e.clipboardData.getData("text").split(/\r?\n/).filter((l) => l.trim())
                 if (lines.length < 2) return
                 e.preventDefault()
                 splice(i, item.trim() ? [item, ...lines] : lines)
               }}
-              placeholder={i === 0 ? placeholder : undefined}
+              placeholder={i === 0 ? (placeholder ?? "") : ""}
               aria-label={`${label}, Punkt ${i + 1}`}
-              className="h-10 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground"
+              className="min-h-10 min-w-0 flex-1 px-3 py-2.5 text-sm leading-5 before:text-muted-foreground"
             />
             <RemoveCell label={`Punkt ${i + 1} entfernen`} onRemove={() => remove(i)} />
           </li>
@@ -1028,24 +1035,15 @@ function TableInput({
           className={CELL_COMBOBOX}
         />
       )
-    if (c.multiline)
-      return (
-        <textarea
-          value={value}
-          onChange={(e) => set(e.target.value)}
-          placeholder={placeholder}
-          aria-label={label}
-          rows={1}
-          className={cn(CELL_INPUT, "block h-auto min-h-10 resize-none py-2.5 [field-sizing:content]")}
-        />
-      )
     return (
-      <input
+      <RichField
+        singleLine={!c.multiline}
+        code={!c.plain}
         value={value}
-        onChange={(e) => set(e.target.value)}
-        placeholder={placeholder}
+        onChange={set}
+        placeholder={placeholder ?? ""}
         aria-label={label}
-        className={CELL_INPUT}
+        className="min-h-10 w-full px-3 py-2.5 text-sm leading-5 focus:bg-accent/30"
       />
     )
   }
@@ -1056,7 +1054,7 @@ function TableInput({
   useLayoutEffect(() => {
     const shown = panel.current?.querySelectorAll("[data-row]")
     if (focusRow.current === undefined || !shown || shown.length <= focusRow.current) return
-    shown[focusRow.current].querySelector("input")?.focus()
+    shown[focusRow.current].querySelector<HTMLElement>("input, [contenteditable]")?.focus()
     focusRow.current = undefined
   })
 

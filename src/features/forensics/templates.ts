@@ -84,7 +84,7 @@ function headSection(namesHint?: string): Section {
       { type: "text", key: "forensiker", label: "Forensiker", me: true, group: "officer", autocomplete: true },
       { type: "text", key: "auftrag", label: "Übergeben/in Auftrag von", group: "officer", autocomplete: true },
       ...(namesHint
-        ? [{ type: "text", key: "betreff", label: "Seitentitel-Zusatz", fallback: "", hint: `Leer: ${namesHint}.` } as const]
+        ? [{ type: "text", key: "betreff", label: "Seitentitel-Zusatz", fallback: "", hint: `Leer: ${namesHint}.`, plain: true } as const]
         : []),
     ],
   }

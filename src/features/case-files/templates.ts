@@ -98,6 +98,8 @@ export interface TextField extends BaseField {
   numeric?: boolean
   /** A date: a "Heute" button fills in today's, e.g. "29.09.2026". */
   today?: boolean
+  /** Written as it is; otherwise the template puts it in inline code, so it is edited as code. */
+  plain?: boolean
 }
 
 /** Bullet points, one input each. */
@@ -255,6 +257,8 @@ export interface Column {
   wide?: boolean
   /** A text box that grows with its lines instead of a single line. */
   multiline?: boolean
+  /** Written as it is; otherwise the template puts it in inline code, so it is edited as code. */
+  plain?: boolean
   /** A new row starts with the value of the row above, e.g. the item several steps examine. */
   carry?: boolean
 }
@@ -598,7 +602,7 @@ const TODOS: TableField = {
   label: "Aufgaben",
   addLabel: "Aufgabe",
   columns: [
-    { key: "aufgabe", label: "Aufgabe", fallback: "N/A", wide: true },
+    { key: "aufgabe", label: "Aufgabe", fallback: "N/A", wide: true, plain: true },
     { key: "zustaendig", label: "Zuständige Person", fallback: "Zuständige Person", group: "officer", autocomplete: true },
     { key: "erledigt", label: "Erledigt", fallback: "×", check: true },
   ],
