@@ -2,6 +2,7 @@ import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import { headerImage } from "@/features/headers/paths"
 import { banner, cell, checklist, bullets, doc, facts, section, type Colors } from "./markdown"
+import { parseRich, richHtml, richMarkdown } from "./rich-text"
 import type { Value } from "./types"
 
 /** Blocks holding one line of text, which can be turned into each other. */
@@ -10,8 +11,15 @@ export type TextType = (typeof TEXT_TYPES)[number]
 
 const TextBlock = Schema.Struct({
   id: Schema.String,
-  type: Schema.Literals(["section", "text", "bullet", "note"]),
+  type: Schema.Literals(["text", "bullet", "note"]),
   text: Schema.String,
+})
+const SectionBlock = Schema.Struct({
+  id: Schema.String,
+  type: Schema.Literal("section"),
+  text: Schema.String,
+  /** Its own color of the heading; the one of the settings while unset. */
+  color: Schema.optionalKey(Schema.String),
 })
 const CheckBlock = Schema.Struct({ id: Schema.String, type: Schema.Literal("check"), text: Schema.String, checked: Schema.Boolean })
 const TableBlock = Schema.Struct({
@@ -41,7 +49,10 @@ const HeaderBlock = Schema.Struct({
   width: Schema.optionalKey(Schema.String),
 })
 
-export const Block = Schema.Union([TextBlock, CheckBlock, TableBlock, FieldsBlock, DividerBlock, HeaderBlock])
+/** A <details>: the summary shown, and the text that opens under it. */
+const DetailsBlock = Schema.Struct({ id: Schema.String, type: Schema.Literal("details"), summary: Schema.String, text: Schema.String })
+
+export const Block = Schema.Union([SectionBlock, TextBlock, CheckBlock, TableBlock, FieldsBlock, DividerBlock, HeaderBlock, DetailsBlock])
 export type Block = typeof Block.Type
 export type BlockType = Block["type"]
 export type TextishBlock = Extract<Block, { type: TextType }>
@@ -72,6 +83,8 @@ export function blockOf(type: BlockType, id: string, text = ""): Block {
       return { id, type }
     case "header":
       return { id, type, title: text }
+    case "details":
+      return { id, type, summary: text, text: "" }
     default:
       return { id, type, text }
   }
@@ -87,6 +100,7 @@ const TYPE_NAMES: Record<BlockType, string> = {
   note: "Hinweis",
   divider: "Trennlinie",
   header: "Header-Bild",
+  details: "Aufklappbar",
 }
 export const typeName = (type: BlockType) => TYPE_NAMES[type]
 
@@ -107,10 +121,11 @@ export function rowNumber(pattern: string, i: number) {
 
 /**
  * Blocks from pasted Markdown, as the case files write it: colored or `#` headings, quoted lines,
- * lists, tables, fields, rules and banner images. Rules around headings and images are left out,
- * since the Markdown of the blocks puts them there again.
+ * lists, tables, fields, rules, banner images and <details>. Rules around headings and images are
+ * left out, since the Markdown of the blocks puts them there again. A heading in another color than
+ * `headingColor`, the one of the settings, keeps its own.
  */
-export function markdownBlocks(markdown: string, newId: () => string): Block[] {
+export function markdownBlocks(markdown: string, newId: () => string, headingColor: string): Block[] {
   const lines = markdown
     .replace(/<!--[\s\S]*?-->/g, "")
     .split(/\r?\n/)
@@ -132,10 +147,28 @@ export function markdownBlocks(markdown: string, newId: () => string): Block[] {
       out.push({ id: newId(), type: "divider" })
       continue
     }
-    const heading = /^<font[^>]*>\s*<b>(.*)<\/b>\s*<\/font>$/i.exec(line) ?? /^#{1,6}\s+(.*)$/.exec(line)
-    if (heading) {
-      const text = heading[1].replace(/`/g, "").trim().replace(/^\d+\.\s*/, "").replace(/:$/, "")
-      out.push({ id: newId(), type: "section", text })
+    const font = /^<font\s+color=(["']?)([^"'\s>]+)\1[^>]*>\s*<(b|strong)>(.*)<\/\3>\s*<\/font>$/i.exec(line)
+    const heading = font?.[4] ?? /^#{1,6}\s+(.*)$/.exec(line)?.[1]
+    if (heading !== undefined) {
+      const text = heading.replace(/`/g, "").trim().replace(/^\d+\.\s*/, "").replace(/:$/, "")
+      const color = font?.[2]
+      out.push({ id: newId(), type: "section", text, ...(color && color.toLowerCase() !== headingColor.toLowerCase() && { color }) })
+      continue
+    }
+    if (/^<details\b/i.test(line)) {
+      // Up to the closing tag, the summary on the way; what is left are the lines of the text.
+      const body: string[] = []
+      let rest = line.replace(/^<details[^>]*>/i, "")
+      let summary = ""
+      for (;;) {
+        rest = rest.replace(/<summary>([\s\S]*?)<\/summary>/i, (_, s: string) => ((summary ||= s.trim()), ""))
+        const end = /<\/details>/i.exec(rest)
+        const kept = (end ? rest.slice(0, end.index) : rest).trim()
+        if (kept) body.push(kept)
+        if (end || i + 1 >= lines.length) break
+        rest = lines[++i]
+      }
+      out.push({ id: newId(), type: "details", summary: richMarkdown(parseRich(summary)), text: body.join("\n") })
       continue
     }
     if (line.startsWith("|")) {
@@ -214,9 +247,9 @@ interface Style {
  * written without a heading.
  */
 export function blocksMarkdown(blocks: readonly Block[], r: Style) {
-  const parts: { title?: string; blocks: Block[] }[] = [{ blocks: [] }]
+  const parts: { title?: string; color?: string; blocks: Block[] }[] = [{ blocks: [] }]
   for (const b of blocks) {
-    if (b.type === "section") parts.push({ title: b.text, blocks: [] })
+    if (b.type === "section") parts.push({ title: b.text, color: b.color, blocks: [] })
     // A header image stands on its own between rules, like the banners of the other case files.
     else if (b.type === "header") parts.push({ blocks: [b] }, { blocks: [] })
     else parts[parts.length - 1].blocks.push(b)
@@ -227,7 +260,7 @@ export function blocksMarkdown(blocks: readonly Block[], r: Style) {
       const body = partBody(p.blocks, r)
       if (p.title === undefined) return body ? [body] : []
       const title = `${++n}. ${r.fill(p.title).replace(/:$/, "") || "Abschnitt"}:`
-      return [section(r, title, body).trimEnd()]
+      return [section({ colors: { ...r.colors, heading: p.color ?? r.colors.heading } }, title, body).trimEnd()]
     }),
   )
 }
@@ -266,6 +299,13 @@ function blockMarkdown(b: Block, r: Style) {
     case "note": {
       const text = r.fill(b.text).replace(/\s*\n\s*/g, " ")
       return text && `> **${text}**`
+    }
+    case "details": {
+      // The summary is HTML, which Markdown isn't read in; the text after an empty line is Markdown again.
+      const summary = `> <details><summary>${richHtml(parseRich(r.fill(b.summary))) || "Details"}</summary>`
+      const lines = r.fill(b.text).split("\n").filter((l) => l.trim())
+      if (!lines.length) return b.summary.trim() ? `${summary}</details>` : ""
+      return [summary, ">", ...lines.map((l) => `> ${l.trim()}`), ">", "> </details>"].join("\n")
     }
     case "divider":
       return "---"

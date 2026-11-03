@@ -5,6 +5,7 @@ import {
   ArrowRightToLineIcon,
   ArrowUpToLineIcon,
   CheckIcon,
+  ChevronDownIcon,
   Columns3Icon,
   CopyIcon,
   GripVerticalIcon,
@@ -13,8 +14,10 @@ import {
   Heading1Icon,
   InfoIcon,
   ListChecksIcon,
+  ListCollapseIcon,
   ListIcon,
   MinusIcon,
+  PaletteIcon,
   PlusIcon,
   Repeat2Icon,
   Rows3Icon,
@@ -61,8 +64,8 @@ import {
   type TextishBlock,
 } from "./blocks"
 import { caretOf, setCaret, textLength } from "./caret"
-import { CHIP, FormatBar, RichInput } from "./rich-input"
-import { formatAt, formatRich, plainText, splitRich, withoutBold, type Format } from "./rich-text"
+import { CHIP, ColorInput, FormatBar, RichInput } from "./rich-input"
+import { formatAt, formatRich, plainText, splitRich, TEXT_COLORS, withoutBold, type Format } from "./rich-text"
 import type { DocFormProps } from "./templates"
 import { useColors } from "./use-case-files"
 
@@ -77,6 +80,7 @@ const BLOCKS: { type: BlockType; icon: LucideIcon; description: string; shortcut
   { type: "table", icon: Table2Icon, description: "Eigene Spalten, Zeilen gezählt", shortcut: "/tabelle", keywords: "spalten zeilen" },
   { type: "fields", icon: TextCursorInputIcon, description: "Bezeichnung und Wert", keywords: "angaben label wert" },
   { type: "note", icon: InfoIcon, description: "Fett hervorgehobene Notiz", shortcut: ">", keywords: "notiz wichtig" },
+  { type: "details", icon: ListCollapseIcon, description: "Zum Aufklappen, mit Zusammenfassung", keywords: "details summary aufklappen toggle" },
   { type: "divider", icon: MinusIcon, description: "Horizontale Linie", shortcut: "---", keywords: "linie trenner" },
   { type: "header", icon: ImageIcon, description: "VPD-Header mit Titel", keywords: "bild banner kopf titelbild" },
 ]
@@ -106,6 +110,10 @@ function matches(query: string) {
 
 type TableB = Extract<Block, { type: "table" }>
 type FieldsB = Extract<Block, { type: "fields" }>
+type DetailsB = Extract<Block, { type: "details" }>
+type SectionB = Extract<Block, { type: "section" }>
+/** A block with rich text: its text, or a details block's summary or text. */
+type RichB = TextishBlock | DetailsB
 
 /** Where the cursor goes: a position, or a selection from and to. */
 type Caret = "start" | "end" | number | readonly [number, number]
@@ -122,9 +130,11 @@ const inputKey = (b: Block) =>
       ? `${b.id}:k0`
       : b.type === "header"
         ? `${b.id}:title`
-        : b.type === "divider"
-          ? undefined
-          : b.id
+        : b.type === "details"
+          ? `${b.id}:summary`
+          : b.type === "divider"
+            ? undefined
+            : b.id
 
 interface History {
   undo: string[]
@@ -158,6 +168,7 @@ const GUTTER_TOP: Record<BlockType, string> = {
   fields: "top-0",
   divider: "-top-0.5",
   header: "top-2",
+  details: "top-0",
 }
 
 const hasContent = (b: Block) =>
@@ -169,7 +180,14 @@ const hasContent = (b: Block) =>
         ? b.fields.some((f) => f.label.trim() || f.value.trim())
         : b.type === "header"
           ? !!b.title.trim()
-          : false
+          : b.type === "details"
+            ? !!(b.summary.trim() || b.text.trim())
+            : false
+
+/** Whether input `key` of a details block is its summary; the key of the rest is the block's own or its text's. */
+const isSummary = (key: string) => key.endsWith(":summary")
+/** The rich text behind input `key` of `b`. */
+const richOf = (b: RichB, key: string) => (b.type === "details" && isSummary(key) ? b.summary : b.text)
 
 /**
  * An own case file built from blocks, like a Notion page: every line is a block, "/" or a
@@ -317,10 +335,61 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
     return true
   }
 
-  /** Sets `format` on the selected text of `b`, which stays selected. */
-  function applyFormat(b: TextishBlock, format: Format, start: number, end: number) {
-    focusAfter(b.id, [start, end])
-    update(b, { text: formatRich(b.text, start, end, format) })
+  function setRich(b: RichB, key: string, text: string) {
+    if (b.type === "details" && isSummary(key)) update(b, { summary: text }, key)
+    else update(b, { text }, key)
+  }
+
+  /** Sets `format` on the selected text of input `key` of `b`, which stays selected. */
+  function applyFormat(b: RichB, key: string, format: Format, start: number, end: number) {
+    focusAfter(key, [start, end])
+    setRich(b, key, formatRich(richOf(b, key), start, end, format))
+  }
+
+  /** Strg+B and Strg+E on the selected text of input `key`; whether it was one of them. */
+  function formatKey(e: KeyboardEvent<HTMLDivElement>, b: RichB, key: string) {
+    const k = e.key.toLowerCase()
+    if (!(e.ctrlKey || e.metaKey) || (k !== "b" && k !== "e")) return false
+    e.preventDefault()
+    const { start, end } = caretOf(e.currentTarget)
+    if (start === end || b.type === "section" || (k === "b" && b.type === "note")) return true
+    const now = formatAt(richOf(b, key), start, end)
+    applyFormat(b, key, k === "b" ? { bold: !now.bold } : { code: !now.code }, start, end)
+    return true
+  }
+
+  /** A heading in its own color, or back in the one of the settings. */
+  function setColor(b: SectionB, color?: string) {
+    const { color: _, ...rest } = b
+    replace(b.id, color ? { ...rest, color } : rest)
+  }
+
+  /**
+   * Keys in a details block: Enter goes from the summary to the text and from the text to a new
+   * block after it, Backspace at the start of the text back to the summary.
+   */
+  function detailsKeyDown(e: KeyboardEvent<HTMLDivElement>, b: DetailsB, i: number, key: string) {
+    if (formatKey(e, b, key)) return
+    const el = e.currentTarget
+    const { start, end } = caretOf(el)
+    const summary = isSummary(key)
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      if (summary) return focus(`${b.id}:text`, "start")
+      const after = blockOf("text", newId())
+      focusAfter(after.id)
+      insertAfter(i, after)
+    } else if (e.key === "Backspace" && start === 0 && end === 0) {
+      if (!summary) {
+        e.preventDefault()
+        focus(`${b.id}:summary`, "end")
+      } else if (!b.text) {
+        e.preventDefault()
+        convert(b, "text", b.summary)
+      }
+    } else if ((e.key === "ArrowUp" && start === 0) || (e.key === "ArrowDown" && end === textLength(el))) {
+      if (moveFocus(el, e.key === "ArrowUp" ? -1 : 1)) e.preventDefault()
+    }
   }
 
   function changeText(b: TextishBlock, text: string) {
@@ -337,7 +406,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
   function paste(e: ClipboardEvent<HTMLDivElement>, b: TextishBlock, i: number) {
     const text = e.clipboardData.getData("text/plain")
     if (!text.includes("\n")) return
-    const parsed = markdownBlocks(text, newId)
+    const parsed = markdownBlocks(text, newId, colors.heading)
     // Plain lines stay text, as typed.
     if (!parsed.length || (parsed.length === 1 && parsed[0].type === "text")) return
     e.preventDefault()
@@ -372,15 +441,9 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
         return setSlash(null)
       }
     }
+    if (formatKey(e, b, b.id)) return
     const { start, end } = caretOf(el)
     const list = b.type === "bullet" || b.type === "check"
-    const key = e.key.toLowerCase()
-    if ((e.ctrlKey || e.metaKey) && (key === "b" || key === "e")) {
-      e.preventDefault()
-      if (start === end || b.type === "section" || (key === "b" && b.type === "note")) return
-      const now = formatAt(b.text, start, end)
-      return applyFormat(b, key === "b" ? { bold: !now.bold } : { code: !now.code }, start, end)
-    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       // Enter on an empty point ends the list.
@@ -467,7 +530,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
         switch (b.type) {
           case "section":
             body = (
-              <div className={cn(QUOTE, "flex flex-wrap items-baseline gap-1")} style={{ color: colors.heading }}>
+              <div className={cn(QUOTE, "flex flex-wrap items-baseline gap-1")} style={{ color: b.color ?? colors.heading }}>
                 <code className={cn(CHIP, "select-none")}>{number}.</code>
                 <code className={cn(CHIP, "flex max-w-full items-baseline")}>
                   {area("max-w-full before:text-current/50", "Abschnitt")}:
@@ -556,6 +619,31 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
           case "note":
             body = <div className={cn(QUOTE, "font-semibold")}>{area("", "Hinweis")}</div>
             break
+          case "details": {
+            const input = (key: string, value: string, placeholder: string, className?: string) => (
+              <RichInput
+                inputRef={ref(key)}
+                data-format-id={key}
+                value={value}
+                placeholder={placeholder}
+                aria-label={placeholder}
+                onChange={(text) => setRich(b, key, text)}
+                onKeyDown={(e) => detailsKeyDown(e, b, i, key)}
+                className={className}
+              />
+            )
+            // Always open here, so both can be written; the Markdown shows it closed.
+            body = (
+              <div className={QUOTE}>
+                <div className="flex items-start">
+                  <ChevronDownIcon className="mt-1 mr-1 size-4 shrink-0 text-muted-foreground" />
+                  {input(`${b.id}:summary`, b.summary, "Zusammenfassung", "flex-1")}
+                </div>
+                {input(`${b.id}:text`, b.text, "Aufgeklappter Text", "pl-5 text-muted-foreground focus:text-foreground")}
+              </div>
+            )
+            break
+          }
           case "divider":
             body = (
               <div className="py-2">
@@ -710,6 +798,32 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                         </DropdownMenuSubContent>
                       </DropdownMenuSub>
                     )}
+                    {b.type === "section" && (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <PaletteIcon /> Farbe
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-44">
+                          {[undefined, ...TEXT_COLORS].map((c) => (
+                            <DropdownMenuItem key={c ?? ""} onSelect={() => setColor(b, c)}>
+                              <span className="size-3.5 rounded-full border border-border" style={{ background: c ?? colors.heading }} />
+                              {c ?? "Standard"}
+                              {b.color?.toLowerCase() === c?.toLowerCase() && <CheckIcon className="ml-auto" />}
+                            </DropdownMenuItem>
+                          ))}
+                          {/* The menu would take the typed keys for jumping to an item. */}
+                          <div className="p-1" onKeyDown={(e) => e.key !== "Escape" && e.stopPropagation()}>
+                            <ColorInput
+                              onPick={(c) => {
+                                setColor(b, c)
+                                setMenu(null)
+                              }}
+                              className="w-full"
+                            />
+                          </div>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem variant="destructive" onSelect={() => remove(b)}>
                       <Trash2Icon /> Löschen
@@ -718,12 +832,12 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                 </DropdownMenu>
               </div>
               {body}
-              {selection?.id === b.id && isTextish(b) && (
+              {selection?.id.split(":")[0] === b.id && (isTextish(b) || b.type === "details") && (
                 <FormatBar
                   ref={formatBar}
-                  format={formatAt(b.text, selection.start, selection.end)}
+                  format={formatAt(richOf(b, selection.id), selection.start, selection.end)}
                   bold={b.type !== "note"}
-                  onFormat={(format) => applyFormat(b, format, selection.start, selection.end)}
+                  onFormat={(format) => applyFormat(b, selection.id, format, selection.start, selection.end)}
                   style={{ left: selection.left, top: selection.top }}
                 />
               )}

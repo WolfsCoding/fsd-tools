@@ -3,7 +3,7 @@ import { BanIcon, BoldIcon, CodeIcon } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { caretOf, setCaret, textLength } from "./caret"
-import { parseRich, richMarkdown, sliceRuns, TEXT_COLORS, type Format, type Run } from "./rich-text"
+import { groups, parseRich, richMarkdown, sliceRuns, TEXT_COLORS, type Format, type Run } from "./rich-text"
 
 /** Inline code, as the Markdown shows it once pasted; the same in the text and in the headings. */
 export const CHIP = "inline-block rounded bg-muted px-1.5 font-mono text-[0.8em] leading-5"
@@ -24,24 +24,32 @@ function readRuns(el: HTMLElement) {
   return runs
 }
 
+function runNode(r: Run) {
+  let node: Node = document.createTextNode(r.text)
+  if (r.bold) {
+    const e = document.createElement("strong")
+    e.append(node)
+    node = e
+  }
+  if (r.color) {
+    const e = document.createElement("span")
+    e.dataset.color = r.color
+    e.style.color = r.color
+    e.append(node)
+    node = e
+  }
+  return node
+}
+
+/** Shows the runs in `el`; code next to code is one chip, as in the Markdown. */
 function renderRuns(el: HTMLElement, runs: readonly Run[]) {
   el.replaceChildren(
-    ...runs.map((r) => {
-      let node: Node = document.createTextNode(r.text)
-      const wrap = (tag: string) => {
-        const e = document.createElement(tag)
-        e.append(node)
-        node = e
-        return e
-      }
-      if (r.code) wrap("code").className = CHIP
-      if (r.bold) wrap("strong")
-      if (r.color) {
-        const e = wrap("span")
-        e.dataset.color = r.color
-        e.style.color = r.color
-      }
-      return node
+    ...groups(runs, (r) => (r.code ? "c" : "")).flatMap(([code, rs]) => {
+      if (!code) return rs.map(runNode)
+      const chip = document.createElement("code")
+      chip.className = CHIP
+      chip.append(...rs.map(runNode))
+      return [chip]
     }),
   )
   // A line break at the end only shows with something after it.
@@ -140,10 +148,6 @@ export function FormatBar({
   style: CSSProperties
   ref: Ref<HTMLDivElement>
 }) {
-  const [color, setColor] = useState("")
-  const typed = color.trim()
-  const valid = !!typed && CSS.supports("color", typed)
-
   return (
     <div
       ref={ref}
@@ -169,23 +173,34 @@ export function FormatBar({
           <span className="size-3.5 rounded-full border border-border" style={{ background: c }} />
         </Tool>
       ))}
-      <input
-        value={color}
-        onChange={(e) => setColor(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key !== "Enter") return
-          e.preventDefault()
-          if (valid) onFormat({ color: typed })
-        }}
-        placeholder="#Farbe"
-        aria-label="Eigene Farbe, mit Enter setzen"
-        className={cn(
-          "ml-1 h-6 w-20 rounded border bg-transparent px-1.5 font-mono text-xs outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring",
-          typed && !valid && "text-destructive",
-        )}
-        style={valid ? { color: typed } : undefined}
-      />
+      <ColorInput onPick={(color) => onFormat({ color })} className="ml-1 w-20" />
     </div>
+  )
+}
+
+/** A field for any HTML color, set with Enter; shown in its color once it is one. */
+export function ColorInput({ onPick, className }: { onPick: (color: string) => void; className?: string }) {
+  const [color, setColor] = useState("")
+  const typed = color.trim()
+  const valid = !!typed && CSS.supports("color", typed)
+  return (
+    <input
+      value={color}
+      onChange={(e) => setColor(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter") return
+        e.preventDefault()
+        if (valid) onPick(typed)
+      }}
+      placeholder="#Farbe"
+      aria-label="Eigene Farbe, mit Enter setzen"
+      className={cn(
+        "h-6 rounded border bg-transparent px-1.5 font-mono text-xs outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring",
+        typed && !valid && "text-destructive",
+        className,
+      )}
+      style={valid ? { color: typed } : undefined}
+    />
   )
 }
 
