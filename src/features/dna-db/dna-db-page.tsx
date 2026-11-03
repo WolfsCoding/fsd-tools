@@ -340,8 +340,12 @@ function EntryList() {
                           ) : null}
                         </div>
                       </TableCell>
-                      <TableCell>{entry.gender?.trim() || <span className="text-muted-foreground">---</span>}</TableCell>
-                      <TableCell>{entry.phone?.trim() || <span className="text-muted-foreground">---</span>}</TableCell>
+                      <TableCell>
+                        <IdChip value={entry.gender?.trim() ?? ""} label="Geschlecht" />
+                      </TableCell>
+                      <TableCell>
+                        <IdChip value={entry.phone?.trim() ?? ""} label="Telefonnummer" />
+                      </TableCell>
                       <TableCell>
                         <IdChip value={entry.dnaId} label="DNA-ID" />
                       </TableCell>

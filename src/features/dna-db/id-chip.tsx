@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/tooltip"
 import { copy } from "@/lib/clipboard"
 
-/** A DNA or fingerprint ID that copies itself on click; "---" while empty. */
+/** A short value (ID, phone, gender) that copies itself on click; "---" while empty. */
 export function IdChip({ value, label }: { value: string; label: string }) {
   if (!value) return <span className="text-muted-foreground">---</span>
   return (
