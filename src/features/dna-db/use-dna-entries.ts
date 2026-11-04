@@ -14,6 +14,12 @@ const NO_IDS: string[] = []
 
 export const dnaEntriesAtom = stored(DNA_ENTRIES_KEY, Schema.Array(DnaEntry), EMPTY)
 export const dnaDismissedAtom = stored(DNA_DISMISSED_KEY, Schema.Array(Schema.String), NO_IDS)
+/** Pairs of entries kept apart when asked (see `pairKey`), so merging them isn't offered again. */
+export const DNA_SEPARATE_KEY = "dna-db:separate"
+export const dnaSeparateAtom = stored(DNA_SEPARATE_KEY, Schema.Array(Schema.String), NO_IDS)
+
+/** Two entries as one key, the same either way round. */
+export const pairKey = (a: string, b: string) => (a < b ? `${a} ${b}` : `${b} ${a}`)
 
 /** How DNA and fingerprint IDs are stored: trimmed and in capitals, e.g. "d-0042" → "D-0042". */
 export function toId(value: string) {
@@ -23,10 +29,27 @@ export function toId(value: string) {
 /** Both set and equal (ignoring case), or one of them empty. */
 const fits = (a: string, b: string) => !a.trim() || !b.trim() || sameText(a, b)
 
+const sharesId = (a: DnaEntry, b: DnaEntry) =>
+  (!!a.dnaId && a.dnaId === b.dnaId) || (!!a.fingerprintId && a.fingerprintId === b.fingerprintId)
+
+const allFit = (a: DnaEntry, b: DnaEntry) =>
+  fits(a.name, b.name) && fits(a.dnaId, b.dnaId) && fits(a.fingerprintId, b.fingerprintId)
+
 /** Entries for the same trace: they share an ID, and nothing they both have differs. They get merged into one. */
 export function isDuplicate(a: DnaEntry, b: DnaEntry) {
-  const sharesId = (!!a.dnaId && a.dnaId === b.dnaId) || (!!a.fingerprintId && a.fingerprintId === b.fingerprintId)
-  return sharesId && fits(a.name, b.name) && fits(a.dnaId, b.dnaId) && fits(a.fingerprintId, b.fingerprintId)
+  return sharesId(a, b) && allFit(a, b)
+}
+
+/** Entries that may be one person, e.g. one with only a DNA-ID and one with only a fingerprint ID; merged only when asked. */
+export function canMerge(a: DnaEntry, b: DnaEntry) {
+  return a.id !== b.id && !sharesId(a, b) && allFit(a, b)
+}
+
+/** Entries with the same name that may be one person. */
+export function sameNamePairs(entries: DnaEntry[]) {
+  return entries.flatMap((a, i) =>
+    a.name.trim() ? entries.slice(i + 1).flatMap((b) => (canMerge(a, b) && sameText(a.name, b.name) ? [[a, b] as const] : [])) : [],
+  )
 }
 
 /** Items of `a`, then those of `b` with an id `a` doesn't have; undefined while there are none. */
@@ -163,7 +186,19 @@ export function useDnaEntries() {
     [entries, dismissed, setEntries, setDismissed],
   )
 
-  return { entries, dismissed, addEntry, updateEntry, deleteEntry }
+  /** `from` merged into `into`, which keeps its id. */
+  const mergeEntries = useCallback(
+    (intoId: string, fromId: string) =>
+      setEntries((prev) => {
+        const into = prev.find((e) => e.id === intoId)
+        const from = prev.find((e) => e.id === fromId)
+        if (!into || !from) return prev
+        return prev.flatMap((e) => (e === into ? [merge(into, from)] : e === from ? [] : [e]))
+      }),
+    [setEntries],
+  )
+
+  return { entries, dismissed, addEntry, updateEntry, deleteEntry, mergeEntries }
 }
 
 /** The entry's name, or "Unbekannt" for a trace not yet matched to a person. */

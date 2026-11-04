@@ -6,7 +6,8 @@ import { useEffect, useRef, useState } from "react"
 import type { DnaEntry, DnaEntryInput } from "@/features/dna-db/types"
 import { sameText } from "@/lib/text"
 import { useAtom } from "@effect/atom-react"
-import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
+import { MergeDialog, type MergePair } from "@/features/dna-db/merge-dialog"
+import { canMerge, dnaSeparateAtom, pairKey, sameNamePairs, useDnaEntries } from "@/features/dna-db/use-dna-entries"
 import { POLICE_FILES_KIND } from "./police-files"
 import { templateFields, type Column, type Lookup } from "./templates"
 import {
@@ -96,6 +97,15 @@ function allTraces(caseFiles: CaseFile<string>[], entries: DnaEntry[]) {
   }
   mapRows(caseFiles, collect, true)
   return traces
+}
+
+/** Entries a trace of the case files pairs, its DNA-ID being one's and its fingerprint ID the other's. */
+function tracePairs(caseFiles: CaseFile<string>[], entries: DnaEntry[]) {
+  return allTraces(caseFiles, entries).flatMap((t) => {
+    const a = findEntry(entries, "dna", t.dna)
+    const b = findEntry(entries, "fa", t.fa)
+    return a && b && canMerge(a, b) ? [[a, b] as const] : []
+  })
 }
 
 /**
@@ -206,11 +216,15 @@ function inTextField() {
 /**
  * Links the analyses with the DNA database whenever either changes. While a case file is
  * edited in the focused text field it waits until the field loses the focus, so half typed
- * IDs and names are never linked. Rendered once, by the layout.
+ * IDs and names are never linked. Asks whether entries that seem to be one person are, and
+ * merges them. Rendered once, by the layout.
  */
 export function DnaLink() {
-  const { entries, dismissed, addEntry, updateEntry } = useDnaEntries()
+  const { entries, dismissed, addEntry, updateEntry, mergeEntries } = useDnaEntries()
   const [caseFiles, setCaseFiles] = useAtom(POLICE_FILES_KIND.atom)
+  const [separate, setSeparate] = useAtom(dnaSeparateAtom)
+  // Entries that may be one person, by id, as found when last linked.
+  const [pairs, setPairs] = useState<{ a: string; b: string; reason: MergePair["reason"] }[]>([])
   // Bumped when a field loses the focus, to link what was entered in it.
   const [blurs, setBlurs] = useState(0)
   // The case files when the focused field got the focus; different ones were edited in it.
@@ -236,6 +250,10 @@ export function DnaLink() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (inTextField() && caseFiles !== atFocus.current) return
+      setPairs([
+        ...sameNamePairs(entries).map(([a, b]) => ({ a: a.id, b: b.id, reason: "name" as const })),
+        ...tracePairs(caseFiles, entries).map(([a, b]) => ({ a: a.id, b: b.id, reason: "trace" as const })),
+      ])
       const linked = linkDna(caseFiles, entries, dismissed, renames(linkedEntries.current, entries))
       for (const { id, input } of linked.update) updateEntry(id, input)
       for (const input of linked.add) addEntry(input)
@@ -255,5 +273,19 @@ export function DnaLink() {
     return () => clearTimeout(timer)
   }, [caseFiles, entries, dismissed, blurs, addEntry, updateEntry, setCaseFiles])
 
-  return null
+  const pair = pairs
+    .map((p): MergePair | undefined => {
+      const a = entries.find((e) => e.id === p.a)
+      const b = entries.find((e) => e.id === p.b)
+      return a && b && canMerge(a, b) && !separate.includes(pairKey(a.id, b.id)) ? { a, b, reason: p.reason } : undefined
+    })
+    .find(Boolean)
+
+  return (
+    <MergeDialog
+      pair={pair}
+      onMerge={() => pair && mergeEntries(pair.a.id, pair.b.id)}
+      onKeepApart={() => pair && setSeparate((prev) => [...prev, pairKey(pair.a.id, pair.b.id)])}
+    />
+  )
 }

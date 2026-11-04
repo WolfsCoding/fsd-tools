@@ -168,10 +168,11 @@ export function newDbData(entries: DnaEntry[], traces: Trace[], kinds: TraceKind
       known.push({ name, dnaId, fingerprintId, id: "", createdAt: "", updatedAt: "" })
       continue
     }
+    // An ID another entry has stays there: whether both are one person is asked (see `tracePairs`).
     const input: Partial<DnaEntryInput> = {
       ...(name && !entry.name.trim() && { name }),
-      ...(dnaId && !entry.dnaId.trim() && { dnaId }),
-      ...(fingerprintId && !entry.fingerprintId.trim() && { fingerprintId }),
+      ...(dnaId && !entry.dnaId.trim() && !findEntry(known, "dna", dnaId) && { dnaId }),
+      ...(fingerprintId && !entry.fingerprintId.trim() && !findEntry(known, "fa", fingerprintId) && { fingerprintId }),
     }
     // Entries added above are only completed by their own trace; known ones are updated.
     if (Object.keys(input).length && entry.id) {
