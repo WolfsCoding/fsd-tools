@@ -306,7 +306,7 @@ export function useCaseFiles(kind: CaseFileKind) {
           const docs = a.docs.filter((d) => d.template in kind.templates)
           return [docs.length === a.docs.length ? a : { ...a, docs }]
         })
-        .sort((a, b) => Number(!!a.settled) - Number(!!b.settled) || b.updatedAt.localeCompare(a.updatedAt)),
+        .sort((a, b) => Number(!!a.settled) - Number(!!b.settled) || b.createdAt.localeCompare(a.createdAt)),
     [stored, kind],
   )
 

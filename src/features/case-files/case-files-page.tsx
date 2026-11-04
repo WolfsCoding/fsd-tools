@@ -37,7 +37,7 @@ import { NewCaseFileDialog, type NewCaseFile } from "./new-case-file-dialog"
 import { POLICE_FILES_KIND } from "./police-files"
 import type { CaseFile } from "./types"
 import { caseFileText, caseFileTitle, useCaseFiles, useOwnName, type CaseFilesApi } from "./use-case-files"
-import { WithIds } from "./with-ids"
+import { IdTag, WithIds } from "./with-ids"
 
 /** Case files filled in from the department's templates and copied out as markdown. */
 export function CaseFilesPage({ kind = POLICE_FILES_KIND }: { kind?: CaseFileKind }) {
@@ -210,12 +210,12 @@ function CaseFileList({
         <ContextMenuTrigger asChild>
           {/* The name's link covers the whole row, so any cell opens the case file. */}
           <TableRow className="group/item relative">
-            <TableCell className={cn(GAP, "tabular-nums")}>{number || <span className="text-muted-foreground">—</span>}</TableCell>
+            <TableCell className={GAP}>{number ? <IdTag id={number} /> : <span className="text-muted-foreground">—</span>}</TableCell>
             <TableCell className={cn(GAP, "tabular-nums")}>{formatDateAndTime(a.createdAt)}</TableCell>
             <TableCell className={GAP}>
               <StatusBadge settled={a.settled} />
             </TableCell>
-            <TableCell className={cn(GAP, "max-w-56 truncate")}>
+            <TableCell className={GAP}>
               {a.ablage ? <WithIds text={ablageLabel(a, entries)} /> : <span className="text-muted-foreground">—</span>}
             </TableCell>
             <TableCell className="w-full max-w-0 truncate font-medium">
