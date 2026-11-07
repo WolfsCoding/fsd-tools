@@ -4,7 +4,7 @@
 import { useAtomValue } from "@effect/atom-react"
 import { useMemo } from "react"
 import { POLICE_FILES_KIND, policeFilesAtom } from "@/features/case-files/police-files"
-import type { CaseFile } from "@/features/case-files/types"
+import { statusOf, type CaseFile } from "@/features/case-files/types"
 import { caseFileTitle, useOwnName } from "@/features/case-files/use-case-files"
 import { textKey } from "@/lib/text"
 import type { DnaEntry } from "./types"
@@ -95,7 +95,7 @@ export function useCaseFileSummaries() {
       new Map<string, CaseFileSummary>(
         caseFiles.map((c) => [
           c.id,
-          { id: c.id, title: caseFileMentionTitle(c, me), createdAt: c.createdAt, settled: !!c.settled },
+          { id: c.id, title: caseFileMentionTitle(c, me), createdAt: c.createdAt, settled: statusOf(c) === "erledigt" },
         ]),
       ),
     [caseFiles, me],

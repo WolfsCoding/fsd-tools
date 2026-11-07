@@ -6,8 +6,8 @@ import { looksLikeId } from "./traces"
 const ID_IN_PARENS = /\s*\(([^()\s]+)\)/g
 
 /** An ID shown as code. */
-export function IdTag({ id }: { id: string }) {
-  return <code className="truncate rounded bg-muted px-1 py-px font-mono text-[0.85em] text-foreground">{id}</code>
+export function IdTag({ id, className }: { id: string; className?: string }) {
+  return <code className={cn("truncate rounded bg-muted px-1 py-px font-mono text-[0.85em] text-foreground", className)}>{id}</code>
 }
 
 /**

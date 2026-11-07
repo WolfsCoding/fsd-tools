@@ -306,7 +306,7 @@ export function useCaseFiles(kind: CaseFileKind) {
           const docs = a.docs.filter((d) => d.template in kind.templates)
           return [docs.length === a.docs.length ? a : { ...a, docs }]
         })
-        .sort((a, b) => Number(!!a.settled) - Number(!!b.settled) || b.createdAt.localeCompare(a.createdAt)),
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [stored, kind],
   )
 
@@ -350,18 +350,15 @@ export function useCaseFiles(kind: CaseFileKind) {
       restoreCaseFile(caseFile: CaseFile<string>) {
         setCaseFiles((prev) => (prev.some((a) => a.id === caseFile.id) ? prev : [...prev, caseFile]))
       },
-      rename(id: string, title: string) {
-        change(id, (a) => ({ ...a, title }))
-      },
-      /** An empty number goes back to the one entered in the documents. */
-      setCaseNumber(id: string, caseNumber: string) {
-        change(id, (a) => ({ ...a, caseNumber: caseNumber.replace(/^#/, "").trim() || undefined }))
-      },
-      setAblage(id: string, ablage: string) {
-        change(id, (a) => ({ ...a, ablage: ablage.trim() || undefined }))
-      },
-      setSettled(id: string, settled: boolean) {
-        change(id, (a) => ({ ...a, settled: settled || undefined }))
+      /** An empty title goes back to the automatic one, an empty number to the one entered in the documents. */
+      editDetails(id: string, details: CaseFileDetails) {
+        change(id, (a) => ({
+          ...a,
+          ...details,
+          settled: undefined,
+          caseNumber: details.caseNumber?.replace(/^#/, "").trim() || undefined,
+          ablage: details.ablage?.trim() || undefined,
+        }))
       },
       /** An empty title goes back to the automatic one. */
       renameDoc(id: string, docId: string, title: string) {
@@ -407,3 +404,6 @@ export function useCaseFiles(kind: CaseFileKind) {
 }
 
 export type CaseFilesApi = ReturnType<typeof useCaseFiles>
+
+/** What the edit dialog changes of a case file. */
+export type CaseFileDetails = Pick<CaseFile<string>, "title" | "type" | "caseNumber" | "ablage" | "status">

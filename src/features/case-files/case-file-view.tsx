@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useLocation, useSearchParams } from "react-router"
 import {
   CheckIcon,
-  CircleCheckIcon,
   ClipboardCopyIcon,
   CopyIcon,
   DicesIcon,
@@ -11,9 +10,7 @@ import {
   FilePlusIcon,
   FileTextIcon,
   FolderDownIcon,
-  FolderIcon,
   GripVerticalIcon,
-  HashIcon,
   HeadingIcon,
   PencilIcon,
   PlayIcon,
@@ -49,12 +46,13 @@ import { formatDate, formatLongDateTime, formatRelative } from "@/lib/format-dat
 import { removedToast } from "@/lib/undo"
 import { saveFolder } from "@/lib/folder"
 import { ablagePerson, aktenzeichen, caseTypeOf } from "./case-types"
-import { DnaPicker } from "./dna-picker"
 import { DocForm, MeHint, SectionFields } from "./doc-form"
+import { EditCaseFileDialog } from "./edit-case-file-dialog"
 import { withNow } from "./markdown"
 import type { CaseFileKind } from "./kind"
 import { blankMarkdown, canRandomize, createReader, missingRequired, randomized, type Section } from "./templates"
-import type { CaseFile, Doc } from "./types"
+import { StatusBadge } from "./status-badge"
+import { statusOf, type CaseFile, type Doc } from "./types"
 import {
   caseFileTitle,
   collectSuggestions,
@@ -176,9 +174,9 @@ export function CaseFileView({
     }
   }
 
-  /** "caseFile", "caseNumber", "ablage" or the id of the Bericht whose title is being edited. */
+  /** The id of the Bericht whose title is being edited. */
   const [renaming, setRenaming] = useState<string>()
-  const renameAfterMenu = useRef<"caseFile" | "caseNumber" | "ablage">(undefined)
+  const [editingDetails, setEditingDetails] = useState(false)
   const addedFromMenu = useRef(false)
   const title = caseFileTitle(caseFile, me, templates)
   useTabTitle(title)
@@ -477,32 +475,13 @@ export function CaseFileView({
         <div className="flex flex-wrap items-center gap-3">
           <BackButton to={kind.base} label={`Alle ${kind.title}`} />
           <div className="flex min-w-32 flex-1 items-center gap-2.5">
-            {renaming === "caseFile" ? (
-              // Clearing the title goes back to the automatic one.
-              <InlineEdit
-                value={title}
-                allowEmpty
-                onDone={(t) => {
-                  if (t !== undefined) api.rename(caseFile.id, t)
-                  setRenaming(undefined)
-                }}
-                placeholder={caseFileTitle({ ...caseFile, title: "" }, me, templates)}
-                aria-label={`Titel der ${kind.noun}`}
-                className="min-w-0 flex-1 text-xl font-semibold"
-              />
-            ) : (
-              <Hint label="Doppelklick zum Umbenennen">
-                <h1 onDoubleClick={() => setRenaming("caseFile")} className="min-w-0 truncate text-xl font-semibold select-none">
-                  <WithIds text={title} />
-                </h1>
-              </Hint>
-            )}
+            <h1 className="min-w-0 truncate text-xl font-semibold">
+              <WithIds text={title} />
+            </h1>
             {number && <span className="shrink-0 text-sm text-muted-foreground tabular-nums">{number}</span>}
-            <Hint label={caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}>
-              <button type="button" onClick={() => api.setSettled(caseFile.id, !caseFile.settled)} className="shrink-0 rounded-sm">
-                <StatusBadge settled={caseFile.settled} />
-              </button>
-            </Hint>
+            <span className="shrink-0">
+              <StatusBadge status={statusOf(caseFile)} />
+            </span>
           </div>
           <div className="ml-auto flex items-center gap-3">
             <Hint label="Die Beschreibung kopieren">
@@ -516,17 +495,7 @@ export function CaseFileView({
                   <EllipsisIcon />
                 </Button>
               </DropdownMenuTrigger>
-              {/* Editing opens its field once the menu is closed, so the field gets the focus, not the button. */}
-              <DropdownMenuContent
-                align="end"
-                className="w-60"
-                onCloseAutoFocus={(e) => {
-                  if (!renameAfterMenu.current) return
-                  e.preventDefault()
-                  setRenaming(renameAfterMenu.current)
-                  renameAfterMenu.current = undefined
-                }}
-              >
+              <DropdownMenuContent align="end" className="w-60">
                 <DropdownMenuItem onSelect={() => setPreviewId(main.id)}>
                   <EyeIcon /> Vorschau
                 </DropdownMenuItem>
@@ -552,17 +521,8 @@ export function CaseFileView({
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={() => (renameAfterMenu.current = "caseFile")}>
-                  <PencilIcon /> {kind.noun} umbenennen
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => (renameAfterMenu.current = "caseNumber")}>
-                  <HashIcon /> {caseFile.caseNumber ? "Aktenzeichen ändern" : "Aktenzeichen hinzufügen"}
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => (renameAfterMenu.current = "ablage")}>
-                  <FolderIcon /> Ablage ändern
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => api.setSettled(caseFile.id, !caseFile.settled)}>
-                  <CircleCheckIcon /> {caseFile.settled ? "Als offen markieren" : "Als erledigt markieren"}
+                <DropdownMenuItem onSelect={() => setEditingDetails(true)}>
+                  <PencilIcon /> {kind.noun} bearbeiten
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={() => onDelete(caseFile)}>
@@ -574,24 +534,7 @@ export function CaseFileView({
         </div>
 
         <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 text-xs sm:grid-cols-4">
-          <Meta label="Aktenzeichen">
-            {renaming === "caseNumber" ? (
-              // Clearing the number goes back to the one entered in the documents.
-              <InlineEdit
-                value={caseFile.caseNumber ?? ""}
-                allowEmpty
-                onDone={(n) => {
-                  if (n !== undefined) api.setCaseNumber(caseFile.id, n)
-                  setRenaming(undefined)
-                }}
-                placeholder="12345/26"
-                aria-label="Aktenzeichen"
-                className="w-32 text-xs"
-              />
-            ) : (
-              <Editable onEdit={() => setRenaming("caseNumber")}>{number || "—"}</Editable>
-            )}
-          </Meta>
+          <Meta label="Aktenzeichen">{number || "—"}</Meta>
           <Meta label="Typ">{type?.label ?? mainTemplate.label}</Meta>
           <Meta label="Erstellt">{formatDate(caseFile.createdAt)}</Meta>
           <Meta label="Geändert">{formatRelative(caseFile.updatedAt)}</Meta>
@@ -599,26 +542,15 @@ export function CaseFileView({
 
         <div className="mt-5 grid justify-items-start gap-2.5">
           <h2 className="text-sm font-semibold">Ablage</h2>
-          {renaming === "ablage" ? (
-            <AblagePicker
-              value={caseFile.ablage ?? ""}
-              // Every case file has an Ablage, so emptying the field keeps the one it has.
-              onChange={(v) => v.trim() && api.setAblage(caseFile.id, v)}
-              onDone={() => setRenaming(undefined)}
-            />
-          ) : (
-            <Editable onEdit={() => setRenaming("ablage")}>
-              <span className="flex items-center gap-3">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <UserIcon className="size-5" />
-                </span>
-                <span className="grid gap-0.5">
-                  <span className="font-semibold">{ablage ? ablage.name.trim() || "Unbekannt" : "—"}</span>
-                  {ablage?.id && <span className="text-sm text-muted-foreground">{ablage.id.trim().toUpperCase()}</span>}
-                </span>
-              </span>
-            </Editable>
-          )}
+          <span className="flex items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <UserIcon className="size-5" />
+            </span>
+            <span className="grid gap-0.5">
+              <span className="font-semibold">{ablage ? ablage.name.trim() || "Unbekannt" : "—"}</span>
+              {ablage?.id && <span className="text-sm text-muted-foreground">{ablage.id.trim().toUpperCase()}</span>}
+            </span>
+          </span>
         </div>
 
         {tabs.length > 0 && (
@@ -772,22 +704,18 @@ export function CaseFileView({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  )
-}
 
-/** Shows whether a case file is still open, like the records system. */
-export function StatusBadge({ settled }: { settled?: boolean }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex h-5.5 items-center rounded-sm px-1.5 text-[11px] font-semibold tracking-wide text-white uppercase",
-        // The colors of positive and negative results in the Berichte.
-        settled ? "bg-[#34D399]" : "bg-[#F87171]",
-      )}
-    >
-      {settled ? "Erledigt" : "Offen"}
-    </span>
+      <EditCaseFileDialog
+        caseFile={editingDetails ? caseFile : undefined}
+        kind={kind}
+        me={me}
+        onSave={(details) => {
+          api.editDetails(caseFile.id, details)
+          setEditingDetails(false)
+        }}
+        onClose={() => setEditingDetails(false)}
+      />
+    </div>
   )
 }
 
@@ -821,30 +749,6 @@ function Panel({
   )
 }
 
-/** Picks the Ablage from the DNA database, or adds them to it; done once a person is picked or the field is left. */
-function AblagePicker({ value, onChange, onDone }: { value: string; onChange: (value: string) => void; onDone: () => void }) {
-  const ref = useRef<HTMLDivElement>(null)
-  // Selected, so typing replaces the person.
-  useEffect(() => {
-    const input = ref.current?.querySelector("input")
-    input?.focus()
-    input?.select()
-  }, [])
-  return (
-    <div ref={ref} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && onDone()} className="w-full max-w-60">
-      <DnaPicker
-        value={value}
-        onChange={onChange}
-        kinds={["dna", "fa"]}
-        names
-        placeholder="Name oder DNA-ID"
-        aria-label="Ablage"
-        className="h-7 text-xs md:text-xs"
-      />
-    </div>
-  )
-}
-
 /** One detail of the case file in the header, e.g. its Aktenzeichen. */
 function Meta({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -852,17 +756,6 @@ function Meta({ label, children }: { label: string; children: ReactNode }) {
       <dt className="shrink-0 text-muted-foreground">{label}:</dt>
       <dd className="min-w-0 font-medium break-words">{children}</dd>
     </div>
-  )
-}
-
-/** A detail changed with a double click. */
-function Editable({ onEdit, children }: { onEdit: () => void; children: ReactNode }) {
-  return (
-    <Hint label="Doppelklick zum Ändern">
-      <span onDoubleClick={onEdit} className="select-none">
-        {children}
-      </span>
-    </Hint>
   )
 }
 

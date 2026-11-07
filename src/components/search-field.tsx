@@ -4,12 +4,7 @@ import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { usePane } from "@/hooks/use-pane"
 
@@ -106,7 +101,6 @@ export function FilterMenu({ filtered, children }: { filtered: boolean; children
         </DropdownMenuTrigger>
       </Hint>
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuLabel>Filter</DropdownMenuLabel>
         {children}
       </DropdownMenuContent>
     </DropdownMenu>

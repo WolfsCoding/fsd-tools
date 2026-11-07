@@ -1,19 +1,11 @@
 import { useId, useMemo, useState } from "react"
-import { ChevronsUpDownIcon } from "lucide-react"
 import { StepDialog, type Step } from "@/components/step-dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group"
 import { Input } from "@/components/ui/input"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
 import { CASE_TYPES, caseType, type CaseType } from "./case-types"
 import { DnaPicker } from "./dna-picker"
 import { Labeled, SectionFields } from "./doc-form"
+import { AktenzeichenInput, TypePicker } from "./edit-case-file-dialog"
 import type { CaseFileKind } from "./kind"
 import { createReader } from "./templates"
 import { findById, findEntry } from "./traces"
@@ -132,47 +124,13 @@ function Steps({
         <>
           <div className="grid gap-4">
             <Labeled id={ids.type} label="Typ" className="">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    id={ids.type}
-                    type="button"
-                    className="flex h-9 w-full items-center gap-2 rounded-lg border border-input bg-transparent px-2.5 text-left text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm"
-                  >
-                    <span className="min-w-0 flex-1 truncate">{type.label}</span>
-                    {type.prefix && <span className="text-muted-foreground">{type.prefix}</span>}
-                    <ChevronsUpDownIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-(--radix-dropdown-menu-trigger-width)">
-                  <DropdownMenuRadioGroup value={type.id} onValueChange={pick}>
-                    {CASE_TYPES.map((t) => (
-                      <DropdownMenuRadioItem key={t.id} value={t.id}>
-                        <span className="flex-1">{t.label}</span>
-                        {t.prefix && <span className="text-xs text-muted-foreground">{t.prefix}</span>}
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <TypePicker id={ids.type} value={type} onChange={pick} />
             </Labeled>
             <Labeled id={ids.name} label="Name" className="">
               <Input id={ids.name} value={name} onChange={(e) => setName(e.target.value)} placeholder={type.label} />
             </Labeled>
             <Labeled id={ids.number} label="Aktenzeichen" className="">
-              <InputGroup>
-                {type.prefix && (
-                  <InputGroupAddon>
-                    <InputGroupText>{type.prefix}</InputGroupText>
-                  </InputGroupAddon>
-                )}
-                <InputGroupInput
-                  id={ids.number}
-                  value={caseNumber}
-                  onChange={(e) => setCaseNumber(e.target.value)}
-                  placeholder="12345/26"
-                />
-              </InputGroup>
+              <AktenzeichenInput id={ids.number} type={type} value={caseNumber} onChange={setCaseNumber} />
             </Labeled>
             <Labeled
               id={ids.ablage}

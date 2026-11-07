@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react"
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router"
 import {
   ChevronDownIcon,
-  CircleCheckIcon,
   EllipsisIcon,
   EyeIcon,
   FileTextIcon,
@@ -16,26 +15,36 @@ import {
 import { toast } from "sonner"
 import { cn } from "cn"
 import { Explorer } from "@/components/explorer"
-import { InlineEdit } from "@/components/inline-edit"
-import { NoResults } from "@/components/no-results"
+import { EmptyList, NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { readFolder } from "@/lib/folder"
 import { formatDateAndTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
-import { CaseFileView, StatusBadge } from "./case-file-view"
+import { CaseFileView } from "./case-file-view"
+import { EditCaseFileDialog } from "./edit-case-file-dialog"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
 import { ablageLabel, aktenzeichen, CASE_TYPES, caseTypeOf } from "./case-types"
 import { casePath, type CaseFileKind } from "./kind"
 import { NewCaseFileDialog, type NewCaseFile } from "./new-case-file-dialog"
 import { POLICE_FILES_KIND } from "./police-files"
-import type { CaseFile } from "./types"
+import { StatusBadge } from "./status-badge"
+import { CASE_STATUSES, statusOf, type CaseFile, type CaseStatus } from "./types"
 import { caseFileText, caseFileTitle, useCaseFiles, useOwnName, type CaseFilesApi } from "./use-case-files"
 import { IdTag, WithIds } from "./with-ids"
 
@@ -150,6 +159,8 @@ function CaseFileRoute({
 
 /** Room right of a column, so the columns stand apart. */
 const GAP = "pr-20"
+/** The filter value that hides nothing. */
+const ALL = "alle"
 
 /** What can be done with a case file of the list; shown in its context menu and its ⋯ menu. */
 interface ItemAction {
@@ -175,30 +186,37 @@ function CaseFileList({
   onDelete: (caseFile: CaseFile<string>) => void
 }) {
   const [query, setQuery] = useState("")
-  const [renamingId, setRenamingId] = useState<string>()
+  const [status, setStatus] = useState<CaseStatus | typeof ALL>(ALL)
+  /** One of `CASE_TYPES`, or all of them. */
+  const [type, setType] = useState<string>(ALL)
+  const [editingId, setEditingId] = useState<string>()
   const navigate = useNavigate()
   const { entries } = useDnaEntries()
 
   // Searched in the title, the Aktenzeichen, the type, the Ablage and everything entered.
   const texts = useMemo(() => new Map(api.caseFiles.map((a) => [a.id, caseFileText(a).toLowerCase()])), [api.caseFiles])
   const q = query.trim().toLowerCase()
-  const shown = q
-    ? api.caseFiles.filter(
-        (a) =>
-          [caseFileTitle(a, me, kind.templates), aktenzeichen(a), caseTypeOf(a)?.label ?? "", ablageLabel(a, entries)].some((s) =>
-            s.toLowerCase().includes(q),
-          ) || texts.get(a.id)?.includes(q),
-      )
-    : api.caseFiles
+  const shown = api.caseFiles.filter(
+    (a) =>
+      (status === ALL || statusOf(a) === status) &&
+      (type === ALL || caseTypeOf(a)?.id === type) &&
+      (!q ||
+        [caseFileTitle(a, me, kind.templates), aktenzeichen(a), caseTypeOf(a)?.label ?? "", ablageLabel(a, entries)].some((s) =>
+          s.toLowerCase().includes(q),
+        ) ||
+        texts.get(a.id)?.includes(q)),
+  )
+  const filtered = status !== ALL || type !== ALL
+  const keep = (e: Event) => e.preventDefault()
+  const resetFilters = () => {
+    setQuery("")
+    setStatus(ALL)
+    setType(ALL)
+  }
 
   const actions = (a: CaseFile<string>): ItemAction[] => [
     { label: "Vorschau", icon: EyeIcon, onSelect: () => navigate(casePath(kind, a.id), { state: { preview: true } }) },
-    { label: "Umbenennen", icon: PencilIcon, onSelect: () => setRenamingId(a.id) },
-    {
-      label: a.settled ? "Als offen markieren" : "Als erledigt markieren",
-      icon: CircleCheckIcon,
-      onSelect: () => api.setSettled(a.id, !a.settled),
-    },
+    { label: "Bearbeiten", icon: PencilIcon, onSelect: () => setEditingId(a.id) },
     { label: "Löschen", icon: Trash2Icon, onSelect: () => onDelete(a), destructive: true },
   ]
 
@@ -210,41 +228,27 @@ function CaseFileList({
         <ContextMenuTrigger asChild>
           {/* The name's link covers the whole row, so any cell opens the case file. */}
           <TableRow className="group/item relative">
-            <TableCell className={GAP}>{number ? <IdTag id={number} /> : <span className="text-muted-foreground">—</span>}</TableCell>
+            <TableCell className={GAP}>{number ? <IdTag id={number} className="inline-block rounded-md bg-muted/60 px-2 py-[3px] align-middle text-xs" /> : <span className="text-muted-foreground">—</span>}</TableCell>
             <TableCell className={cn(GAP, "tabular-nums")}>{formatDateAndTime(a.createdAt)}</TableCell>
             <TableCell className={GAP}>
-              <StatusBadge settled={a.settled} />
+              <StatusBadge status={statusOf(a)} />
             </TableCell>
             <TableCell className={GAP}>
               {a.ablage ? <WithIds text={ablageLabel(a, entries)} /> : <span className="text-muted-foreground">—</span>}
             </TableCell>
             <TableCell className="w-full max-w-0 truncate font-medium">
-              {renamingId === a.id ? (
-                // Clearing the title goes back to the automatic one.
-                <InlineEdit
-                  value={title}
-                  allowEmpty
-                  onDone={(t) => {
-                    if (t !== undefined) api.rename(a.id, t)
-                    setRenamingId(undefined)
-                  }}
-                  placeholder={caseFileTitle({ ...a, title: "" }, me, kind.templates)}
-                  aria-label={`Titel der ${kind.noun}`}
-                />
-              ) : (
-                <Link
-                  to={casePath(kind, a.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "F2") {
-                      e.preventDefault()
-                      setRenamingId(a.id)
-                    }
-                  }}
-                  className="outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
-                >
-                  <WithIds text={title} />
-                </Link>
-              )}
+              <Link
+                to={casePath(kind, a.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "F2") {
+                    e.preventDefault()
+                    setEditingId(a.id)
+                  }
+                }}
+                className="outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
+              >
+                <WithIds text={title} />
+              </Link>
             </TableCell>
             <TableCell className="relative w-0 py-0 pr-2">
               {/* The same actions without a right click; shown on hover and focus. */}
@@ -270,7 +274,7 @@ function CaseFileList({
             </TableCell>
           </TableRow>
         </ContextMenuTrigger>
-        {/* Not refocusing the row keeps the focus in the title field after "Umbenennen". */}
+        {/* Not refocusing the row keeps the focus in the dialog after "Bearbeiten". */}
         <ContextMenuContent onCloseAutoFocus={(e) => e.preventDefault()}>
           {actions(a).map((x) => (
             <ContextMenuItem key={x.label} variant={x.destructive ? "destructive" : undefined} onSelect={x.onSelect}>
@@ -287,7 +291,40 @@ function CaseFileList({
       title={kind.title}
       toolbar={
         <>
-          <SearchField value={query} onChange={setQuery} focusKey aria-label={`${kind.title} durchsuchen`} />
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            focusKey
+            aria-label={`${kind.title} durchsuchen`}
+            filtered={filtered}
+            filters={
+              <>
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={status} onValueChange={(v) => setStatus(CASE_STATUSES.find((s) => s === v) ?? ALL)}>
+                  <DropdownMenuRadioItem value={ALL} onSelect={keep}>
+                    Alle
+                  </DropdownMenuRadioItem>
+                  {CASE_STATUSES.map((s) => (
+                    <DropdownMenuRadioItem key={s} value={s} onSelect={keep}>
+                      <StatusBadge status={s} />
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Typ</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={type} onValueChange={setType}>
+                  <DropdownMenuRadioItem value={ALL} onSelect={keep}>
+                    Alle
+                  </DropdownMenuRadioItem>
+                  {CASE_TYPES.map((t) => (
+                    <DropdownMenuRadioItem key={t.id} value={t.id} onSelect={keep}>
+                      {t.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </>
+            }
+          />
           <ButtonGroup>
             {/* Its transparent right border would show the page between the two blue halves. */}
             <Button onClick={onNew} className="border-r-0">
@@ -337,7 +374,28 @@ function CaseFileList({
           </div>
         )
       )}
-      {q && shown.length === 0 && api.caseFiles.length > 0 && <NoResults query={query} onReset={() => setQuery("")} />}
+      {shown.length === 0 &&
+        api.caseFiles.length > 0 &&
+        (q ? (
+          <NoResults query={query} onReset={resetFilters} />
+        ) : (
+          <div className="grid justify-items-center text-muted-foreground">
+            <EmptyList>Keine {kind.title} für diesen Filter</EmptyList>
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="-mt-4">
+              Filter zurücksetzen
+            </Button>
+          </div>
+        ))}
+      <EditCaseFileDialog
+        caseFile={api.caseFiles.find((a) => a.id === editingId)}
+        kind={kind}
+        me={me}
+        onSave={(details) => {
+          if (editingId) api.editDetails(editingId, details)
+          setEditingId(undefined)
+        }}
+        onClose={() => setEditingId(undefined)}
+      />
     </Explorer>
   )
 }

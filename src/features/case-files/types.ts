@@ -11,6 +11,16 @@ export const Value = Schema.Union([Schema.String, Schema.Array(Schema.String), S
 export type Values = Record<string, Value>
 export const Values = Schema.Record(Schema.String, Value)
 
+export const CASE_STATUSES = ["offen", "erledigt", "verwaltung"] as const
+export const CaseStatus = Schema.Literals(CASE_STATUSES)
+export type CaseStatus = (typeof CASE_STATUSES)[number]
+export const STATUS_LABELS: Record<CaseStatus, string> = { offen: "Offen", erledigt: "Erledigt", verwaltung: "Verwaltung" }
+
+/** Where a case file stands; older ones only knew whether they were done. */
+export function statusOf(caseFile: { status?: CaseStatus; settled?: boolean }): CaseStatus {
+  return caseFile.status ?? (caseFile.settled ? "erledigt" : "offen")
+}
+
 /** One document of a case file, filled from a template. */
 export interface Doc<Id extends string = TemplateId> {
   id: string
@@ -31,7 +41,8 @@ export interface CaseFile<Id extends string = TemplateId> {
   caseNumber?: string
   /** The first one is the main document and can't be removed. */
   docs: Doc<Id>[]
-  /** Marked as done; still listed, after the open ones. */
+  status?: CaseStatus
+  /** Kept from before `status`: marked as done. */
   settled?: boolean
   /** One of `CASE_TYPES`; case files from before the types were kept take it from their main document. */
   type?: string
@@ -55,6 +66,7 @@ export const CaseFile = Schema.Struct({
   title: Schema.String,
   caseNumber: Schema.optionalKey(Schema.String),
   docs: Schema.Array(Doc),
+  status: Schema.optionalKey(CaseStatus),
   settled: Schema.optionalKey(Schema.Boolean),
   type: Schema.optionalKey(Schema.String),
   ablage: Schema.optionalKey(Schema.String),

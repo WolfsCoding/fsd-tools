@@ -24,7 +24,7 @@ import {
   type Trace,
   type TraceKind,
 } from "./traces"
-import type { CaseFile, Row } from "./types"
+import { statusOf, type CaseFile, type Row } from "./types"
 
 const KINDS: TraceKind[] = ["dna", "fa"]
 const FIELDS: DbField[] = ["name", "dna", "fa"]
@@ -42,7 +42,7 @@ const isIdLookup = (lookup: Lookup) => lookup.field === "dna" || lookup.field ==
 function mapRows(caseFiles: CaseFile<string>[], fn: (row: Row, columns: Column[]) => Row, settled = false) {
   let changed = false
   const next = caseFiles.map((a) => {
-    if (a.settled && !settled) return a
+    if (statusOf(a) === "erledigt" && !settled) return a
     let docsChanged = false
     const docs = a.docs.map((d) => {
       const t = POLICE_FILES_KIND.templates[d.template]
