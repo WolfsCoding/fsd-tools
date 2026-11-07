@@ -38,7 +38,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { useReorder } from "@/components/use-reorder"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
-import { NoteMarkdown } from "@/features/notes/markdown-editor"
+import { NoteMarkdown } from "@/features/notes/note-markdown"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { copy } from "@/lib/clipboard"

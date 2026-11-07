@@ -1504,28 +1504,29 @@ const suspectStatement: Template = {
     ),
 }
 
-/** Free Markdown, written like a note, for whatever none of the other documents fits. */
+/** Free blocks, written like a note, for whatever none of the other documents fits. */
 const entry: Template = {
   id: "eintrag",
   label: "Eigener Eintrag",
   emoji: "📝",
-  description: "Freier Text in Markdown, wie eine Notiz.",
+  description: "Freier Text aus Blöcken, wie eine Notiz.",
   standalone: false,
   group: "Sonstiges",
   sections: [
     {
       title: "Eintrag",
-      description: "Titel und Text; kopiert wird der Text so, wie er ist.",
+      description: "Titel und Text aus Blöcken.",
       fields: [
         { type: "text", key: "titel", label: "Titel", fallback: "" },
-        { type: "text", key: "text", label: "Text", fallback: "", required: true },
+        // The Markdown of entries written before the blocks, or imported; shown until they are edited.
+        { type: "text", key: "text", label: "Text", fallback: "" },
       ],
     },
   ],
   form: EntryForm,
   subject: (r) => r.filled("titel"),
   pageTitle: (r) => r.filled("titel"),
-  render: (r) => r.filled("text"),
+  render: (r) => (r.raw(BLOCKS_KEY) === undefined ? r.filled("text") : blocksMarkdown(readBlocks(r.raw(BLOCKS_KEY)), r)),
 }
 
 /** A case file built from scratch out of blocks: Abschnitte, text, lists, tables and fields. */

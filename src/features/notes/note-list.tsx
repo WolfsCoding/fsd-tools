@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { PencilIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
@@ -16,14 +16,15 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useOwnIdentity } from "@/features/case-files/use-case-files"
-import { useFullscreen } from "@/hooks/use-fullscreen"
+import { BLOCKS_KEY, BlockEditor } from "@/features/case-files/block-editor"
+import { blocksMarkdown, markdownBlocks, readBlocks, writeBlocks } from "@/features/case-files/blocks"
+import { useColors, useOwnIdentity } from "@/features/case-files/use-case-files"
 import { formatLongDateTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
 import { byPosition, useArrangeRow, type Arrange } from "./arrange"
 import { DragHandle, FolderItem, ParentItem, ROW } from "./folder-list"
 import { useAfterMenuClose } from "./use-after-menu-close"
-import { MarkdownEditor, NoteMarkdown } from "./markdown-editor"
+import { NoteMarkdown } from "./note-markdown"
 import type { Note, NoteFolder } from "./types"
 import { noteTitle } from "./use-notes"
 
@@ -100,13 +101,14 @@ export function NoteList({
     requestAnimationFrame(() => document.getElementById(`note-${reveal}`)?.scrollIntoView({ block: "start" }))
   }, [reveal])
 
-  function save(id: string, title: string, content: string) {
+  function save(id: string, title: string, content: string, blocks: string) {
     const at = now()
     if (id === NEW) {
       const note: Note = {
         id: crypto.randomUUID(),
         title,
         content,
+        blocks,
         ...(identity.full ? { author: identity.full } : {}),
         ...(folderId ? { folderId } : {}),
         createdAt: at,
@@ -115,7 +117,7 @@ export function NoteList({
       onUpdate((list) => [...list, note])
       onCreatingChange(false)
     } else {
-      onUpdate((list) => list.map((n) => (n.id === id ? { ...n, title, content, updatedAt: at } : n)))
+      onUpdate((list) => list.map((n) => (n.id === id ? { ...n, title, content, blocks, updatedAt: at } : n)))
       setEditing(null)
     }
   }
@@ -148,7 +150,7 @@ export function NoteList({
                 editing={editing === entry.id}
                 onOpenChange={(isOpen) => toggle(entry.id, isOpen)}
                 onEdit={() => setEditing(entry.id)}
-                onSave={(title, content) => save(entry.id, title, content)}
+                onSave={(title, content, blocks) => save(entry.id, title, content, blocks)}
                 onCancel={() => setEditing(null)}
                 onRemove={() => remove(entry)}
                 onArrange={onArrange}
@@ -174,7 +176,7 @@ export function NoteList({
         open={creating}
         author={identity.full || undefined}
         onOpenChange={onCreatingChange}
-        onSave={(title, content) => save(NEW, title, content)}
+        onSave={(title, content, blocks) => save(NEW, title, content, blocks)}
       />
     </div>
   )
@@ -196,7 +198,7 @@ function NoteItem({
   editing: boolean
   onOpenChange: (open: boolean) => void
   onEdit: () => void
-  onSave: (title: string, content: string) => void
+  onSave: (title: string, content: string, blocks: string) => void
   onCancel: () => void
   onRemove: () => void
   onArrange?: Arrange
@@ -303,45 +305,17 @@ function NewNoteDialog({
   open: boolean
   author?: string
   onOpenChange: (open: boolean) => void
-  onSave: (title: string, content: string) => void
+  onSave: (title: string, content: string, blocks: string) => void
 }) {
-  // "Vollbild" of the editor fills the dialog, which then grows to the whole screen.
-  const contentRef = useRef<HTMLDivElement>(null)
-  const [fullscreen, setFullscreen] = useFullscreen(contentRef)
-  const change = (o: boolean) => {
-    if (!o) setFullscreen(false)
-    onOpenChange(o)
-  }
   return (
-    <Dialog open={open} onOpenChange={change}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        ref={contentRef}
-        className={cn(
-          "max-h-[calc(100dvh-2rem)] sm:max-w-[min(110rem,calc(100%-4rem))]",
-          // "Vollbild" of the editor makes the dialog fill the screen, the rest stays as it is.
-          fullscreen && "top-0 left-0 h-dvh max-h-none max-w-none translate-x-0 translate-y-0 rounded-none sm:max-w-none",
-        )}
+        className="max-h-[calc(100dvh-2rem)] sm:max-w-[min(110rem,calc(100%-4rem))]"
         // A stray click next to the editor shouldn't throw the note away; Esc and "Abbrechen" still do.
         onInteractOutside={(e) => e.preventDefault()}
-        // Esc leaves "Vollbild" first instead of throwing the note away.
-        onEscapeKeyDown={(e) => {
-          if (!fullscreen) return
-          e.preventDefault()
-          setFullscreen(false)
-        }}
       >
         {open && (
-          <NoteForm
-            dialog
-            header={<NewNoteHeader author={author} />}
-            fullscreen={fullscreen}
-            onFullscreenChange={setFullscreen}
-            onSave={(title, content) => {
-              setFullscreen(false)
-              onSave(title, content)
-            }}
-            onCancel={() => change(false)}
-          />
+          <NoteForm dialog header={<NewNoteHeader author={author} />} onSave={onSave} onCancel={() => onOpenChange(false)} />
         )}
       </DialogContent>
     </Dialog>
@@ -353,28 +327,27 @@ function NoteForm({
   note,
   dialog = false,
   header,
-  fullscreen,
-  onFullscreenChange,
   onSave,
   onCancel,
 }: {
   note?: Note
   dialog?: boolean
   header?: ReactNode
-  /** The editor's "Vollbild", when the dialog controls it. */
-  fullscreen?: boolean
-  onFullscreenChange?: (fullscreen: boolean) => void
-  onSave: (title: string, content: string) => void
+  onSave: (title: string, content: string, blocks: string) => void
   onCancel: () => void
 }) {
+  const { colors } = useColors()
   const [title, setTitle] = useState(note?.title ?? "")
-  const [content, setContent] = useState(note?.content ?? "")
+  // Notes written before the block editor start from the blocks of their Markdown.
+  const [blocks, setBlocks] = useState(
+    () => note?.blocks ?? writeBlocks(markdownBlocks(note?.content ?? "", () => crypto.randomUUID(), colors.heading)),
+  )
   const id = note?.id ?? NEW
   const canSave = !!title.trim()
 
   function submit(e?: FormEvent) {
     e?.preventDefault()
-    if (canSave) onSave(title.trim(), content)
+    if (canSave) onSave(title.trim(), blocksMarkdown(readBlocks(blocks), { colors, fill: (text) => text }), blocks)
   }
 
   const fields = (
@@ -385,21 +358,29 @@ function NoteForm({
         </Label>
         <Input id={`note-title-${id}`} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
       </div>
-      <div className={cn("grid gap-2", fullscreen && "flex min-h-0 flex-1 flex-col")}>
-        <Label htmlFor={`note-text-${id}`}>Text</Label>
-        <MarkdownEditor
-          id={`note-text-${id}`}
-          value={content}
-          onChange={setContent}
-          onSubmit={() => submit()}
-          fullscreen={fullscreen}
-          onFullscreenChange={onFullscreenChange}
-          // In the dialog, the dialog fills the screen and the editor grows with it.
-          fullscreenClassName={dialog ? "min-h-0 flex-1" : undefined}
-        />
-        <p className="text-xs text-muted-foreground">
-          Dieses Eingabefeld unterstützt Markdown und ein paar HTML-Tags · Strg+Enter speichert
-        </p>
+      <div className="grid gap-2">
+        <Label>Text</Label>
+        <div
+          className="rounded-lg border bg-background/50 py-3 pr-3"
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return
+            if (e.ctrlKey || e.metaKey) submit()
+            // Enter in a table cell or field mustn't send the form.
+            if (e.ctrlKey || e.metaKey || e.target instanceof HTMLInputElement) e.preventDefault()
+          }}
+        >
+          <BlockEditor
+            values={{ [BLOCKS_KEY]: blocks }}
+            onChange={(_, value) => typeof value === "string" && setBlocks(value)}
+            onUpdate={(_, change) =>
+              setBlocks((prev) => {
+                const value = change(prev)
+                return typeof value === "string" ? value : prev
+              })
+            }
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">„/“ fügt einen Block ein · Strg+Enter speichert</p>
       </div>
     </>
   )
@@ -417,7 +398,7 @@ function NoteForm({
   if (dialog) {
     return (
       <form onSubmit={submit} className="contents">
-        <DialogPanel className={cn("overflow-y-auto", fullscreen && "flex flex-1 flex-col")}>
+        <DialogPanel className="overflow-y-auto">
           {header}
           {fields}
         </DialogPanel>

@@ -27,7 +27,7 @@ import { noteTitle, useNotes } from "./use-notes"
 
 const now = () => new Date().toISOString()
 
-/** Notes in Markdown/HTML, like the ones about a person, in folders and in the order they're dragged to. */
+/** Notes, like the ones about a person, in folders and in the order they're dragged to. */
 export function NotesPage() {
   const { notes, updateNotes } = useNotes()
   const [folders, setFolders] = useNoteFolders()
@@ -252,7 +252,7 @@ function Home({ onCreate, onCreateFolder }: { onCreate: () => void; onCreateFold
           <NotebookPenIcon />
         </EmptyMedia>
         <EmptyTitle>Noch keine Notizen</EmptyTitle>
-        <EmptyDescription>Schreib Notizen in Markdown, mit Vorschau daneben, und sortier sie in Ordner.</EmptyDescription>
+        <EmptyDescription>Schreib Notizen aus Blöcken wie Abschnitten, Listen und Tabellen, und sortier sie in Ordner.</EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row justify-center">
         <Button variant="outline" onClick={onCreateFolder}>

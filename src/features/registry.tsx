@@ -97,7 +97,7 @@ export const features: Feature[] = [
   {
     path: NOTES_BASE.slice(1),
     title: "Notizen",
-    description: "Notizen in Markdown, wie die zu Personen",
+    description: "Notizen aus Blöcken, wie die zu Personen",
     icon: NotebookPenIcon,
     element: <NotesPage />,
     storage: { entries: [notesAtom, foldersAtom, legacyPagesAtom] },

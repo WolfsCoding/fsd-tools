@@ -1,11 +1,14 @@
 import * as Schema from "effect/Schema"
 import type { StoredValue } from "@/lib/storage"
 
-/** A note in Markdown/HTML, on its own or about a person. */
+/** A note, on its own or about a person. */
 export const Note = Schema.Struct({
   id: Schema.String,
   title: Schema.String,
+  /** The Markdown/HTML of its blocks, shown and searched. */
   content: Schema.String,
+  /** The block editor's blocks as JSON; missing on notes written before it, which start from `content`. */
+  blocks: Schema.optionalKey(Schema.String),
   /** Rank and name of who wrote it, from the settings. */
   author: Schema.optionalKey(Schema.String),
   /** Folder it sits in under "Notizen"; missing means the top level. */
