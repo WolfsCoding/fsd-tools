@@ -45,6 +45,8 @@ export interface FolderRows {
 }
 
 const NEW = "new"
+/** The form of a note edited in place, which the buttons in its header send. */
+const noteFormId = (id: string) => `note-form-${id}`
 const now = () => new Date().toISOString()
 
 /**
@@ -223,7 +225,16 @@ function NoteItem({
               </span>
             </span>
           </CollapsibleTrigger>
-          {!editing && (
+          {editing ? (
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+                Abbrechen
+              </Button>
+              <Button type="submit" size="sm" form={noteFormId(note.id)}>
+                Speichern
+              </Button>
+            </>
+          ) : (
             <Hint label="Bearbeiten">
               <Button variant="ghost" size="icon-sm" onClick={onEdit} aria-label={`„${noteTitle(note)}“ bearbeiten`}>
                 <PencilIcon />
@@ -255,7 +266,7 @@ function NoteItem({
         {/* No background, so the note reads like a page under its header. */}
         <CollapsibleContent className="border-t">
           {editing ? (
-            <NoteForm note={note} onSave={onSave} onCancel={onCancel} />
+            <NoteForm note={note} onSave={onSave} />
           ) : note.content.trim() ? (
             <NoteMarkdown className="px-4 py-5">{note.content}</NoteMarkdown>
           ) : (
@@ -334,7 +345,8 @@ function NoteForm({
   dialog?: boolean
   header?: ReactNode
   onSave: (title: string, content: string, blocks: string) => void
-  onCancel: () => void
+  /** Only in the dialog; in place, the note's header has the buttons. */
+  onCancel?: () => void
 }) {
   const { colors } = useColors()
   const [title, setTitle] = useState(note?.title ?? "")
@@ -356,12 +368,11 @@ function NoteForm({
         <Label htmlFor={`note-title-${id}`}>
           <span className="text-destructive">*</span> Titel
         </Label>
-        <Input id={`note-title-${id}`} value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+        <Input id={`note-title-${id}`} value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus />
       </div>
       <div className="grid gap-2">
         <Label>Text</Label>
         <div
-          className="rounded-lg border bg-background/50 py-3 pr-3"
           onKeyDown={(e) => {
             if (e.key !== "Enter") return
             if (e.ctrlKey || e.metaKey) submit()
@@ -380,21 +391,9 @@ function NoteForm({
             }
           />
         </div>
-        <p className="text-xs text-muted-foreground">„/“ fügt einen Block ein · Strg+Enter speichert</p>
       </div>
     </>
   )
-  const buttons = (
-    <>
-      <Button type="button" variant="outline" onClick={onCancel}>
-        Abbrechen
-      </Button>
-      <Button type="submit" disabled={!canSave}>
-        Speichern
-      </Button>
-    </>
-  )
-
   if (dialog) {
     return (
       <form onSubmit={submit} className="contents">
@@ -402,14 +401,20 @@ function NoteForm({
           {header}
           {fields}
         </DialogPanel>
-        <DialogFooter>{buttons}</DialogFooter>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Abbrechen
+          </Button>
+          <Button type="submit" disabled={!canSave}>
+            Speichern
+          </Button>
+        </DialogFooter>
       </form>
     )
   }
   return (
-    <form onSubmit={submit} className="grid gap-4 p-4">
+    <form id={noteFormId(id)} onSubmit={submit} className="grid gap-4 p-4">
       {fields}
-      <div className="flex items-center justify-end gap-2">{buttons}</div>
     </form>
   )
 }

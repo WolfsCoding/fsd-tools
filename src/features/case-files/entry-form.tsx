@@ -32,7 +32,6 @@ export function EntryForm({ values, onChange, onUpdate, onEditingChange }: DocFo
         >
           <BlockEditor values={{ ...values, [BLOCKS_KEY]: values[BLOCKS_KEY] ?? seed }} onChange={onChange} onUpdate={onUpdate} />
         </div>
-        <p className="text-xs text-muted-foreground">„/“ fügt einen Block ein · Strg+Enter beendet die Bearbeitung</p>
       </div>
     </>
   )
