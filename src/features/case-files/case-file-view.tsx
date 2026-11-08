@@ -367,10 +367,10 @@ export function CaseFileView({
         open={open}
         data-doc-id={d.id}
         {...reorder.row(i)}
-        className={cn("overflow-hidden rounded-lg border", reorder.rowClass(i))}
+        className={cn("rounded-lg border", reorder.rowClass(i))}
       >
         <ContextMenu>
-          <div className="flex items-center gap-1 bg-card pr-2 transition-colors hover:bg-accent/30">
+          <div className="flex items-center gap-1 rounded-t-[calc(var(--radius)-1px)] bg-card pr-2 transition-colors last:rounded-b-[calc(var(--radius)-1px)] hover:bg-accent/30">
             {reports.length > 1 && (
               <Hint label="Ziehen zum Sortieren, oder Pfeil hoch/runter">
                 <button
@@ -457,7 +457,8 @@ export function CaseFileView({
             ))}
           </ContextMenuContent>
         </ContextMenu>
-        <CollapsibleContent>
+        {/* Clipped only up and down for folding, so the block editor's handles can stand out to the left. */}
+        <CollapsibleContent className="overflow-x-visible overflow-y-clip">
           <div data-doc-body className="grid gap-4 border-t p-4">
             {formOf(d)}
           </div>

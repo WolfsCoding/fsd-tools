@@ -141,7 +141,14 @@ export function NoteList({
   return (
     <div className="grid gap-3 has-data-[slot=empty]:flex-1">
       {(entries.length > 0 || parent) && (
-        <ul className="divide-y overflow-hidden rounded-lg border stagger-in">
+        <ul
+          className={cn(
+            "divide-y rounded-lg border stagger-in",
+            // Rounds the rows' backgrounds instead of clipping the list, so the block editor's handles can stand out to the left.
+            "[&>li:first-child]:rounded-t-[calc(var(--radius)-1px)] [&>li:first-child>div:first-child]:rounded-t-[calc(var(--radius)-1px)]",
+            "[&>li:last-child]:rounded-b-[calc(var(--radius)-1px)] [&>li:last-child>div:last-child]:rounded-b-[calc(var(--radius)-1px)]",
+          )}
+        >
           {parent && <ParentItem parentId={parent.id} onArrange={onArrange} />}
           {entries.map((entry) =>
             "title" in entry ? (
@@ -264,7 +271,7 @@ function NoteItem({
           </ContextMenuContent>
         </ContextMenu>
         {/* No background, so the note reads like a page under its header. */}
-        <CollapsibleContent className="border-t">
+        <CollapsibleContent className="overflow-x-visible overflow-y-clip border-t">
           {editing ? (
             <NoteForm note={note} onSave={onSave} />
           ) : note.content.trim() ? (
@@ -370,27 +377,24 @@ function NoteForm({
         </Label>
         <Input id={`note-title-${id}`} value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus />
       </div>
-      <div className="grid gap-2">
-        <Label>Text</Label>
-        <div
-          onKeyDown={(e) => {
-            if (e.key !== "Enter") return
-            if (e.ctrlKey || e.metaKey) submit()
-            // Enter in a table cell or field mustn't send the form.
-            if (e.ctrlKey || e.metaKey || e.target instanceof HTMLInputElement) e.preventDefault()
-          }}
-        >
-          <BlockEditor
-            values={{ [BLOCKS_KEY]: blocks }}
-            onChange={(_, value) => typeof value === "string" && setBlocks(value)}
-            onUpdate={(_, change) =>
-              setBlocks((prev) => {
-                const value = change(prev)
-                return typeof value === "string" ? value : prev
-              })
-            }
-          />
-        </div>
+      <div
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return
+          if (e.ctrlKey || e.metaKey) submit()
+          // Enter in a table cell or field mustn't send the form.
+          if (e.ctrlKey || e.metaKey || e.target instanceof HTMLInputElement) e.preventDefault()
+        }}
+      >
+        <BlockEditor
+          values={{ [BLOCKS_KEY]: blocks }}
+          onChange={(_, value) => typeof value === "string" && setBlocks(value)}
+          onUpdate={(_, change) =>
+            setBlocks((prev) => {
+              const value = change(prev)
+              return typeof value === "string" ? value : prev
+            })
+          }
+        />
       </div>
     </>
   )

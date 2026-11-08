@@ -21,17 +21,14 @@ export function EntryForm({ values, onChange, onUpdate, onEditingChange }: DocFo
         <Label htmlFor={`${id}-title`}>Titel</Label>
         <Input id={`${id}-title`} value={title} onChange={(e) => onChange("titel", e.target.value)} />
       </div>
-      <div className="grid gap-2">
-        <Label>Text</Label>
-        <div
-          onKeyDown={(e) => {
-            if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey)) return
-            e.preventDefault()
-            onEditingChange?.(false)
-          }}
-        >
-          <BlockEditor values={{ ...values, [BLOCKS_KEY]: values[BLOCKS_KEY] ?? seed }} onChange={onChange} onUpdate={onUpdate} />
-        </div>
+      <div
+        onKeyDown={(e) => {
+          if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey)) return
+          e.preventDefault()
+          onEditingChange?.(false)
+        }}
+      >
+        <BlockEditor values={{ ...values, [BLOCKS_KEY]: values[BLOCKS_KEY] ?? seed }} onChange={onChange} onUpdate={onUpdate} />
       </div>
     </>
   )

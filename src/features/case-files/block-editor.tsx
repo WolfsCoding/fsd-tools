@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type ClipboardEvent, type ComponentProps, type KeyboardEvent, type ReactNode } from "react"
 import {
   ArrowDownToLineIcon,
   ArrowLeftToLineIcon,
@@ -8,6 +8,7 @@ import {
   ChevronDownIcon,
   Columns3Icon,
   CopyIcon,
+  GripHorizontalIcon,
   GripVerticalIcon,
   HashIcon,
   ImageIcon,
@@ -157,19 +158,6 @@ const START: Block[] = [{ id: "start", type: "text", text: "" }]
 const QUOTE = "border-l-[3px] border-l-muted-foreground/25 pl-4 text-sm leading-6"
 const RULE = "border-t-[3px] border-muted-foreground/25"
 const CHIP_INPUT = cn(CHIP, "field-sizing-content max-w-full min-w-[3ch] outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring")
-/** Where the + and the handle sit, level with the first line of each block. */
-const GUTTER_TOP: Record<BlockType, string> = {
-  section: "top-0",
-  text: "top-0",
-  bullet: "top-0",
-  check: "top-0",
-  note: "top-0",
-  table: "top-2.5",
-  fields: "top-0",
-  divider: "-top-0.5",
-  header: "top-2",
-  details: "top-0",
-}
 
 const hasContent = (b: Block) =>
   isTextish(b)
@@ -716,30 +704,16 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
             )}
           >
             {/* Every Abschnitt after the first, and a header image, are set off by a rule, as in the Markdown. */}
-            {i > 0 && (b.type === "section" || b.type === "header" || prevType === "header") && <hr className={cn(RULE, "my-5 ml-12")} />}
-            <div data-block-row className="relative pl-12">
+            {i > 0 && (b.type === "section" || b.type === "header" || prevType === "header") && <hr className={cn(RULE, "my-5")} />}
+            <div data-block-row className="relative">
+              {/* On the quote line, so the handle shows only while the pointer is on it, and covers it halfway down. */}
               <div
                 className={cn(
-                  "absolute left-0 flex gap-0.5 opacity-0 transition-opacity group-focus-within/block:opacity-100 group-hover/block:opacity-100",
+                  "absolute inset-y-0 -left-1.5 z-10 flex w-4 justify-center opacity-0 transition-opacity hover:opacity-100",
                   menu === b.id && "opacity-100",
-                  GUTTER_TOP[b.type],
                 )}
               >
-                <Hint label="Baustein darunter einfügen">
-                  <button
-                    type="button"
-                    aria-label="Baustein darunter einfügen"
-                    onClick={() => {
-                      const nb = blockOf("text", newId(), "/")
-                      focusAfter(nb.id, "end")
-                      setSlash({ id: nb.id, active: 0 })
-                      insertAfter(i, nb)
-                    }}
-                    className="flex h-6 w-5 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    <PlusIcon className="size-3.5" />
-                  </button>
-                </Hint>
+                <div className="relative self-center">
                 {/* Not modal: a modal menu would take back the focus its items move to a new row or block. */}
                 <DropdownMenu modal={false} open={menu === b.id} onOpenChange={(open) => setMenu(open ? b.id : null)}>
                   <Hint label="Ziehen zum Verschieben, klicken für Menü">
@@ -750,11 +724,11 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                       {...reorder.handle(i)}
                       onClick={() => setMenu(b.id)}
                       className={cn(
-                        "relative flex h-6 w-5 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing",
+                        "relative flex h-6 w-4 cursor-grab items-center justify-center rounded-md border bg-popover text-muted-foreground shadow-sm hover:text-foreground active:cursor-grabbing",
                         menu === b.id && "bg-accent text-foreground",
                       )}
                     >
-                      <GripVerticalIcon className="size-3.5" />
+                      <GripVerticalIcon className="size-3" />
                       <DropdownMenuTrigger asChild>
                         <span aria-hidden className="pointer-events-none absolute inset-0" />
                       </DropdownMenuTrigger>
@@ -830,6 +804,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                </div>
               </div>
               {body}
               {selection?.id.split(":")[0] === b.id && (isTextish(b) || b.type === "details") && (
@@ -846,7 +821,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
         )
       })}
       {/* Clicking below the last block writes on. */}
-      <div className="h-10 cursor-text" onClick={addAtEnd} />
+      <div className="h-4 cursor-text" onClick={addAtEnd} />
     </div>
   )
 }
@@ -877,8 +852,12 @@ interface PartProps<B extends Block> {
   focus: (key: string, at?: "start" | "end") => void
 }
 
-const TH = "relative border-r border-b border-border bg-muted/70 px-3 py-2.5 text-left align-middle font-semibold last:border-r-0"
-const TD = "relative border-r border-b border-border px-3 py-2 align-middle last:border-r-0 group-last/row:border-b-0"
+// The corner cells are rounded instead of the table being clipped, so the handles on its edges can stand out of it.
+const TH = "relative border-r border-b border-border bg-muted/70 px-3 py-2.5 text-left align-middle font-semibold first:rounded-tl-md last:rounded-tr-md last:border-r-0"
+const TD = cn(
+  "relative border-r border-b border-border px-3 py-2 align-middle last:border-r-0 group-odd/row:bg-muted/20 group-even/row:bg-muted/50",
+  "group-last/row:border-b-0 group-last/row:first:rounded-bl-md group-last/row:last:rounded-br-md",
+)
 
 /** A table with columns of its own; its rows are numbered like every table of the case files, unless that column was removed. */
 function TableBlock({
@@ -902,6 +881,74 @@ function TableBlock({
   }
   const removeRow = (r: number) => onChange({ rows: rows.filter((_, i) => i !== r) })
   const removeColumn = (c: number) => onChange({ columns: columns.filter((_, j) => j !== c), rows: rows.map((row) => row.filter((_, j) => j !== c)) })
+  const rowOrder = useReorder((from, to) => onChange({ rows: move([...rows], from, to) }))
+  const columnOrder = useReorder(
+    (from, to) => onChange({ columns: move([...columns], from, to), rows: rows.map((row) => move([...row], from, to)) }),
+    "x",
+  )
+  /** The cell under the pointer, whose row and column show their handles: row -1 is the header, column -1 the numbers. */
+  const [hover, setHover] = useState<{ r: number; c: number } | null>(null)
+  /** What the cells of column `c` take from its drag, so it can be dropped over any of them and they all slide. */
+  const columnCell = (c: number) => {
+    const { style, onDragOver, onDrop } = columnOrder.row(c)
+    return { style, onDragOver, onDrop }
+  }
+  const duplicateRow = (r: number) => onChange({ rows: insertAt(rows, r + 1, [...rows[r]]) })
+  const duplicateColumn = (c: number) =>
+    onChange({ columns: insertAt(columns, c + 1, columns[c]), rows: rows.map((row) => insertAt(row, c + 1, row[c])) })
+  /** The row or column whose handle has its menu open. */
+  const [gripMenu, setGripMenu] = useState<{ row: boolean; i: number } | null>(null)
+  const gripOpen = (row: boolean, i: number) => ({
+    open: gripMenu?.row === row && gripMenu.i === i,
+    onOpenChange: (open: boolean) => setGripMenu(open ? { row, i } : null),
+  })
+  const rowGrip = (r: number) => (
+    <EdgeGrip
+      label={`Zeile ${r + 1}: ziehen zum Verschieben, klicken für Menü`}
+      vertical
+      show={hover?.r === r}
+      {...gripOpen(true, r)}
+      {...rowOrder.handle(r)}
+      className="top-1/2 left-0 -translate-x-1/2 -translate-y-1/2"
+    >
+      <DropdownMenuItem onSelect={() => insertRow(r, 0)}>
+        <ArrowUpToLineIcon /> Zeile darüber einfügen
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => insertRow(r + 1, 0)}>
+        <ArrowDownToLineIcon /> Zeile darunter einfügen
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => duplicateRow(r)}>
+        <CopyIcon /> Duplizieren
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem variant="destructive" disabled={rows.length < 2} onSelect={() => removeRow(r)}>
+        <Trash2Icon /> Zeile löschen
+      </DropdownMenuItem>
+    </EdgeGrip>
+  )
+  const columnGrip = (c: number) => (
+    <EdgeGrip
+      label={`Spalte ${c + 1}: ziehen zum Verschieben, klicken für Menü`}
+      show={hover?.c === c}
+      {...gripOpen(false, c)}
+      {...columnOrder.handle(c)}
+      className="top-0 left-1/2 -translate-x-1/2 -translate-y-1/2"
+    >
+      <DropdownMenuItem onSelect={() => insertColumn(c)}>
+        <ArrowLeftToLineIcon /> Spalte links einfügen
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => insertColumn(c + 1)}>
+        <ArrowRightToLineIcon /> Spalte rechts einfügen
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => duplicateColumn(c)}>
+        <CopyIcon /> Duplizieren
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem variant="destructive" disabled={columns.length < 2} onSelect={() => removeColumn(c)}>
+        <Trash2Icon /> Spalte löschen
+      </DropdownMenuItem>
+    </EdgeGrip>
+  )
   /** Enter goes down the column, adding a row below the last one. */
   const down = (e: KeyboardEvent<HTMLInputElement>, r: number, c: number) => {
     if (e.key !== "Enter") return
@@ -909,18 +956,19 @@ function TableBlock({
     if (r + 1 >= rows.length) return insertRow(rows.length, c)
     focus(`${id}:${r + 1}:${c}`)
   }
-  const cellMenu = (r: number, c: number) => ({ onContextMenu: () => setAt({ r, c }) })
+  const cellMenu = (r: number, c: number) => ({ onContextMenu: () => setAt({ r, c }), onPointerEnter: () => setHover({ r, c }) })
   // The numbers can always go; the last column of values stays.
   const canRemoveColumn = at.c < 0 ? numbered : columns.length > 1
 
   return (
-    <div className={cn(QUOTE, "leading-normal")}>
-      {/* The padding keeps the table's ring from being cut off by the scrolling. */}
-      <div className="overflow-x-auto p-px">
+    <div className={cn(QUOTE, "relative leading-normal")} onPointerLeave={() => setHover(null)}>
+      <div className="flex gap-1">
+      {/* The padding gives the handles on the table's edges room in the scrolling, the margin takes it back. */}
+      <div className="-mx-3 -my-3 min-w-0 flex-1 overflow-x-auto px-3 py-3">
         {/* Not modal, so the cursor can go into the row or column it adds. */}
         <ContextMenu modal={false}>
           <ContextMenuTrigger asChild>
-            <table className="w-full border-separate border-spacing-0 overflow-hidden rounded-md ring-1 ring-border">
+            <table className="w-full border-separate border-spacing-0 rounded-md ring-1 ring-border">
               <thead>
                 <tr>
                   {numbered && (
@@ -937,7 +985,8 @@ function TableBlock({
                     </th>
                   )}
                   {columns.map((col, c) => (
-                    <th key={c} className={cn(TH, "group/col")} {...cellMenu(-1, c)}>
+                    <th key={c} {...columnOrder.row(c)} className={cn(TH, columnOrder.rowClass(c))} {...cellMenu(-1, c)}>
+                      {columnGrip(c)}
                       <input
                         ref={inputRef(`${id}:h${c}`)}
                         data-block-input
@@ -948,22 +997,16 @@ function TableBlock({
                         onKeyDown={(e) => down(e, -1, c)}
                         className="w-full min-w-16 bg-transparent outline-none placeholder:text-muted-foreground/60"
                       />
-                      {columns.length > 1 && (
-                        <RemoveButton
-                          label={`Spalte ${c + 1} entfernen`}
-                          onClick={() => removeColumn(c)}
-                          className="absolute top-1/2 right-1 -translate-y-1/2 group-hover/col:opacity-100"
-                        />
-                      )}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row, r) => (
-                  <tr key={r} className="group/row odd:bg-muted/20 even:bg-muted/50">
+                  <tr key={r} {...rowOrder.row(r)} className={cn("group/row", rowOrder.rowClass(r))}>
                     {numbered && (
                       <td className={TD} {...cellMenu(r, -1)}>
+                        {rowGrip(r)}
                         {/* The first row's number is the pattern the others count on from. */}
                         {r === 0 ? (
                           <Hint label="Muster der Nummerierung, z. B. Nr. 1">
@@ -983,7 +1026,8 @@ function TableBlock({
                       </td>
                     )}
                     {row.map((v, c) => (
-                      <td key={c} className={TD} {...cellMenu(r, c)}>
+                      <td key={c} {...columnCell(c)} className={cn(TD, columnOrder.rowClass(c))} {...cellMenu(r, c)}>
+                        {!numbered && c === 0 && rowGrip(r)}
                         {/* The whole cell puts the cursor into its value. */}
                         <label className="flex cursor-text">
                           <input
@@ -997,13 +1041,6 @@ function TableBlock({
                             className={CHIP_INPUT}
                           />
                         </label>
-                        {rows.length > 1 && c === row.length - 1 && (
-                          <RemoveButton
-                            label={`Zeile ${r + 1} entfernen`}
-                            onClick={() => removeRow(r)}
-                            className="absolute top-1/2 right-1 -translate-y-1/2 group-hover/row:opacity-100"
-                          />
-                        )}
                       </td>
                     ))}
                   </tr>
@@ -1047,7 +1084,98 @@ function TableBlock({
           </ContextMenuContent>
         </ContextMenu>
       </div>
+      <AddBar label="Spalte hinzufügen" show={hover?.c === columns.length - 1} onClick={() => insertColumn(columns.length)} className="w-4" />
+      </div>
+      {/* Under the table, over the space to the next block, so it takes none of its own. */}
+      <AddBar
+        label="Zeile hinzufügen"
+        show={hover?.r === rows.length - 1}
+        onClick={() => insertRow(rows.length, 0)}
+        className="absolute top-full right-5 left-4 mt-1 h-4"
+      />
     </div>
+  )
+}
+
+/**
+ * A line on the edge of the hovered row or column of a table, which turns into a handle under the pointer:
+ * dragged it moves them, clicked it opens the menu of `children`.
+ */
+function EdgeGrip({
+  label,
+  vertical = false,
+  show,
+  open,
+  onOpenChange,
+  className,
+  children,
+  ...props
+}: {
+  label: string
+  vertical?: boolean
+  show: boolean
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  className?: string
+  children: ReactNode
+} & Pick<ComponentProps<"button">, "onPointerDown" | "onPointerUp">) {
+  return (
+    // Not modal: a modal menu would take back the focus its items move to a new row or column.
+    <DropdownMenu modal={false} open={open} onOpenChange={onOpenChange}>
+      {/* A press may start a drag, so the menu opens on the click instead of the trigger's pointerdown. */}
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label={label}
+        {...props}
+        onClick={() => onOpenChange(true)}
+        className={cn(
+          "group/grip absolute z-10 flex cursor-grab items-center justify-center active:cursor-grabbing",
+          vertical ? "h-6 w-4" : "h-4 w-6",
+          show || open ? "opacity-100" : "pointer-events-none opacity-0",
+          className,
+        )}
+      >
+        <span
+          className={cn("rounded-full bg-muted-foreground/60 group-hover/grip:hidden", vertical ? "h-4 w-[3px]" : "h-[3px] w-4", open && "hidden")}
+        />
+        <span
+          className={cn(
+            "hidden size-full items-center justify-center rounded-md border bg-popover text-muted-foreground shadow-sm group-hover/grip:flex",
+            open && "flex text-foreground",
+          )}
+        >
+          {vertical ? <GripVerticalIcon className="size-3" /> : <GripHorizontalIcon className="size-3" />}
+        </span>
+        <DropdownMenuTrigger asChild>
+          <span aria-hidden className="pointer-events-none absolute inset-0" />
+        </DropdownMenuTrigger>
+      </button>
+      <DropdownMenuContent align="start" className="w-52" onCloseAutoFocus={(e) => e.preventDefault()}>
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/** A bar with a + next to a table, shown while the pointer is on its last row or column. */
+function AddBar({ label, show, onClick, className }: { label: string; show: boolean; onClick: () => void; className?: string }) {
+  return (
+    <Hint label={label}>
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label={label}
+        onClick={onClick}
+        className={cn(
+          "flex items-center justify-center rounded-md bg-muted/40 text-muted-foreground transition-opacity hover:bg-muted hover:text-foreground",
+          show ? "opacity-100" : "pointer-events-none opacity-0",
+          className,
+        )}
+      >
+        <PlusIcon className="size-3.5" />
+      </button>
+    </Hint>
   )
 }
 
