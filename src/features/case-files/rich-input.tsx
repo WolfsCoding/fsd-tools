@@ -3,7 +3,7 @@ import { BanIcon, BoldIcon, CodeIcon } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { caretOf, setCaret, textLength } from "./caret"
-import { formatAt, formatRich, groups, parseRich, richMarkdown, sliceRuns, TEXT_COLORS, type Format, type Run } from "./rich-text"
+import { clipboardHtml, formatAt, formatRich, groups, parseRich, richMarkdown, sliceRuns, TEXT_COLORS, type Format, type Run } from "./rich-text"
 
 /** Inline code, as the Markdown shows it once pasted; the same in the text and in the headings. */
 export const CHIP = "inline-block rounded bg-muted px-1.5 font-mono text-[0.8em] leading-5"
@@ -69,7 +69,7 @@ interface RichInputProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"
  * A text field showing its Markdown formatted: bold, code and colors. The browser only types
  * plain text into it; line breaks and pastes go through the runs.
  */
-export function RichInput({ value, onChange, placeholder, inputRef, code, className, onKeyDown, onPaste, ...props }: RichInputProps) {
+export function RichInput({ value, onChange, placeholder, inputRef, code, className, onKeyDown, onPaste, onCopy, onCut, ...props }: RichInputProps) {
   const el = useRef<HTMLDivElement>(null)
   /** The value the text shows, so typing doesn't render it again under the cursor. */
   const shown = useRef<string>(null)
@@ -97,6 +97,23 @@ export function RichInput({ value, onChange, placeholder, inputRef, code, classN
     show(node, next)
     setCaret(node, start + added.reduce((n, r) => n + r.text.length, 0))
     emit(next)
+  }
+
+  /**
+   * Puts the selected text on the clipboard with its formats: as Markdown, which the fields here
+   * and the homestate editor read, and as HTML for other apps. False if nothing in it is selected.
+   */
+  function copy(e: ClipboardEvent<HTMLDivElement>) {
+    const node = e.currentTarget
+    const sel = getSelection()
+    if (!sel?.rangeCount || !node.contains(sel.getRangeAt(0).commonAncestorContainer)) return false
+    const { start, end } = caretOf(node)
+    if (start === end) return false
+    const runs = sliceRuns(readRuns(node), start, end).map((r) => (code ? { ...r, code: false } : r))
+    e.preventDefault()
+    e.clipboardData.setData("text/plain", richMarkdown(runs))
+    e.clipboardData.setData("text/html", clipboardHtml(runs))
+    return true
   }
 
   return (
@@ -129,6 +146,14 @@ export function RichInput({ value, onChange, placeholder, inputRef, code, classN
         const { start } = caretOf(e.currentTarget)
         const before = sliceRuns(readRuns(e.currentTarget), start - 1, start)[0]
         insert(e.currentTarget, [{ ...before, text: "\n" }])
+      }}
+      onCopy={(e: ClipboardEvent<HTMLDivElement>) => {
+        onCopy?.(e)
+        if (!e.defaultPrevented) copy(e)
+      }}
+      onCut={(e: ClipboardEvent<HTMLDivElement>) => {
+        onCut?.(e)
+        if (!e.defaultPrevented && copy(e)) insert(e.currentTarget, [])
       }}
       onPaste={(e: ClipboardEvent<HTMLDivElement>) => {
         onPaste?.(e)

@@ -388,7 +388,8 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
       if (hit) return convert(b, hit[1], text.slice(hit[0].length), "end")
       setSlash(SLASH.test(text) ? { id: b.id, active: 0 } : null)
     }
-    update(b, { text }, b.id)
+    // Pasted text may be bold or code, which an Abschnitt and a Hinweis are as a whole.
+    update(b, { text: b.type === "section" ? colorsOnly(text) : b.type === "note" ? withoutBold(text) : text }, b.id)
   }
 
   /** Pasted Markdown of several lines becomes its blocks, put in where the cursor is. */

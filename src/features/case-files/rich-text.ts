@@ -20,7 +20,7 @@ export interface Format {
 }
 
 /** The colors offered for text, next to any other one typed in. */
-export const TEXT_COLORS = ["#fff", "#34D399", "#F87171"]
+export const TEXT_COLORS = ["#fff", "#34D399", "#FBBF24", "#F87171"]
 
 const CODE = /^`([^`\n]+)`/
 const CODE_TAG = /^<code>([\s\S]*?)<\/code>/i
@@ -102,6 +102,17 @@ export function richHtml(runs: readonly Run[]): string {
     .map(([code, rs]) => (code ? codeTag(rs) : rs.map(htmlRun).join("")))
     .join("")
     .replace(/\s*\n\s*/g, " ")
+}
+
+/** The HTML of runs for the clipboard, with its line breaks. */
+export function clipboardHtml(runs: readonly Run[]) {
+  const lines: Run[][] = [[]]
+  for (const r of runs)
+    r.text.split("\n").forEach((text, i) => {
+      if (i) lines.push([])
+      lines[lines.length - 1].push({ ...r, text })
+    })
+  return lines.map(richHtml).join("<br>")
 }
 
 const codeTag = (runs: readonly Run[]) => `<code>${runs.map(htmlRun).join("")}</code>`
