@@ -53,6 +53,7 @@ import {
   headerSrc,
   isTextish,
   markdownBlocks,
+  numberIndex,
   NUMBER_PATTERN,
   NUMBER_TITLE,
   readBlocks,
@@ -65,8 +66,8 @@ import {
   type TextishBlock,
 } from "./blocks"
 import { caretOf, setCaret, textLength } from "./caret"
-import { CHIP, ColorInput, FormatBar, RichInput } from "./rich-input"
-import { formatAt, formatRich, plainText, splitRich, TEXT_COLORS, withoutBold, type Format } from "./rich-text"
+import { CHIP, ColorInput, FormatBar, RichField, RichInput } from "./rich-input"
+import { colorsOnly, formatAt, formatRich, plainText, splitRich, TEXT_COLORS, withoutBold, type Format } from "./rich-text"
 import type { DocFormProps } from "./templates"
 import { useColors } from "./use-case-files"
 
@@ -268,8 +269,8 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
   /** Turns `b` into a block of `type`, keeping `text` where the new one has text. */
   function convert(b: Block, type: BlockType, md = "", at: "start" | "end" = "start") {
     setSlash(null)
-    // An Abschnitt is written as code, a Hinweis as bold, so their text can't have those.
-    const text = type === "section" || type === "header" ? plainText(md) : type === "note" ? withoutBold(md) : md
+    // An Abschnitt is written as bold code, a Hinweis as bold, so their text can't have those; colors stay.
+    const text = type === "header" ? plainText(md) : type === "section" ? colorsOnly(md) : type === "note" ? withoutBold(md) : md
     if (type === "divider") {
       const after = blockOf("text", newId(), text)
       focusAfter(after.id)
@@ -503,7 +504,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
           isTextish(b) && (
             <RichInput
               inputRef={ref(b.id)}
-              data-format-id={b.type === "section" ? undefined : b.id}
+              data-format-id={b.id}
               value={b.text}
               placeholder={placeholder}
               aria-label={typeName(b.type)}
@@ -811,7 +812,8 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                 <FormatBar
                   ref={formatBar}
                   format={formatAt(richOf(b, selection.id), selection.start, selection.end)}
-                  bold={b.type !== "note"}
+                  bold={b.type !== "note" && b.type !== "section"}
+                  code={b.type !== "section"}
                   onFormat={(format) => applyFormat(b, selection.id, format, selection.start, selection.end)}
                   style={{ left: selection.left, top: selection.top }}
                 />
@@ -846,7 +848,7 @@ function RemoveButton({ label, onClick, className }: { label: string; onClick: (
 
 interface PartProps<B extends Block> {
   block: B
-  inputRef: (key: string) => (el: HTMLInputElement | null) => void
+  inputRef: (key: string) => (el: HTMLElement | null) => void
   onChange: (patch: Partial<B>) => void
   /** Puts the cursor into an input of the block now. */
   focus: (key: string, at?: "start" | "end") => void
@@ -861,41 +863,71 @@ const TD = cn(
 
 /** A table with columns of its own; its rows are numbered like every table of the case files, unless that column was removed. */
 function TableBlock({
-  block: { id, columns, rows, numbered = true, numberTitle, numberPattern },
+  block,
   inputRef,
   onChange,
   focus,
   focusAfter,
 }: PartProps<TableB> & { focusAfter: (key: string) => void }) {
-  /** The cell the context menu was opened on: row -1 is the header, column -1 the numbers. */
-  const [at, setAt] = useState({ r: -1, c: -1 })
+  const { id, columns, rows, numbered = true, numberTitle, numberPattern } = block
+  const numberAt = numberIndex(block)
+  /** The columns as shown, by place: the index of a column of values, or the numbers. */
+  const shown: (number | "#")[] = columns.map((_, c) => c)
+  if (numbered) shown.splice(numberAt, 0, "#")
+  /** The column of values a cell at place `d` belongs to; the first one for the numbers, e.g. to put the cursor in. */
+  const valueAt = (d: number) => {
+    const x = shown[d]
+    return x === "#" ? 0 : x
+  }
+  /** The cell the context menu was opened on: row -1 is the header, `d` the place of its column. */
+  const [at, setAt] = useState({ r: -1, d: 0 })
   const setCell = (r: number, c: number, v: string) =>
     onChange({ rows: rows.map((row, i) => (i === r ? row.map((x, j) => (j === c ? v : x)) : row)) })
   const insertRow = (r: number, c: number) => {
-    focusAfter(`${id}:${r}:${Math.max(c, 0)}`)
+    focusAfter(`${id}:${r}:${c}`)
     onChange({ rows: insertAt(rows, r, columns.map(() => "")) })
   }
-  const insertColumn = (c: number) => {
+  /** Puts an empty column of values at place `d`; the numbers there or after it move one on. */
+  const insertColumn = (d: number) => {
+    const c = shown.slice(0, d).filter((x) => x !== "#").length
     focusAfter(`${id}:h${c}`)
-    onChange({ columns: insertAt(columns, c, ""), rows: rows.map((row) => insertAt(row, c, "")) })
+    onChange({
+      columns: insertAt(columns, c, ""),
+      rows: rows.map((row) => insertAt(row, c, "")),
+      ...(numbered && shown.indexOf("#") >= d && { numberAt: numberAt + 1 }),
+    })
   }
   const removeRow = (r: number) => onChange({ rows: rows.filter((_, i) => i !== r) })
-  const removeColumn = (c: number) => onChange({ columns: columns.filter((_, j) => j !== c), rows: rows.map((row) => row.filter((_, j) => j !== c)) })
+  const removeColumn = (c: number) =>
+    onChange({
+      columns: columns.filter((_, j) => j !== c),
+      rows: rows.map((row) => row.filter((_, j) => j !== c)),
+      ...(c < numberAt && { numberAt: numberAt - 1 }),
+    })
   const rowOrder = useReorder((from, to) => onChange({ rows: move([...rows], from, to) }))
-  const columnOrder = useReorder(
-    (from, to) => onChange({ columns: move([...columns], from, to), rows: rows.map((row) => move([...row], from, to)) }),
-    "x",
-  )
-  /** The cell under the pointer, whose row and column show their handles: row -1 is the header, column -1 the numbers. */
-  const [hover, setHover] = useState<{ r: number; c: number } | null>(null)
-  /** What the cells of column `c` take from its drag, so it can be dropped over any of them and they all slide. */
-  const columnCell = (c: number) => {
-    const { style, onDragOver, onDrop } = columnOrder.row(c)
+  const columnOrder = useReorder((from, to) => {
+    const next = move([...shown], from, to)
+    const values = next.filter((x) => x !== "#")
+    onChange({
+      columns: values.map((c) => columns[c]),
+      rows: rows.map((row) => values.map((c) => row[c])),
+      ...(numbered && { numberAt: next.indexOf("#") }),
+    })
+  }, "x")
+  /** The cell under the pointer, whose row and column show their handles: row -1 is the header, `d` the place of its column. */
+  const [hover, setHover] = useState<{ r: number; d: number } | null>(null)
+  /** What the cells of the column at place `d` take from its drag, so it can be dropped over any of them and they all slide. */
+  const columnCell = (d: number) => {
+    const { style, onDragOver, onDrop } = columnOrder.row(d)
     return { style, onDragOver, onDrop }
   }
   const duplicateRow = (r: number) => onChange({ rows: insertAt(rows, r + 1, [...rows[r]]) })
   const duplicateColumn = (c: number) =>
-    onChange({ columns: insertAt(columns, c + 1, columns[c]), rows: rows.map((row) => insertAt(row, c + 1, row[c])) })
+    onChange({
+      columns: insertAt(columns, c + 1, columns[c]),
+      rows: rows.map((row) => insertAt(row, c + 1, row[c])),
+      ...(c < numberAt && { numberAt: numberAt + 1 }),
+    })
   /** The row or column whose handle has its menu open. */
   const [gripMenu, setGripMenu] = useState<{ row: boolean; i: number } | null>(null)
   const gripOpen = (row: boolean, i: number) => ({
@@ -926,39 +958,78 @@ function TableBlock({
       </DropdownMenuItem>
     </EdgeGrip>
   )
-  const columnGrip = (c: number) => (
-    <EdgeGrip
-      label={`Spalte ${c + 1}: ziehen zum Verschieben, klicken für Menü`}
-      show={hover?.c === c}
-      {...gripOpen(false, c)}
-      {...columnOrder.handle(c)}
-      className="top-0 left-1/2 -translate-x-1/2 -translate-y-1/2"
-    >
-      <DropdownMenuItem onSelect={() => insertColumn(c)}>
-        <ArrowLeftToLineIcon /> Spalte links einfügen
-      </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => insertColumn(c + 1)}>
-        <ArrowRightToLineIcon /> Spalte rechts einfügen
-      </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => duplicateColumn(c)}>
-        <CopyIcon /> Duplizieren
-      </DropdownMenuItem>
-      <DropdownMenuSeparator />
-      <DropdownMenuItem variant="destructive" disabled={columns.length < 2} onSelect={() => removeColumn(c)}>
-        <Trash2Icon /> Spalte löschen
-      </DropdownMenuItem>
-    </EdgeGrip>
-  )
+  /** The handle of the column at place `d`; the numbers can't be duplicated, and removing them ends the numbering. */
+  const columnGrip = (d: number) => {
+    const x = shown[d]
+    return (
+      <EdgeGrip
+        label={`${x === "#" ? "Nummerierung" : `Spalte ${d + 1}`}: ziehen zum Verschieben, klicken für Menü`}
+        show={hover?.d === d}
+        {...gripOpen(false, d)}
+        {...columnOrder.handle(d)}
+        className="top-0 left-1/2 -translate-x-1/2 -translate-y-1/2"
+      >
+        <DropdownMenuItem onSelect={() => insertColumn(d)}>
+          <ArrowLeftToLineIcon /> Spalte links einfügen
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => insertColumn(d + 1)}>
+          <ArrowRightToLineIcon /> Spalte rechts einfügen
+        </DropdownMenuItem>
+        {x !== "#" && (
+          <DropdownMenuItem onSelect={() => duplicateColumn(x)}>
+            <CopyIcon /> Duplizieren
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={x !== "#" && columns.length < 2}
+          onSelect={() => (x === "#" ? onChange({ numbered: false }) : removeColumn(x))}
+        >
+          <Trash2Icon /> Spalte löschen
+        </DropdownMenuItem>
+      </EdgeGrip>
+    )
+  }
   /** Enter goes down the column, adding a row below the last one. */
-  const down = (e: KeyboardEvent<HTMLInputElement>, r: number, c: number) => {
+  const down = (e: KeyboardEvent<HTMLElement>, r: number, c: number) => {
     if (e.key !== "Enter") return
     e.preventDefault()
     if (r + 1 >= rows.length) return insertRow(rows.length, c)
     focus(`${id}:${r + 1}:${c}`)
   }
-  const cellMenu = (r: number, c: number) => ({ onContextMenu: () => setAt({ r, c }), onPointerEnter: () => setHover({ r, c }) })
+  const cellMenu = (r: number, d: number) => ({ onContextMenu: () => setAt({ r, d }), onPointerEnter: () => setHover({ r, d }) })
+  const atNumbers = shown[at.d] === "#"
   // The numbers can always go; the last column of values stays.
-  const canRemoveColumn = at.c < 0 ? numbered : columns.length > 1
+  const canRemoveColumn = atNumbers || columns.length > 1
+  const numberHeader = (
+    <input
+      ref={inputRef(`${id}:nh`)}
+      data-block-input
+      value={numberTitle ?? NUMBER_TITLE}
+      placeholder={NUMBER_TITLE}
+      aria-label="Titel der Nummerierung"
+      onChange={(e) => onChange({ numberTitle: e.target.value })}
+      className="field-sizing-content min-w-[1ch] bg-transparent outline-none placeholder:text-muted-foreground/60"
+    />
+  )
+  /** The first row's number is the pattern the others count on from. */
+  const number = (r: number) =>
+    r === 0 ? (
+      <Hint label="Muster der Nummerierung, z. B. Nr. 1">
+        <input
+          ref={inputRef(`${id}:n`)}
+          data-block-input
+          value={numberPattern ?? NUMBER_PATTERN}
+          placeholder={NUMBER_PATTERN}
+          aria-label="Muster der Nummerierung"
+          onChange={(e) => onChange({ numberPattern: e.target.value })}
+          className={CHIP_INPUT}
+        />
+      </Hint>
+    ) : (
+      <code className={CHIP}>{rowNumber(numberPattern ?? "", r)}</code>
+    )
 
   return (
     <div className={cn(QUOTE, "relative leading-normal")} onPointerLeave={() => setHover(null)}>
@@ -971,32 +1042,23 @@ function TableBlock({
             <table className="w-full border-separate border-spacing-0 rounded-md ring-1 ring-border">
               <thead>
                 <tr>
-                  {numbered && (
-                    <th className={TH} {...cellMenu(-1, -1)}>
-                      <input
-                        ref={inputRef(`${id}:nh`)}
-                        data-block-input
-                        value={numberTitle ?? NUMBER_TITLE}
-                        placeholder={NUMBER_TITLE}
-                        aria-label="Titel der Nummerierung"
-                        onChange={(e) => onChange({ numberTitle: e.target.value })}
-                        className="field-sizing-content min-w-[1ch] bg-transparent outline-none placeholder:text-muted-foreground/60"
-                      />
-                    </th>
-                  )}
-                  {columns.map((col, c) => (
-                    <th key={c} {...columnOrder.row(c)} className={cn(TH, columnOrder.rowClass(c))} {...cellMenu(-1, c)}>
-                      {columnGrip(c)}
-                      <input
-                        ref={inputRef(`${id}:h${c}`)}
-                        data-block-input
-                        value={col}
-                        placeholder={`Spalte ${c + 1}`}
-                        aria-label={`Spalte ${c + 1}`}
-                        onChange={(e) => onChange({ columns: columns.map((x, j) => (j === c ? e.target.value : x)) })}
-                        onKeyDown={(e) => down(e, -1, c)}
-                        className="w-full min-w-16 bg-transparent outline-none placeholder:text-muted-foreground/60"
-                      />
+                  {shown.map((c, d) => (
+                    <th key={c} {...columnOrder.row(d)} className={cn(TH, columnOrder.rowClass(d))} {...cellMenu(-1, d)}>
+                      {columnGrip(d)}
+                      {c === "#" ? (
+                        numberHeader
+                      ) : (
+                        <RichField
+                          singleLine
+                          inputRef={inputRef(`${id}:h${c}`)}
+                          value={columns[c]}
+                          placeholder={`Spalte ${c + 1}`}
+                          aria-label={`Spalte ${c + 1}`}
+                          onChange={(v) => onChange({ columns: columns.map((x, j) => (j === c ? v : x)) })}
+                          onKeyDown={(e) => down(e, -1, c)}
+                          className="w-full min-w-16"
+                        />
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -1004,43 +1066,28 @@ function TableBlock({
               <tbody>
                 {rows.map((row, r) => (
                   <tr key={r} {...rowOrder.row(r)} className={cn("group/row", rowOrder.rowClass(r))}>
-                    {numbered && (
-                      <td className={TD} {...cellMenu(r, -1)}>
-                        {rowGrip(r)}
-                        {/* The first row's number is the pattern the others count on from. */}
-                        {r === 0 ? (
-                          <Hint label="Muster der Nummerierung, z. B. Nr. 1">
-                            <input
-                              ref={inputRef(`${id}:n`)}
-                              data-block-input
-                              value={numberPattern ?? NUMBER_PATTERN}
-                              placeholder={NUMBER_PATTERN}
-                              aria-label="Muster der Nummerierung"
-                              onChange={(e) => onChange({ numberPattern: e.target.value })}
-                              className={CHIP_INPUT}
-                            />
-                          </Hint>
+                    {shown.map((c, d) => (
+                      <td key={c} {...columnCell(d)} className={cn(TD, columnOrder.rowClass(d))} {...cellMenu(r, d)}>
+                        {d === 0 && rowGrip(r)}
+                        {c === "#" ? (
+                          number(r)
                         ) : (
-                          <code className={CHIP}>{rowNumber(numberPattern ?? "", r)}</code>
+                          // The whole cell puts the cursor into its value.
+                          <div className="flex cursor-text" onClick={(e) => e.target === e.currentTarget && focus(`${id}:${r}:${c}`, "end")}>
+                            <RichField
+                              singleLine
+                              code
+                              inputRef={inputRef(`${id}:${r}:${c}`)}
+                              value={row[c]}
+                              placeholder="N/A"
+                              aria-label={`${plainText(columns[c]) || `Spalte ${c + 1}`} (Zeile ${r + 1})`}
+                              onChange={(v) => setCell(r, c, v)}
+                              onKeyDown={(e) => down(e, r, c)}
+                              // Its text is a chip of its own; an empty one is the chip, for the placeholder.
+                              className={cn("max-w-full min-w-[3ch] rounded focus:ring-1 focus:ring-ring", !row[c] && CHIP)}
+                            />
+                          </div>
                         )}
-                      </td>
-                    )}
-                    {row.map((v, c) => (
-                      <td key={c} {...columnCell(c)} className={cn(TD, columnOrder.rowClass(c))} {...cellMenu(r, c)}>
-                        {!numbered && c === 0 && rowGrip(r)}
-                        {/* The whole cell puts the cursor into its value. */}
-                        <label className="flex cursor-text">
-                          <input
-                            ref={inputRef(`${id}:${r}:${c}`)}
-                            data-block-input
-                            value={v}
-                            placeholder="N/A"
-                            aria-label={`${columns[c] || `Spalte ${c + 1}`} (Zeile ${r + 1})`}
-                            onChange={(e) => setCell(r, c, e.target.value)}
-                            onKeyDown={(e) => down(e, r, c)}
-                            className={CHIP_INPUT}
-                          />
-                        </label>
                       </td>
                     ))}
                   </tr>
@@ -1050,19 +1097,17 @@ function TableBlock({
           </ContextMenuTrigger>
           <ContextMenuContent className="w-52" onCloseAutoFocus={(e) => e.preventDefault()}>
             {at.r >= 0 && (
-              <ContextMenuItem onSelect={() => insertRow(at.r, at.c)}>
+              <ContextMenuItem onSelect={() => insertRow(at.r, valueAt(at.d))}>
                 <ArrowUpToLineIcon /> Zeile darüber einfügen
               </ContextMenuItem>
             )}
-            <ContextMenuItem onSelect={() => insertRow(at.r + 1, at.c)}>
+            <ContextMenuItem onSelect={() => insertRow(at.r + 1, valueAt(at.d))}>
               <ArrowDownToLineIcon /> Zeile darunter einfügen
             </ContextMenuItem>
-            {at.c >= 0 && (
-              <ContextMenuItem onSelect={() => insertColumn(at.c)}>
-                <ArrowLeftToLineIcon /> Spalte links einfügen
-              </ContextMenuItem>
-            )}
-            <ContextMenuItem onSelect={() => insertColumn(at.c + 1)}>
+            <ContextMenuItem onSelect={() => insertColumn(at.d)}>
+              <ArrowLeftToLineIcon /> Spalte links einfügen
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={() => insertColumn(at.d + 1)}>
               <ArrowRightToLineIcon /> Spalte rechts einfügen
             </ContextMenuItem>
             {!numbered && (
@@ -1077,14 +1122,14 @@ function TableBlock({
               </ContextMenuItem>
             )}
             {canRemoveColumn && (
-              <ContextMenuItem variant="destructive" onSelect={() => (at.c < 0 ? onChange({ numbered: false }) : removeColumn(at.c))}>
+              <ContextMenuItem variant="destructive" onSelect={() => (atNumbers ? onChange({ numbered: false }) : removeColumn(valueAt(at.d)))}>
                 <Trash2Icon /> Spalte löschen
               </ContextMenuItem>
             )}
           </ContextMenuContent>
         </ContextMenu>
       </div>
-      <AddBar label="Spalte hinzufügen" show={hover?.c === columns.length - 1} onClick={() => insertColumn(columns.length)} className="w-4" />
+      <AddBar label="Spalte hinzufügen" show={hover?.d === shown.length - 1} onClick={() => insertColumn(shown.length)} className="w-4" />
       </div>
       {/* Under the table, over the space to the next block, so it takes none of its own. */}
       <AddBar

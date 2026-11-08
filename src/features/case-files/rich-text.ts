@@ -168,6 +168,9 @@ export function formatAt(markdown: string, start: number, end: number) {
 /** The Markdown text without bold, e.g. for a Hinweis, which is bold as a whole. */
 export const withoutBold = (markdown: string) => richMarkdown(parseRich(markdown).map((r) => ({ ...r, bold: false })))
 
+/** The Markdown text with only its colors, e.g. for an Abschnitt, which is bold code as a whole. */
+export const colorsOnly = (markdown: string) => richMarkdown(parseRich(markdown).map(({ text, color }) => ({ text, color })))
+
 /** Text between two marks; spaces at its ends stay outside, where the Markdown needs them. */
 function marked(mark: string, text: string) {
   const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(text)!

@@ -2,7 +2,7 @@ import * as Option from "effect/Option"
 import * as Schema from "effect/Schema"
 import { headerImage } from "@/features/headers/paths"
 import { banner, cell, checklist, bullets, doc, facts, section, type Colors } from "./markdown"
-import { parseRich, richHtml, richMarkdown } from "./rich-text"
+import { colorsOnly, parseRich, richHtml, richMarkdown } from "./rich-text"
 import type { Value } from "./types"
 
 /** Blocks holding one line of text, which can be turned into each other. */
@@ -33,6 +33,8 @@ const TableBlock = Schema.Struct({
   numberTitle: Schema.optionalKey(Schema.String),
   /** How the first row is numbered, e.g. "Nr. 1"; the rows after count on from it. "#1" while unset or empty. */
   numberPattern: Schema.optionalKey(Schema.String),
+  /** How many of the columns come before the number column; it is the first while unset. */
+  numberAt: Schema.optionalKey(Schema.Number),
 })
 const FieldsBlock = Schema.Struct({
   id: Schema.String,
@@ -104,6 +106,9 @@ const TYPE_NAMES: Record<BlockType, string> = {
 }
 export const typeName = (type: BlockType) => TYPE_NAMES[type]
 
+/** How many of a table's columns come before its number column, within the columns there are. */
+export const numberIndex = (b: Extract<Block, { type: "table" }>) => Math.min(Math.max(b.numberAt ?? 0, 0), b.columns.length)
+
 export const NUMBER_TITLE = "#"
 export const NUMBER_PATTERN = "#1"
 
@@ -150,7 +155,7 @@ export function markdownBlocks(markdown: string, newId: () => string, headingCol
     const font = /^<font\s+color=(["']?)([^"'\s>]+)\1[^>]*>\s*<(b|strong)>(.*)<\/\3>\s*<\/font>$/i.exec(line)
     const heading = font?.[4] ?? /^#{1,6}\s+(.*)$/.exec(line)?.[1]
     if (heading !== undefined) {
-      const text = heading.replace(/`/g, "").trim().replace(/^\d+\.\s*/, "").replace(/:$/, "")
+      const text = colorsOnly(heading.replace(/`/g, "").trim().replace(/^\d+\.\s*/, "")).replace(/:$/, "")
       const color = font?.[2]
       out.push({ id: newId(), type: "section", text, ...(color && color.toLowerCase() !== headingColor.toLowerCase() && { color }) })
       continue
@@ -318,12 +323,14 @@ function blockMarkdown(b: Block, r: Style) {
       const headers = b.columns.map((c, i) => r.fill(c) || `Spalte ${i + 1}`)
       const cells = rows.map((row) => row.map((c) => cell(r.fill(c) || "N/A")))
       const numbered = b.numbered !== false
-      const all = numbered ? [r.fill(b.numberTitle ?? "").trim() || NUMBER_TITLE, ...headers] : headers
+      const at = numberIndex(b)
+      const withNumber = (xs: string[], n: string) => (numbered ? [...xs.slice(0, at), n, ...xs.slice(at)] : xs)
+      const all = withNumber(headers, r.fill(b.numberTitle ?? "").trim() || NUMBER_TITLE)
       const line = (xs: string[]) => `> | ${xs.join(" | ")} |`
       return [
         line(all),
         line(all.map(() => "---")),
-        ...cells.map((row, i) => line(numbered ? [cell(rowNumber(r.fill(b.numberPattern ?? ""), i)), ...row] : row)),
+        ...cells.map((row, i) => line(withNumber(row, cell(rowNumber(r.fill(b.numberPattern ?? ""), i))))),
       ].join("\n")
     }
     case "fields":
