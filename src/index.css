@@ -72,11 +72,19 @@
 @theme {
     --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
     --animate-item-in: item-in 240ms var(--ease-out-quint) backwards;
+    --animate-check-draw: check-draw 360ms var(--ease-out-quint) backwards;
 
     @keyframes item-in {
         from {
             opacity: 0;
             transform: translateY(4px);
+        }
+    }
+
+    /* For a path with pathLength="1" and stroke-dasharray 1. */
+    @keyframes check-draw {
+        from {
+            stroke-dashoffset: 1;
         }
     }
 }

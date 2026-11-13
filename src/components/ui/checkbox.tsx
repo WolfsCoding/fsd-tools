@@ -3,7 +3,24 @@
 import * as React from "react"
 import { cn } from "cn"
 import { Checkbox as CheckboxPrimitive } from "radix-ui"
-import { CheckIcon } from "lucide-react"
+
+/** A check mark that draws itself when it is mounted, e.g. when a box gets checked. */
+function CheckMark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={cn("size-3.5", className)}
+    >
+      <path d="M20 6 9 17l-5-5" pathLength={1} className="animate-check-draw [stroke-dasharray:1] motion-reduce:animate-none" />
+    </svg>
+  )
+}
 
 function Checkbox({
   className,
@@ -20,13 +37,12 @@ function Checkbox({
     >
       <CheckboxPrimitive.Indicator
         data-slot="checkbox-indicator"
-        className="grid place-content-center text-current transition-none [&>svg]:size-3.5"
+        className="grid place-content-center text-current transition-none"
       >
-        <CheckIcon
-        />
+        <CheckMark />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )
 }
 
-export { Checkbox }
+export { Checkbox, CheckMark }
