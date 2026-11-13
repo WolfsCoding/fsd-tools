@@ -1165,7 +1165,7 @@ function TableInput({
   )
 }
 
-const MARKS: Choice[] = [
+export const MARKS: Choice[] = [
   { value: "✓", label: "Ja", className: "text-emerald-400" },
   { value: "×", label: "Nein", className: "text-red-400" },
 ]

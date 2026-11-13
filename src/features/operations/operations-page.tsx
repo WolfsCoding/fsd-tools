@@ -1,184 +1,138 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useCallback, useMemo, useState, type FormEvent } from "react"
 import { Link, Navigate, Route, Routes, useNavigate, useParams } from "react-router"
-import { PencilIcon, PlusIcon, SirenIcon, Trash2Icon } from "lucide-react"
+import { EllipsisIcon, PlusIcon, SirenIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
-import { Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
-import { InlineEdit } from "@/components/inline-edit"
+import { Explorer } from "@/components/explorer"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import { Button } from "@/components/ui/button"
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogTitle } from "@/components/ui/dialog"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
-import { formatRelative } from "@/lib/format-date"
+import { formatDateAndTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
-import { OperationBoard } from "./operation-board"
+import { OperationView } from "./operation-view"
 import { operationPath } from "./paths"
-import { Shortcut } from "./task-row"
 import type { Operation } from "./types"
-import { operationTitle, useOperations } from "./use-operations"
+import { useOperations, type OperationsApi } from "./use-operations"
 
-type Api = ReturnType<typeof useOperations>
-
-/** What the list needs from the page: creating, renaming and deleting operations. */
-interface ListActions {
-  onCreate: () => void
-  /** The operation created last, whose board focuses its title. */
-  createdId: string | undefined
-  /** The operation whose title is being edited in the list. */
-  renamingId: string | undefined
-  onRename: (id: string | undefined) => void
-  onDelete: (operation: Operation) => void
-}
-
-/** Operation leader sheets, one per operation. */
+/** The Einsatzleitung: one sheet per operation. */
 export function OperationsPage() {
   const api = useOperations()
   const navigate = useNavigate()
-  const [renamingId, setRenamingId] = useState<string | undefined>()
-  const [createdId, setCreatedId] = useState<string | undefined>()
+  const [creating, setCreating] = useState(false)
 
-  const actions = useMemo<ListActions>(
-    () => ({
-      onCreate: () => {
-        const id = api.createOperation()
-        setCreatedId(id)
-        navigate(operationPath(id))
-      },
-      createdId,
-      renamingId,
-      onRename: setRenamingId,
-      onDelete: (operation) => {
-        api.deleteOperation(operation.id)
-        removedToast(`Einsatz „${operationTitle(operation)}“`, () => api.restoreOperation(operation))
-      },
-    }),
-    [api, navigate, createdId, renamingId],
+  const onDelete = useCallback(
+    (operation: Operation) => {
+      api.remove(operation.id)
+      removedToast(`„${operation.title}“`, () => api.restore(operation))
+    },
+    [api],
   )
 
+  // Registered again only when a title changes, not on every edit.
+  const listed = api.operations.map((o) => `${o.id}\t${o.title}`).join("\n")
   const commandGroups = useMemo<CommandGroupDef[]>(
     () => [
       {
         heading: "Einsatzleitung",
-        items: [{ id: "einsatz:new", label: "Neuer Einsatz", icon: PlusIcon, onSelect: actions.onCreate }],
+        items: [{ id: "operations:new", label: "Neuer Einsatz", icon: PlusIcon, onSelect: () => setCreating(true) }],
       },
       {
         heading: "Alle Einsätze",
         actionLabel: "Einsatz öffnen",
-        items: api.operations.map((e) => ({
-          id: `einsatz:${e.id}`,
-          label: operationTitle(e),
-          keywords: [e.location, ...e.units.map((u) => u.callsign)],
-          icon: SirenIcon,
-          onSelect: () => navigate(operationPath(e.id)),
-        })),
+        items: (listed ? listed.split("\n") : []).map((line) => {
+          const [id, label] = line.split("\t")
+          return { id: `operations:${id}`, label, icon: SirenIcon, onSelect: () => navigate(operationPath(id)) }
+        }),
       },
     ],
-    [api, navigate, actions.onCreate],
+    [listed, navigate],
   )
-  useRegisterCommands("einsatz", commandGroups)
+  useRegisterCommands("operations", commandGroups)
 
   return (
-    <Routes>
-      <Route index element={<OperationList api={api} actions={actions} />} />
-      <Route path=":einsatzId" element={<OperationRoute api={api} actions={actions} />} />
-    </Routes>
-  )
-}
-
-function OperationRoute({ api, actions }: { api: Api; actions: ListActions }) {
-  const { einsatzId: operationId } = useParams()
-  const operation = api.operations.find((e) => e.id === operationId)
-  if (!operation) return <Navigate to=".." replace />
-  return (
-    <OperationBoard
-      key={operation.id}
-      operation={operation}
-      api={api}
-      onDelete={actions.onDelete}
-      autoFocusTitle={operation.id === actions.createdId}
-    />
-  )
-}
-
-function OperationList({ api, actions }: { api: Api; actions: ListActions }) {
-  const [query, setQuery] = useState("")
-
-  const q = query.trim().toLowerCase()
-  const shown = q
-    ? api.operations.filter((e) =>
-        [e.title, e.location, ...e.units.map((u) => u.callsign)].some((s) => s.toLowerCase().includes(q)),
-      )
-    : api.operations
-  const running = shown.filter((e) => !e.endedAt)
-  const ended = shown.filter((e) => e.endedAt)
-
-  if (api.operations.length === 0) return <Home onCreate={actions.onCreate} />
-
-  const details = (e: Operation) => (
     <>
-      <span className="truncate text-xs text-muted-foreground">{e.location.trim() || "Kein Einsatzort"}</span>
-      <span className="text-xs text-muted-foreground">
-        {formatRelative(e.updatedAt)} · {e.units.length} {e.units.length === 1 ? "Streife" : "Streifen"}
-      </span>
+      <Routes>
+        <Route index element={<OperationList api={api} onNew={() => setCreating(true)} onDelete={onDelete} />} />
+        <Route path=":operationId" element={<OperationRoute api={api} onDelete={onDelete} />} />
+      </Routes>
+      <NewOperationDialog
+        open={creating}
+        onOpenChange={setCreating}
+        onCreate={(title) => {
+          setCreating(false)
+          navigate(operationPath(api.create(title)))
+        }}
+      />
     </>
   )
-  const dot = (e: Operation) =>
-    !e.endedAt && <span aria-label="Läuft" className="size-2 shrink-0 animate-pulse rounded-full bg-red-400" />
+}
 
-  const item = (e: Operation) =>
-    actions.renamingId === e.id ? (
-      // Edited outside the link, so clicking into the field doesn't follow it.
-      <div key={e.id} className={cn(EXPLORER_CARD, "bg-accent")}>
-        <span className="flex items-center gap-2">
-          {dot(e)}
-          <InlineEdit
-            value={e.title}
-            placeholder="Unbenannter Einsatz"
-            aria-label="Titel"
-            className="text-sm font-medium"
-            onDone={(title) => {
-              if (title !== undefined) {
-                api.setField(e.id, "title", title)
-                api.commitField(e.id, "title", e.title, title)
-              }
-              actions.onRename(undefined)
-            }}
-          />
-        </span>
-        {details(e)}
-      </div>
-    ) : (
-      <ContextMenu key={e.id}>
-        <ContextMenuTrigger asChild>
-          <Link
-            to={operationPath(e.id)}
-            onKeyDown={(ev) => {
-              if (ev.key === "F2") {
-                ev.preventDefault()
-                actions.onRename(e.id)
-              }
-            }}
-            className={EXPLORER_CARD}
-          >
-            <span className="flex items-center gap-2">
-              {dot(e)}
-              <span className="truncate text-sm font-medium">{operationTitle(e)}</span>
-            </span>
-            {details(e)}
-          </Link>
-        </ContextMenuTrigger>
-        {/* Not refocusing the row keeps the focus in the title field after "Umbenennen". */}
-        <ContextMenuContent onCloseAutoFocus={(ev) => ev.preventDefault()}>
-          <ContextMenuItem onSelect={() => actions.onRename(e.id)}>
-            <PencilIcon /> Umbenennen <Shortcut>F2</Shortcut>
-          </ContextMenuItem>
-          <ContextMenuItem variant="destructive" onSelect={() => actions.onDelete(e)}>
-            <Trash2Icon /> Löschen
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
-    )
+function OperationRoute({ api, onDelete }: { api: OperationsApi; onDelete: (operation: Operation) => void }) {
+  const { operationId } = useParams()
+  const operation = api.operations.find((o) => o.id === operationId)
+  if (!operation) return <Navigate to=".." replace />
+  return <OperationView key={operation.id} operation={operation} api={api} onDelete={onDelete} />
+}
+
+const GAP = "pr-20"
+
+function OperationList({ api, onNew, onDelete }: { api: OperationsApi; onNew: () => void; onDelete: (operation: Operation) => void }) {
+  const [query, setQuery] = useState("")
+  const q = query.trim().toLowerCase()
+  const shown = api.operations.filter((o) => !q || [o.title, o.ort].some((s) => s.toLowerCase().includes(q)))
+
+  const row = (o: Operation) => (
+    <ContextMenu key={o.id}>
+      <ContextMenuTrigger asChild>
+        {/* The title's link covers the whole row, so any cell opens the operation. */}
+        <TableRow className="group/item relative">
+          <TableCell className="w-full max-w-0 truncate font-medium">
+            <Link
+              to={operationPath(o.id)}
+              className="outline-none after:absolute after:inset-0 focus-visible:after:ring-2 focus-visible:after:ring-ring focus-visible:after:ring-inset"
+            >
+              {o.title}
+            </Link>
+          </TableCell>
+          <TableCell className={cn(GAP, !o.ort.trim() && "text-muted-foreground")}>{o.ort.trim() || "—"}</TableCell>
+          <TableCell className={cn(GAP, "tabular-nums")}>{o.patrols.length}</TableCell>
+          <TableCell className={cn(GAP, "tabular-nums")}>{o.people.length}</TableCell>
+          <TableCell className={cn(GAP, "tabular-nums")}>{formatDateAndTime(o.createdAt)}</TableCell>
+          <TableCell className="relative w-0 py-0 pr-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`Aktionen für „${o.title}“`}
+                  className="text-muted-foreground opacity-0 group-focus-within/item:opacity-100 group-hover/item:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+                >
+                  <EllipsisIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem variant="destructive" onSelect={() => onDelete(o)}>
+                  <Trash2Icon /> Löschen
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </TableCell>
+        </TableRow>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuItem variant="destructive" onSelect={() => onDelete(o)}>
+          <Trash2Icon /> Löschen
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
+  )
 
   return (
     <Explorer
@@ -186,53 +140,95 @@ function OperationList({ api, actions }: { api: Api; actions: ListActions }) {
       toolbar={
         <>
           <SearchField value={query} onChange={setQuery} focusKey aria-label="Einsätze durchsuchen" />
-          <Button onClick={actions.onCreate}>
+          <Button onClick={onNew}>
             <PlusIcon /> Neuer Einsatz
           </Button>
         </>
       }
     >
-      <nav className="grid gap-4">
-        {running.length > 0 && (
-          <section className="grid gap-1.5">
-            <ListHeading>Laufend</ListHeading>
-            <div className={EXPLORER_CARDS}>{running.map(item)}</div>
-          </section>
-        )}
-        {ended.length > 0 && (
-          <section className="grid gap-1.5">
-            <ListHeading>Beendet</ListHeading>
-            <div className={EXPLORER_CARDS}>{ended.map(item)}</div>
-          </section>
-        )}
-      </nav>
-      {q && shown.length === 0 && <NoResults query={query} onReset={() => setQuery("")} />}
+      {api.operations.length === 0 ? (
+        <Empty className="p-6">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <SirenIcon />
+            </EmptyMedia>
+            <EmptyTitle>Noch keine Einsätze</EmptyTitle>
+            <EmptyDescription>
+              Streifen, Fahrzeuge und Beteiligte während des Einsatzes führen und daraus eine Sammelakte erstellen.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button onClick={onNew}>
+              <PlusIcon /> Neuer Einsatz
+            </Button>
+          </EmptyContent>
+        </Empty>
+      ) : shown.length === 0 ? (
+        <NoResults query={query} onReset={() => setQuery("")} />
+      ) : (
+        <div className="overflow-hidden rounded-lg border">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Titel</TableHead>
+                <TableHead className={GAP}>Ort</TableHead>
+                <TableHead className={GAP}>Streifen</TableHead>
+                <TableHead className={GAP}>Personen</TableHead>
+                <TableHead className={GAP}>Erstellt</TableHead>
+                <TableHead className="w-0">
+                  <span className="sr-only">Aktionen</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>{shown.map(row)}</TableBody>
+          </Table>
+        </div>
+      )}
     </Explorer>
   )
 }
 
-function ListHeading({ children }: { children: ReactNode }) {
-  return <p className="px-1 text-xs font-medium text-muted-foreground">{children}</p>
-}
-
-function Home({ onCreate }: { onCreate: () => void }) {
+/** Asks for the title of a new operation. */
+function NewOperationDialog({
+  open,
+  onOpenChange,
+  onCreate,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onCreate: (title: string) => void
+}) {
+  const [title, setTitle] = useState("")
+  function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) return
+    onCreate(title.trim())
+    setTitle("")
+  }
   return (
-    <Empty className="flex-1">
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <SirenIcon />
-        </EmptyMedia>
-        <EmptyTitle>Noch keine Einsätze</EmptyTitle>
-        <EmptyDescription>
-          Leg einen Einsatz an, um Streifen, ihren Status und ihre Aufgaben im Blick zu behalten. Jede Änderung landet im
-          Verlauf.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent>
-        <Button onClick={onCreate}>
-          <PlusIcon /> Neuer Einsatz
-        </Button>
-      </EmptyContent>
-    </Empty>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <form onSubmit={submit} className="contents">
+          <DialogPanel>
+            <DialogHeader>
+              <DialogTitle>Neuer Einsatz</DialogTitle>
+              <DialogDescription>Der Titel lässt sich später ändern.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-2">
+              <Label htmlFor="einsatz-titel">Titel</Label>
+              <Input id="einsatz-titel" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus placeholder="z. B. Banküberfall Pillbox" />
+            </div>
+          </DialogPanel>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Abbrechen
+            </Button>
+            <Button type="submit" disabled={!title.trim()}>
+              Erstellen
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }

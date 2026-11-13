@@ -16,7 +16,6 @@ import { dnaDismissedAtom, dnaEntriesAtom } from "./dna-db/use-dna-entries"
 import { DonutsPage } from "./donuts/donuts-page"
 import { DONUTS_BASE } from "./donuts/paths"
 import { OperationsPage } from "./operations/operations-page"
-import { OperationsSettings } from "./operations/operations-settings"
 import { OPERATIONS_BASE } from "./operations/paths"
 import { operationsAtom } from "./operations/use-operations"
 import { FlowchartsPage } from "./flowcharts/flowcharts-page"
@@ -145,11 +144,10 @@ export const features: Feature[] = [
   {
     path: OPERATIONS_BASE.slice(1),
     title: "Einsatzleitung",
-    description: "Einsatzleiter-Blatt: Streifen, Status, Aufgaben, Verlauf und Notizen für größere Einsätze",
+    description: "Streifenblatt, beteiligte Fahrzeuge und Personen, Funk und Infos für größere Einsätze; daraus eine Sammelakte erstellen",
     icon: SirenIcon,
     element: <OperationsPage />,
     storage: { entries: [operationsAtom] },
-    settings: OperationsSettings,
   },
   {
     path: POLICE_FILES_BASE.slice(1),
