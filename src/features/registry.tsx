@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react"
-import { BookOpenIcon, CarIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, ListTodoIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
+import { BookOpenIcon, CarIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
 import type { StoredEntry } from "@/lib/storage"
 import { CaseFilesPage } from "./case-files/case-files-page"
 import { CaseFilesSettings, MarkdownSettings, OwnPersonSettings } from "./case-files/case-files-settings"
@@ -41,9 +41,6 @@ import { legacyPagesAtom, notesAtom } from "./notes/use-notes"
 import { RECEIPTS_BASE } from "./receipts/paths"
 import { ReceiptsPage } from "./receipts/receipts-page"
 import { receiptAtom, receiptScaleAtom } from "./receipts/storage"
-import { TODOS_BASE } from "./todos/paths"
-import { TodosPage } from "./todos/todos-page"
-import { todosAtom } from "./todos/use-todos"
 
 export interface Feature {
   /** URL path segment, e.g. "dna-db" → /dna-db */
@@ -102,14 +99,6 @@ export const features: Feature[] = [
     element: <NotesPage />,
     storage: { entries: [notesAtom, foldersAtom, legacyPagesAtom] },
     settings: NotesSettings,
-  },
-  {
-    path: TODOS_BASE.slice(1),
-    title: "Todos",
-    description: "Aufgaben, optional mit Akten und Personen verknüpft",
-    icon: ListTodoIcon,
-    element: <TodosPage />,
-    storage: { entries: [todosAtom] },
   },
   {
     path: PLATES_BASE.slice(1),
