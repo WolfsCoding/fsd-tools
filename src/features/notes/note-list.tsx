@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
-import { PencilIcon, Trash2Icon } from "lucide-react"
+import { ClipboardCopyIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { BLOCKS_KEY, BlockEditor } from "@/features/case-files/block-editor"
 import { blocksMarkdown, markdownBlocks, readBlocks, writeBlocks } from "@/features/case-files/blocks"
 import { useColors, useOwnIdentity } from "@/features/case-files/use-case-files"
+import { copy } from "@/lib/clipboard"
 import { formatLongDateTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
 import { byPosition, useArrangeRow, type Arrange } from "./arrange"
@@ -214,10 +215,11 @@ function NoteItem({
 }) {
   const drag = useArrangeRow({ item: { kind: "note", id: note.id }, onArrange })
   const menu = useAfterMenuClose()
+  const copyMarkdown = () => copy(note.content, "Markdown")
   return (
     <Collapsible asChild open={open} onOpenChange={(o) => !editing && onOpenChange(o)}>
       <li {...drag.row} id={`note-${note.id}`} className={cn("scroll-mt-4", drag.rowClassName)}>
-        {/* "Bearbeiten" and "Löschen" in the header, and on right click. */}
+        {/* "Markdown kopieren", "Bearbeiten" and "Löschen" in the header, and on right click. */}
         <ContextMenu>
           <ContextMenuTrigger asChild>
           <div className={ROW}>
@@ -242,11 +244,23 @@ function NoteItem({
               </Button>
             </>
           ) : (
-            <Hint label="Bearbeiten">
-              <Button variant="ghost" size="icon-sm" onClick={onEdit} aria-label={`„${noteTitle(note)}“ bearbeiten`}>
-                <PencilIcon />
-              </Button>
-            </Hint>
+            <>
+              <Hint label="Markdown kopieren">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={copyMarkdown}
+                  aria-label={`Markdown von „${noteTitle(note)}“ kopieren`}
+                >
+                  <ClipboardCopyIcon />
+                </Button>
+              </Hint>
+              <Hint label="Bearbeiten">
+                <Button variant="ghost" size="icon-sm" onClick={onEdit} aria-label={`„${noteTitle(note)}“ bearbeiten`}>
+                  <PencilIcon />
+                </Button>
+              </Hint>
+            </>
           )}
           <Hint label="Löschen">
             <Button
@@ -264,6 +278,9 @@ function NoteItem({
           <ContextMenuContent onCloseAutoFocus={menu.onCloseAutoFocus}>
             <ContextMenuItem onSelect={menu.later(onEdit)} disabled={editing}>
               <PencilIcon /> Bearbeiten
+            </ContextMenuItem>
+            <ContextMenuItem onSelect={copyMarkdown}>
+              <ClipboardCopyIcon /> Markdown kopieren
             </ContextMenuItem>
             <ContextMenuItem variant="destructive" onSelect={onRemove}>
               <Trash2Icon /> Löschen
