@@ -27,8 +27,6 @@ import { formatDate } from "@/lib/format-date"
 import { useCaseFileSummaries, type CaseFileMention, type CaseFileSummary } from "./case-file-mentions"
 import { DnaEntryDialog } from "./dna-entry-dialog"
 import { IdChip } from "./id-chip"
-import { TodoPanel } from "@/features/todos/todo-panel"
-import { useTodos } from "@/features/todos/use-todos"
 import { NoteList } from "@/features/notes/note-list"
 import { DNA_DB_BASE } from "./paths"
 import {
@@ -47,7 +45,7 @@ import { collectTags } from "./tags"
 import type { DnaEntry, DnaEntryInput, ProfileKey } from "./types"
 import { entryName, useDnaEntries } from "./use-dna-entries"
 
-const TABS = ["akten", "straftaten", "aussagen", "todos", "notizen"] as const
+const TABS = ["akten", "straftaten", "aussagen", "notizen"] as const
 type Tab = (typeof TABS)[number]
 const isTab = (value: string | null): value is Tab => TABS.includes(value as Tab)
 
@@ -60,7 +58,7 @@ export function PersonRoute() {
   return <PersonView entry={entry} entries={entries} onUpdate={(input) => updateEntry(entry.id, input)} />
 }
 
-/** One person: their details, and tabs with the Akten, what they record, todos and notes. */
+/** One person: their details, and tabs with the Akten, what they record and notes. */
 function PersonView({
   entry,
   entries,
@@ -79,11 +77,6 @@ function PersonView({
   const caseFiles = useCaseFileSummaries()
   const records = usePersonRecords(entry)
   const { mentions, charges, statements } = records
-  const todosApi = useTodos()
-  const todos = useMemo(
-    () => todosApi.todos.filter((t) => t.personIds?.includes(entry.id)),
-    [todosApi.todos, entry.id],
-  )
   const name = entryName(entry)
   useTabTitle(name)
 
@@ -178,7 +171,6 @@ function PersonView({
               <PersonTab value="akten">Akten</PersonTab>
               <PersonTab value="straftaten">Straftaten</PersonTab>
               <PersonTab value="aussagen">Aussagen</PersonTab>
-              <PersonTab value="todos">Todos</PersonTab>
               <PersonTab value="notizen">Notizen</PersonTab>
             </TabsList>
             {tab === "notizen" && (
@@ -212,14 +204,6 @@ function PersonView({
             ) : (
               <EmptyList>Keine Aussagen von oder über diese Person.</EmptyList>
             )}
-          </TabsContent>
-          <TabsContent value="todos" className="p-4">
-            <TodoPanel
-              todos={todos}
-              api={todosApi}
-              preset={{ personIds: [entry.id] }}
-              empty="Noch keine Todos für diese Person."
-            />
           </TabsContent>
           {/* On the page's background, so the notes look as they do under "Notizen". */}
           <TabsContent value="notizen" className="bg-background p-4">

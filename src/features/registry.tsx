@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react"
-import { BookOpenIcon, CarIcon, DnaIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, ListTodoIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
+import { BookOpenIcon, CarIcon, DnaIcon, DonutIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
 import type { StoredEntry } from "@/lib/storage"
 import { CaseFilesPage } from "./case-files/case-files-page"
 import { CaseFilesSettings, MarkdownSettings, OwnPersonSettings } from "./case-files/case-files-settings"
@@ -13,6 +13,8 @@ import { DnaDbPage } from "./dna-db/dna-db-page"
 import { DnaDbSettings } from "./dna-db/dna-db-settings"
 import { DNA_DB_BASE } from "./dna-db/paths"
 import { dnaDismissedAtom, dnaEntriesAtom } from "./dna-db/use-dna-entries"
+import { DonutsPage } from "./donuts/donuts-page"
+import { DONUTS_BASE } from "./donuts/paths"
 import { OperationsPage } from "./operations/operations-page"
 import { OperationsSettings } from "./operations/operations-settings"
 import { OPERATIONS_BASE } from "./operations/paths"
@@ -41,9 +43,6 @@ import { legacyPagesAtom, notesAtom } from "./notes/use-notes"
 import { RECEIPTS_BASE } from "./receipts/paths"
 import { ReceiptsPage } from "./receipts/receipts-page"
 import { receiptAtom, receiptScaleAtom } from "./receipts/storage"
-import { TODOS_BASE } from "./todos/paths"
-import { TodosPage } from "./todos/todos-page"
-import { todosAtom } from "./todos/use-todos"
 
 export interface Feature {
   /** URL path segment, e.g. "dna-db" → /dna-db */
@@ -104,14 +103,6 @@ export const features: Feature[] = [
     settings: NotesSettings,
   },
   {
-    path: TODOS_BASE.slice(1),
-    title: "Todos",
-    description: "Aufgaben, optional mit Akten und Personen verknüpft",
-    icon: ListTodoIcon,
-    element: <TodosPage />,
-    storage: { entries: [todosAtom] },
-  },
-  {
     path: PLATES_BASE.slice(1),
     title: "Kennzeichen abfragen",
     description: "Gesehene Kennzeichen mit Fahrer, Fahrzeug, Datum und Tatort; nicht angemeldete als Ticket kopieren",
@@ -143,6 +134,13 @@ export const features: Feature[] = [
     icon: ReceiptIcon,
     element: <ReceiptsPage />,
     storage: { entries: [receiptAtom, receiptScaleAtom] },
+  },
+  {
+    path: DONUTS_BASE.slice(1),
+    title: "Donut-Rechner",
+    description: "Preis für Donuts ausrechnen, oder wie viele man für einen Betrag bekommt: 10 Stück für 75 $, einzeln 8 $",
+    icon: DonutIcon,
+    element: <DonutsPage />,
   },
   {
     path: OPERATIONS_BASE.slice(1),
