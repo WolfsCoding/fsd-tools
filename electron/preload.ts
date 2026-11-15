@@ -1,6 +1,6 @@
 // Exposes the desktop shell to the page as `window.desktop` (src/contracts/desktop.ts).
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from "electron"
-import type { ApiRequest, ApiResponse, DesktopBridge, UpdateState } from "../src/contracts/desktop"
+import type { ApiRequest, ApiResponse, DesktopBridge, SpellingMenu, UpdateState } from "../src/contracts/desktop"
 import { IpcChannels } from "../src/contracts/ipc"
 
 const bridge: DesktopBridge = {
@@ -17,6 +17,15 @@ const bridge: DesktopBridge = {
     },
   },
   setTitleBar: (colors) => ipcRenderer.send(IpcChannels.titleBar, colors),
+  spelling: {
+    subscribe: (listener) => {
+      const handler = (_: IpcRendererEvent, menu: SpellingMenu) => listener(menu)
+      ipcRenderer.on(IpcChannels.spellingMenu, handler)
+      return () => ipcRenderer.removeListener(IpcChannels.spellingMenu, handler)
+    },
+    replace: (suggestion) => ipcRenderer.send(IpcChannels.spellingReplace, suggestion),
+    addToDictionary: (word) => ipcRenderer.send(IpcChannels.spellingAdd, word),
+  },
   serveApi: (handler) => {
     const listener = async (_: IpcRendererEvent, { id, route, body }: ApiRequest) => {
       let response: ApiResponse

@@ -38,6 +38,16 @@ export const TitleBarColors = Schema.Struct({
 })
 export type TitleBarColors = typeof TitleBarColors.Type
 
+/** A right-click on a misspelled word; the page draws the menu so it matches the theme. */
+export const SpellingMenu = Schema.Struct({
+  word: Schema.String,
+  suggestions: Schema.Array(Schema.String),
+  /** Where it was clicked, in CSS pixels of the page. */
+  x: Schema.Number,
+  y: Schema.Number,
+})
+export type SpellingMenu = typeof SpellingMenu.Type
+
 /** A request of the local API (electron/api), forwarded to the page, which holds the data. */
 export const ApiRequest = Schema.Struct({
   id: Schema.String,
@@ -86,6 +96,13 @@ export interface DesktopBridge {
   /** Answers the local API with `handler(route, body)`; returns the unsubscribe. */
   serveApi: (handler: (route: string, body: Record<string, unknown>) => Promise<ApiResult>) => () => void
   setTitleBar: (colors: TitleBarColors) => void
+  spelling: {
+    /** Calls `listener` on every right-click on a misspelled word; returns the unsubscribe. */
+    subscribe: (listener: (menu: SpellingMenu) => void) => () => void
+    /** Replaces the misspelled word that was right-clicked. */
+    replace: (suggestion: string) => void
+    addToDictionary: (word: string) => void
+  }
 }
 
 declare global {

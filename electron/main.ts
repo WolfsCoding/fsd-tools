@@ -95,6 +95,8 @@ const program = Effect.gen(function* () {
   yield* ipc.handle({ channel: IpcChannels.updatesInstall, payload: Schema.Void, result: Schema.Void, handler: () => install })
   // The page sets the Windows buttons' colors to follow its theme and darken under dialogs.
   yield* ipc.on({ channel: IpcChannels.titleBar, payload: TitleBarColors, handler: window.setTitleBarOverlay })
+  yield* ipc.on({ channel: IpcChannels.spellingReplace, payload: Schema.String, handler: window.replaceMisspelling })
+  yield* ipc.on({ channel: IpcChannels.spellingAdd, payload: Schema.String, handler: window.addToDictionary })
 
   yield* updates.start
   yield* window.show

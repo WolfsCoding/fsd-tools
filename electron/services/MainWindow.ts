@@ -4,7 +4,8 @@ import * as Layer from "effect/Layer"
 import * as Option from "effect/Option"
 import * as Ref from "effect/Ref"
 import { BrowserWindow, shell } from "electron"
-import type { TitleBarColors } from "../../src/contracts/desktop"
+import type { SpellingMenu, TitleBarColors } from "../../src/contracts/desktop"
+import { IpcChannels } from "../../src/contracts/ipc"
 import { DesktopState } from "./DesktopState"
 
 export interface MainWindowConfig {
@@ -25,6 +26,9 @@ export class MainWindow extends Context.Service<
     /** Sends to the page; nothing happens without a window. */
     readonly send: (channel: string, payload: unknown) => Effect.Effect<void>
     readonly setTitleBarOverlay: (colors: TitleBarColors) => Effect.Effect<void>
+    /** Puts `suggestion` in place of the misspelled word last right-clicked. */
+    readonly replaceMisspelling: (suggestion: string) => Effect.Effect<void>
+    readonly addToDictionary: (word: string) => Effect.Effect<void>
   }
 >()("fsd-tools/desktop/MainWindow") {}
 
@@ -61,6 +65,19 @@ export const make = (config: MainWindowConfig) =>
         if (isOwn(url)) return
         event.preventDefault()
         void shell.openExternal(url)
+      })
+      // Chromium only reports a misspelled word on right-click. The page draws the menu, since a
+      // native one can't take the app's colors.
+      win.webContents.on("context-menu", (_, params) => {
+        if (!params.misspelledWord) return
+        const zoom = win.webContents.getZoomFactor()
+        const menu: SpellingMenu = {
+          word: params.misspelledWord,
+          suggestions: params.dictionarySuggestions,
+          x: params.x / zoom,
+          y: params.y / zoom,
+        }
+        win.webContents.send(IpcChannels.spellingMenu, menu)
       })
       win.webContents.on("before-input-event", (_, input) => {
         if (input.type === "keyDown" && (input.key === "F12" || (input.control && input.shift && input.key === "I")))
@@ -104,6 +121,8 @@ export const make = (config: MainWindowConfig) =>
       hide: withWindow((win) => win.hide()),
       send: (channel, payload) => withWindow((win) => win.webContents.send(channel, payload)),
       setTitleBarOverlay: (colors) => withWindow((win) => win.setTitleBarOverlay(colors)),
+      replaceMisspelling: (suggestion) => withWindow((win) => win.webContents.replaceMisspelling(suggestion)),
+      addToDictionary: (word) => withWindow((win) => win.webContents.session.addWordToSpellCheckerDictionary(word)),
     })
   })
 
