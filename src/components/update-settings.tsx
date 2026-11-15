@@ -40,7 +40,7 @@ export function UpdateSettings() {
   const canDownload = state?.status === "available" || (state?.status === "error" && !!state.version)
 
   return (
-    <SettingsSection title="Updates">
+    <SettingsSection title="App-Version">
       <SettingsRow title="Version">
         <SettingsValue>{version ?? "–"}</SettingsValue>
       </SettingsRow>

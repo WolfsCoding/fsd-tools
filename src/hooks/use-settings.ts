@@ -34,7 +34,7 @@ export function useEnabledFeatures() {
 export const SettingsDialogContext = createContext<{
   open: boolean
   setOpen: (open: boolean) => void
-  /** Opens the dialog on a page, by settings page id or feature path. */
+  /** Opens the dialog on a page, by its id. */
   openPage: (id: string) => void
 } | null>(null)
 

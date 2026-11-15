@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from "react"
 import { StepDialog, type Step } from "@/components/step-dialog"
 import { Input } from "@/components/ui/input"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
+import { useOfficerNames } from "@/features/officers/officers"
 import { CASE_TYPES, caseType, type CaseType } from "./case-types"
 import { DnaPicker } from "./dna-picker"
 import { Labeled, SectionFields } from "./doc-form"
@@ -63,6 +64,7 @@ function Steps({
   const { identity } = useOwnIdentity()
   const { colors } = useColors()
   const { entries, addEntry } = useDnaEntries()
+  const officers = useOfficerNames()
   const ids = { type: useId(), number: useId(), name: useId(), ablage: useId() }
   const [type, setType] = useState(initial)
   const [caseNumber, setCaseNumber] = useState("")
@@ -82,8 +84,8 @@ function Steps({
     [template, values, identity, colors, entries],
   )
   const suggestions = useMemo(
-    () => collectSuggestions(caseFiles, "", identity, kind.templates),
-    [caseFiles, identity, kind.templates],
+    () => collectSuggestions(caseFiles, "", identity, kind.templates, officers),
+    [caseFiles, identity, kind.templates, officers],
   )
 
   function pick(id: string) {

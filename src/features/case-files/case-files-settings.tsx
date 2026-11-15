@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from "react"
 import { PlusIcon, RotateCcwIcon, Trash2Icon } from "lucide-react"
 import { Hint } from "@/components/hint"
-import { SettingsRow, SettingsSection, SettingsValue } from "@/components/settings-layout"
+import { SettingsRow, SettingsSection } from "@/components/settings-layout"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { count } from "@/lib/text"
 import { removedToast } from "@/lib/undo"
 import { DEFAULT_COLORS, DEFAULT_DEPARTMENT, ME, NOW, type Colors } from "./markdown"
 import { usePoliceFiles } from "./police-files"
@@ -15,7 +16,7 @@ import { useColors, useOwnIdentity } from "./use-case-files"
 export function OwnPersonSettings() {
   const { name, rank, department, setName, setRank, setDepartment } = useOwnIdentity()
   return (
-    <SettingsSection>
+    <SettingsSection title="Identität">
       <SettingsRow
         htmlFor="akten-me-rank"
         title="Rang"
@@ -59,10 +60,10 @@ export function OwnPersonSettings() {
   )
 }
 
-/** Settings page "Markdown": how the copied markdown looks. */
+/** Section "Markdown" of the Akten settings: how the copied markdown looks. */
 export function MarkdownSettings() {
   return (
-    <SettingsSection title="Farben">
+    <SettingsSection title="Markdown">
       <ColorRow
         colorKey="heading"
         title="Farbe der Abschnitte"
@@ -171,9 +172,9 @@ export function SnippetList({
 
   return (
     <SettingsSection title={title}>
-      {snippets.length === 0 && <p className="py-4 text-sm text-muted-foreground">{empty}</p>}
+      {snippets.length === 0 && <p className="px-4 py-3 text-sm text-muted-foreground">{empty}</p>}
       {snippets.map((s) => (
-        <div key={s.id} className="grid gap-2 py-4">
+        <div key={s.id} className="grid gap-2 px-4 py-3">
           <div className="flex items-center gap-2">
             <Input
               value={s.title}
@@ -198,7 +199,7 @@ export function SnippetList({
           />
         </div>
       ))}
-      <div className="py-4">
+      <div className="px-4 py-3">
         <Button variant="outline" onClick={() => setAdded(addSnippet())}>
           <PlusIcon /> {noun} hinzufügen
         </Button>
@@ -207,12 +208,8 @@ export function SnippetList({
   )
 }
 
-/** Rows for the "Daten" section of the feature's settings page. */
-export function CaseFilesSettings() {
+/** What the Akten store, for their row in the settings. */
+export function CaseFilesSummary() {
   const { caseFiles } = usePoliceFiles()
-  return (
-    <SettingsRow title="Akten">
-      <SettingsValue>{caseFiles.length.toLocaleString("de-DE")}</SettingsValue>
-    </SettingsRow>
-  )
+  return count(caseFiles.length, "Akte", "Akten")
 }

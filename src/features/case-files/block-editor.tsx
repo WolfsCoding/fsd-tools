@@ -66,7 +66,7 @@ import {
   type TextishBlock,
 } from "./blocks"
 import { caretOf, setCaret, textLength } from "./caret"
-import { CHIP, ColorInput, FormatBar, RichField, RichInput } from "./rich-input"
+import { CHIP, CHIP_INPUT, ColorInput, FormatBar, RichField, RichInput } from "./rich-input"
 import { colorsOnly, formatAt, formatRich, plainText, splitRich, TEXT_COLORS, withoutBold, type Format } from "./rich-text"
 import type { DocFormProps } from "./templates"
 import { useColors } from "./use-case-files"
@@ -158,7 +158,6 @@ const START: Block[] = [{ id: "start", type: "text", text: "" }]
 // for values, thick rules and two-shaded tables.
 const QUOTE = "border-l-[3px] border-l-muted-foreground/25 pl-4 text-sm leading-6"
 const RULE = "border-t-[3px] border-muted-foreground/25"
-const CHIP_INPUT = cn(CHIP, "field-sizing-content max-w-full min-w-[3ch] outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring")
 
 const hasContent = (b: Block) =>
   isTextish(b)

@@ -1,6 +1,8 @@
-import type { ReactNode } from "react"
+import type { ComponentProps, ReactNode } from "react"
 import { XIcon } from "lucide-react"
 import { cn } from "cn"
+import { Combobox } from "@/components/combobox"
+import { CHIP_INPUT } from "@/features/case-files/rich-input"
 import { AddRow, BOX, CELL_INPUT } from "@/features/case-files/doc-form"
 
 export interface SheetColumn<R> {
@@ -88,27 +90,49 @@ export function SheetTable<R extends { id: string }>({
   )
 }
 
-/** A plain text cell. */
+// The label spans the cell, so a click anywhere in it reaches the input; the combobox's own
+// wrapper is stretched so its toggle stays at the right edge.
+const CODE_CELL = "flex h-10 cursor-text items-center px-3 [&>div]:flex-1"
+
+// The combobox's input brings its own size, border and focus ring; these undo them.
+const CODE_COMBOBOX = cn(
+  CHIP_INPUT,
+  "h-5 w-auto border-0 py-0 md:text-[0.8em] focus-visible:border-0 focus-visible:ring-1 focus-visible:ring-ring",
+)
+
+/** A plain text cell; `code` shows its value as inline code. */
 export function TextCell({
   value,
   onChange,
   label,
   placeholder,
+  code,
 }: {
   value: string
   onChange: (value: string) => void
   label: string
   placeholder?: string
+  code?: boolean
 }) {
-  return (
+  const input = (
     <input
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={label}
-      placeholder={placeholder}
+      placeholder={placeholder ?? (code ? "N/A" : undefined)}
       autoComplete="off"
-      className={CELL_INPUT}
+      className={code ? CHIP_INPUT : CELL_INPUT}
     />
+  )
+  return code ? <label className={CODE_CELL}>{input}</label> : input
+}
+
+/** A combobox cell that shows its value as inline code. */
+export function CodeComboboxCell(props: Omit<ComponentProps<typeof Combobox>, "className">) {
+  return (
+    <label className={CODE_CELL}>
+      <Combobox placeholder="N/A" {...props} className={CODE_COMBOBOX} />
+    </label>
   )
 }
 

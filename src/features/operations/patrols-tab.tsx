@@ -1,7 +1,8 @@
+import { useAtomValue } from "@effect/atom-react"
 import { CheckIcon, RotateCcwIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
-import { Combobox } from "@/components/combobox"
+import type { ComboboxOption } from "@/components/combobox"
 import { Button } from "@/components/ui/button"
 import { CheckMark } from "@/components/ui/checkbox"
 import {
@@ -11,10 +12,12 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { CELL_COMBOBOX } from "@/features/case-files/doc-form"
+import { CHIP } from "@/features/case-files/rich-input"
+import { sameText } from "@/lib/text"
 import { removedToast } from "@/lib/undo"
+import { rosterUnitsAtom } from "./roster"
 import { insertAt, updateAt } from "./rows"
-import { SheetSection, SheetTable, TextCell, type SheetColumn } from "./sheet"
+import { CodeComboboxCell, SheetSection, SheetTable, TextCell, type SheetColumn } from "./sheet"
 import { CHECK_COLORS, type CheckColor, type Operation, type Patrol } from "./types"
 import { newPatrol } from "./use-operations"
 
@@ -44,6 +47,7 @@ export function PatrolsTab({
   onChange: (fn: (o: Operation) => Operation) => void
   officers: string[]
 }) {
+  const units = useAtomValue(rosterUnitsAtom)
   const patrols = operation.patrols
   const setPatrol = (i: number, fn: (p: Patrol) => Patrol) => onChange((o) => ({ ...o, patrols: updateAt(o.patrols, i, fn) }))
   const marked = patrols.some((p) => p.checked || p.color)
@@ -67,7 +71,7 @@ export function PatrolsTab({
     key: `beamter${n}`,
     label: `Beamter ${n + 1}`,
     cell: (p, i) => (
-      <Combobox
+      <CodeComboboxCell
         value={p.beamte[n]}
         onChange={(v) =>
           setPatrol(i, (x) => {
@@ -78,25 +82,48 @@ export function PatrolsTab({
         }
         options={officers}
         aria-label={`Beamter ${n + 1} (Zeile ${i + 1})`}
-        className={CELL_COMBOBOX}
       />
     ),
   })
+
+  const unitOptions: ComboboxOption[] = units
+    .filter((u) => u.kennung.trim())
+    .map((u) => ({ value: u.kennung.trim(), hint: u.fahrzeug.trim() || undefined }))
+  // Only a Kennung from the settings has a vehicle; any other unit is for this operation only.
+  const vehicleOf = (einheit: string) =>
+    (einheit.trim() && units.find((u) => sameText(u.kennung, einheit))?.fahrzeug.trim()) || ""
 
   const columns: SheetColumn<Patrol>[] = [
     {
       key: "einheit",
       label: "Einheit",
       cell: (p, i) => (
-        <TextCell value={p.einheit} onChange={(v) => setPatrol(i, (x) => ({ ...x, einheit: v }))} label={`Einheit (Zeile ${i + 1})`} />
+        <CodeComboboxCell
+          value={p.einheit}
+          onChange={(v) => setPatrol(i, (x) => ({ ...x, einheit: v }))}
+          options={unitOptions}
+          aria-label={`Einheit (Zeile ${i + 1})`}
+        />
       ),
+    },
+    {
+      key: "fahrzeug",
+      label: "Fahrzeug",
+      cell: (p) => {
+        const vehicle = vehicleOf(p.einheit)
+        return (
+          <span className="flex h-10 items-center px-3">
+            {vehicle ? <code className={CHIP}>{vehicle}</code> : <span className="text-muted-foreground/60">—</span>}
+          </span>
+        )
+      },
     },
     {
       key: "aufgabe",
       label: "Aufgabe",
       wide: true,
       cell: (p, i) => (
-        <TextCell value={p.aufgabe} onChange={(v) => setPatrol(i, (x) => ({ ...x, aufgabe: v }))} label={`Aufgabe (Zeile ${i + 1})`} />
+        <TextCell value={p.aufgabe} onChange={(v) => setPatrol(i, (x) => ({ ...x, aufgabe: v }))} label={`Aufgabe (Zeile ${i + 1})`} code />
       ),
     },
     officerColumn(0),
@@ -112,6 +139,7 @@ export function PatrolsTab({
           value={p.anmerkung}
           onChange={(v) => setPatrol(i, (x) => ({ ...x, anmerkung: v }))}
           label={`Anmerkung (Zeile ${i + 1})`}
+          code
         />
       ),
     },

@@ -7,6 +7,8 @@ import { clipboardHtml, formatAt, formatRich, groups, parseRich, richMarkdown, s
 
 /** Inline code, as the Markdown shows it once pasted; the same in the text and in the headings. */
 export const CHIP = "inline-block rounded bg-muted px-1.5 font-mono text-[0.8em] leading-5"
+/** An input shown as that chip, as wide as its text. */
+export const CHIP_INPUT = `${CHIP} field-sizing-content max-w-full min-w-[3ch] outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring`
 
 /** The runs shown in `el`: its text, formatted by the elements around each piece. */
 function readRuns(el: HTMLElement) {

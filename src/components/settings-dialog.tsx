@@ -8,6 +8,8 @@ import {
 import {
   ArchiveIcon,
   DownloadIcon,
+  EllipsisIcon,
+  LayoutGridIcon,
   RefreshCwIcon,
   Trash2Icon,
   TriangleAlertIcon,
@@ -43,7 +45,15 @@ import { SearchField } from "@/components/search-field"
 import { Switch } from "@/components/ui/switch"
 import { UpdateSettings } from "@/components/update-settings"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
   features,
+  SETTINGS_GROUPS,
   settingsPages,
   type Feature,
   type SettingsPage,
@@ -91,7 +101,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       {children}
       <Dialog open={open} onOpenChange={setOpen}>
         {/* Phones stack the navigation above the page. */}
-        <DialogContent className="grid h-[min(40rem,calc(100svh-4rem))] grid-rows-[minmax(0,2fr)_minmax(0,3fr)] gap-1.5 sm:max-w-4xl sm:grid-cols-[13rem_1fr] sm:grid-rows-1">
+        <DialogContent className="grid h-[min(48rem,calc(100svh-4rem))] grid-rows-[minmax(0,2fr)_minmax(0,3fr)] gap-1.5 sm:max-w-6xl sm:grid-cols-[15rem_1fr] sm:grid-rows-1">
           <SettingsDialogBody activeId={pageId} setActiveId={setPageId} />
         </DialogContent>
       </Dialog>
@@ -99,21 +109,35 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   )
 }
 
-/** Settings pages of the app itself, after the shared ones from the registry. */
-const allPages: (SettingsPage & { keywords?: string[] })[] = [
+// Both pages list every feature, so its name finds them.
+const FEATURE_TITLES = features.map((f) => f.title)
+
+/** The pages from the registry, then those of the app itself. */
+const allPages: SettingsPage[] = [
   ...settingsPages,
   {
+    id: "funktionen",
+    group: "App",
+    title: "Funktionen",
+    description: "Funktionen ein- und ausblenden",
+    icon: LayoutGridIcon,
+    content: FeaturesSettings,
+    keywords: ["aktivieren", "deaktivieren", "aktiviert", ...FEATURE_TITLES],
+  },
+  {
     id: "sicherung",
-    title: "Sicherung",
-    description: "Alle Daten auf einmal sichern und wiederherstellen",
+    group: "App",
+    title: "Daten & Sicherung",
+    description: "Daten sichern, wiederherstellen und löschen",
     icon: ArchiveIcon,
-    content: FullBackupSettings,
-    keywords: ["backup", "export", "import", "json", "speicher"],
+    content: DataSettings,
+    keywords: ["backup", "export", "import", "json", "speicher", ...FEATURE_TITLES],
   },
   ...(desktop
     ? [
         {
           id: "updates",
+          group: "App" as const,
           title: "Updates",
           description: "Version der App und neue Versionen installieren",
           icon: RefreshCwIcon,
@@ -123,9 +147,6 @@ const allPages: (SettingsPage & { keywords?: string[] })[] = [
       ]
     : []),
 ]
-
-// Terms that should find any feature page, since each one has the same data controls.
-const DATA_KEYWORDS = ["aktivieren", "export", "import", "json", "speicher", "löschen"]
 
 function SettingsDialogBody({
   activeId,
@@ -137,30 +158,21 @@ function SettingsDialogBody({
   const [query, setQuery] = useState("")
 
   const q = query.trim().toLowerCase()
-  const matches = (terms: string[]) =>
-    terms.some((t) => t.toLowerCase().includes(q))
-  const visiblePages = allPages.filter((p) =>
-    matches([p.title, p.description ?? "", ...(p.keywords ?? [])]),
-  )
-  const visible = features.filter((f) =>
-    matches([f.title, f.description ?? "", ...DATA_KEYWORDS]),
+  const visible = allPages.filter((p) =>
+    [p.title, p.description ?? "", ...(p.keywords ?? [])].some((t) => t.toLowerCase().includes(q)),
   )
   // Fall back to the first match when the search hides the active page; without matches it stays.
-  const active: SettingsPage | Feature =
-    visiblePages.find((p) => p.id === activeId) ??
-    visible.find((f) => f.path === activeId) ??
-    visiblePages[0] ??
+  const active =
+    visible.find((p) => p.id === activeId) ??
     visible[0] ??
     allPages.find((p) => p.id === activeId) ??
-    features.find((f) => f.path === activeId) ??
-    features[0]
-  const activeKey = "content" in active ? active.id : active.path
+    allPages[0]
 
   return (
     <>
       <DialogTitle className="sr-only">Einstellungen</DialogTitle>
       <DialogDescription className="sr-only">
-        Funktionen aktivieren und ihre Daten verwalten.
+        Profil, Vorlagen, Funktionen und Daten verwalten.
       </DialogDescription>
 
       {/* The navigation sits on the frame; the active page is the darker panel. */}
@@ -173,41 +185,42 @@ function SettingsDialogBody({
           className="flex-none max-sm:w-auto max-sm:mr-9"
         />
 
-        {visiblePages.length > 0 && (
-          <NavGroup title="Allgemein">
-            {visiblePages.map((page) => (
-              <NavButton
-                key={page.id}
-                entry={page}
-                active={page.id === activeKey}
-                onClick={() => setActiveId(page.id)}
-              />
-            ))}
-          </NavGroup>
-        )}
+        {SETTINGS_GROUPS.map((group) => {
+          const pages = visible.filter((p) => p.group === group)
+          return (
+            pages.length > 0 && (
+              <NavGroup key={group} title={group}>
+                {pages.map((page) => (
+                  <NavButton
+                    key={page.id}
+                    entry={page}
+                    active={page === active}
+                    onClick={() => setActiveId(page.id)}
+                  />
+                ))}
+              </NavGroup>
+            )
+          )
+        })}
 
-        {visible.length > 0 && (
-          <NavGroup title="Funktionen">
-            {visible.map((feature) => (
-              <NavButton
-                key={feature.path}
-                entry={feature}
-                active={feature.path === activeKey}
-                onClick={() => setActiveId(feature.path)}
-              />
-            ))}
-          </NavGroup>
-        )}
-
-        {visiblePages.length === 0 && visible.length === 0 && (
-          <NoResults query={query} onReset={() => setQuery("")} />
-        )}
+        {visible.length === 0 && <NoResults query={query} onReset={() => setQuery("")} />}
       </nav>
 
-      <div className="min-h-0 overflow-y-auto rounded-xl bg-card px-5 py-6 ring-1 ring-border sm:px-8">
-        {/* Keyed so dialogs/state inside reset, and the page fades in, when switching pages. */}
-        <div key={activeKey} className="animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
-          {"content" in active ? <SettingsPageView page={active} /> : <FeatureSettingsPage feature={active} />}
+      <div className="flex min-h-0 flex-col overflow-hidden rounded-xl bg-card ring-1 ring-border">
+        {/* The dialog's close button sits at the right end of this bar. */}
+        <div className="flex h-11 shrink-0 items-center gap-1.5 border-b px-5 pr-14 text-sm">
+          <span className="text-muted-foreground">Einstellungen</span>
+          <span className="text-muted-foreground/60">/</span>
+          <span className="truncate font-medium">{active.title}</span>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+          {/* Keyed so dialogs/state inside reset, and the page fades in, when switching pages. */}
+          <div
+            key={active.id}
+            className="mx-auto max-w-3xl animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1"
+          >
+            <active.content />
+          </div>
         </div>
       </div>
     </>
@@ -230,7 +243,7 @@ function NavButton({
   active,
   onClick,
 }: {
-  entry: SettingsPage | Feature
+  entry: SettingsPage
   active: boolean
   onClick: () => void
 }) {
@@ -248,60 +261,48 @@ function NavButton({
   )
 }
 
-function PageHeader({ entry }: { entry: SettingsPage | Feature }) {
-  return (
-    <header className="mb-6 flex items-center gap-3">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-        <entry.icon className="size-5" />
-      </span>
-      <div className="grid gap-0.5">
-        <h1 className="text-lg font-semibold">{entry.title}</h1>
-        {entry.description && (
-          <p className="text-sm text-muted-foreground">{entry.description}</p>
-        )}
-      </div>
-    </header>
-  )
-}
-
-function SettingsPageView({ page }: { page: SettingsPage }) {
-  return (
-    <>
-      <PageHeader entry={page} />
-      <page.content />
-    </>
-  )
-}
-
-function FeatureSettingsPage({ feature }: { feature: Feature }) {
+function FeaturesSettings() {
   const { enabledFeatures, setFeatureEnabled } = useEnabledFeatures()
-  const switchId = `feature-${feature.path}`
 
   return (
+    <SettingsSection
+      title="Funktionen"
+      description="Deaktivierte Funktionen werden in der Seitenleiste und der Befehlspalette ausgeblendet. Ihre Daten bleiben erhalten."
+    >
+      {features.map((feature) => {
+        const switchId = `feature-${feature.path}`
+        return (
+          <SettingsRow
+            key={feature.path}
+            htmlFor={switchId}
+            icon={feature.icon}
+            title={feature.title}
+            description={feature.description}
+          >
+            <Switch
+              id={switchId}
+              checked={enabledFeatures.includes(feature)}
+              onCheckedChange={(on) => setFeatureEnabled(feature.path, on)}
+            />
+          </SettingsRow>
+        )
+      })}
+    </SettingsSection>
+  )
+}
+
+function DataSettings() {
+  return (
     <>
-      <PageHeader entry={feature} />
-
-      <SettingsSection title="Allgemein">
-        <SettingsRow
-          htmlFor={switchId}
-          title="Aktiviert"
-          description="Deaktivierte Funktionen werden in der Seitenleiste und der Befehlspalette ausgeblendet. Ihre Daten bleiben erhalten."
-        >
-          <Switch
-            id={switchId}
-            checked={enabledFeatures.includes(feature)}
-            onCheckedChange={(on) => setFeatureEnabled(feature.path, on)}
-          />
-        </SettingsRow>
+      <FullBackupSettings />
+      <SettingsSection title="Nach Funktion">
+        {features.map((feature) => feature.storage && <FeatureDataRow key={feature.path} feature={feature} />)}
       </SettingsSection>
-
-      {feature.preferences && <feature.preferences />}
-      {feature.storage && <FeatureDataSection feature={feature} />}
     </>
   )
 }
 
-function FeatureDataSection({ feature }: { feature: Feature }) {
+function FeatureDataRow({ feature }: { feature: Feature }) {
   const keys = useMemo(() => storedKeys(feature), [feature])
   const bytes = useStorageBytes(keys)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -335,56 +336,39 @@ function FeatureDataSection({ feature }: { feature: Feature }) {
 
   return (
     <>
-      <SettingsSection title="Daten">
-        <SettingsRow
-          title="Speicherort"
-          description="Daten werden nur lokal in diesem Browser gespeichert und nicht synchronisiert."
-        >
-          <SettingsValue>Lokal</SettingsValue>
-        </SettingsRow>
-        <SettingsRow title="Belegter Speicher">
-          <SettingsValue>{formatBytes(bytes)}</SettingsValue>
-        </SettingsRow>
-        {feature.settings && <feature.settings />}
-      </SettingsSection>
-
-      <SettingsSection title="Sicherung">
-        <SettingsRow
-          title="Exportieren"
-          description={`Lädt alle Daten von ${feature.title} als JSON-Datei herunter.`}
-        >
-          <Button variant="outline" onClick={() => downloadFeatureData(feature)}>
-            <DownloadIcon /> Exportieren
-          </Button>
-        </SettingsRow>
-        <SettingsRow
-          title="Importieren"
-          description={`Ersetzt die Daten von ${feature.title} durch einen zuvor exportierten JSON-Export.`}
-        >
-          <Button variant="outline" onClick={() => fileInput.current?.click()}>
-            <UploadIcon /> Importieren
-          </Button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={handleFile}
-          />
-        </SettingsRow>
-        <SettingsRow
-          title="Alle Daten löschen"
-          description={`Entfernt alle Daten von ${feature.title} dauerhaft aus diesem Browser.`}
-        >
-          <Button
-            variant="destructive"
-            disabled={bytes === 0}
-            onClick={() => setConfirmClear(true)}
-          >
-            <Trash2Icon /> Löschen
-          </Button>
-        </SettingsRow>
-      </SettingsSection>
+      <SettingsRow
+        icon={feature.icon}
+        title={feature.title}
+        description={feature.summary && <feature.summary />}
+      >
+        <SettingsValue>{formatBytes(bytes)}</SettingsValue>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label={`Daten von ${feature.title} verwalten`}>
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onSelect={() => downloadFeatureData(feature)}>
+              <DownloadIcon /> Exportieren
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
+              <UploadIcon /> Importieren…
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" disabled={bytes === 0} onSelect={() => setConfirmClear(true)}>
+              <Trash2Icon /> Alle Daten löschen…
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          onChange={handleFile}
+        />
+      </SettingsRow>
 
       <ConfirmDialog
         open={pendingImport !== undefined}

@@ -1,19 +1,10 @@
-import { SettingsRow, SettingsValue } from "@/components/settings-layout"
+import { count } from "@/lib/text"
 import { useNoteFolders } from "./folders"
 import { useNotes } from "./use-notes"
 
-/** Rows for the "Daten" section of the feature's settings page. */
-export function NotesSettings() {
+/** What the notes store, for their row in the settings. */
+export function NotesSummary() {
   const { notes } = useNotes()
   const [folders] = useNoteFolders()
-  return (
-    <>
-      <SettingsRow title="Notizen">
-        <SettingsValue>{notes.length.toLocaleString("de-DE")}</SettingsValue>
-      </SettingsRow>
-      <SettingsRow title="Ordner">
-        <SettingsValue>{folders.length.toLocaleString("de-DE")}</SettingsValue>
-      </SettingsRow>
-    </>
-  )
+  return `${count(notes.length, "Notiz", "Notizen")}, ${count(folders.length, "Ordner", "Ordner")}`
 }

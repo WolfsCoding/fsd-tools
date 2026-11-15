@@ -184,13 +184,14 @@ const NOT_A_VALUE = new Set(["---", "n/a", "xxx", "nicht gewollt"])
 
 /**
  * Everything entered for each suggestion group, from the open case file first, then the
- * others (newest first). People also include the own name.
+ * others (newest first). Officers also include the own name and the own officer list.
  */
 export function collectSuggestions(
   caseFiles: CaseFile<string>[],
   currentId: string,
   me: Identity,
   templates: Templates = TEMPLATES,
+  officers: string[] = [],
 ): Suggestions {
   const groups = Object.fromEntries(SUGGESTION_GROUPS.map((g) => [g, new Map()])) as Record<
     SuggestionGroup,
@@ -213,6 +214,7 @@ export function collectSuggestions(
   const add = (group: SuggestionGroup, value: unknown, source: string) => put(groups[group], value, source)
 
   add("officer", me.full, "me")
+  for (const name of officers) add("officer", name, "officers")
   // Tables with an own row (e.g. the patrol) know the own name with its rank from the start.
   for (const t of Object.values(templates)) {
     for (const f of templateFields(t)) {

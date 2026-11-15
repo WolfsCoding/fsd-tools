@@ -8,6 +8,11 @@ export function sameText(a: string, b: string) {
   return textKey(a) === textKey(b)
 }
 
+/** A German count with its noun, e.g. "1 Akte" or "1.200 Akten". */
+export function count(n: number, one: string, many: string) {
+  return `${n.toLocaleString("de-DE")} ${n === 1 ? one : many}`
+}
+
 /**
  * Whether `query` appears as a whole word in `text`, e.g. "to" finds "TO § 14" but
  * not "Totschlag". Meant for short abbreviation-style queries.

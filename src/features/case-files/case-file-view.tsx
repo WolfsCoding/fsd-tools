@@ -38,6 +38,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
 import { useReorder } from "@/components/use-reorder"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
+import { useOfficerNames } from "@/features/officers/officers"
 import { NoteMarkdown } from "@/features/notes/note-markdown"
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { useTabTitle } from "@/hooks/use-tabs"
@@ -185,6 +186,7 @@ export function CaseFileView({
 
   const { colors } = useColors()
   const { entries: dnaEntries } = useDnaEntries()
+  const officers = useOfficerNames()
   const ablage = ablagePerson(caseFile, dnaEntries)
   const readerOf = useCallback(
     (d: Doc<string>) => createReader(templates[d.template], d.values, me, colors, identity.department, dnaEntries),
@@ -193,8 +195,8 @@ export function CaseFileView({
   const mainReader = useMemo(() => readerOf(main), [readerOf, main])
   const mainMarkdown = useMemo(() => mainTemplate.render(mainReader), [mainTemplate, mainReader])
   const suggestions = useMemo(
-    () => collectSuggestions(api.caseFiles, caseFile.id, identity, templates),
-    [api.caseFiles, caseFile.id, identity, templates],
+    () => collectSuggestions(api.caseFiles, caseFile.id, identity, templates, officers),
+    [api.caseFiles, caseFile.id, identity, templates, officers],
   )
 
   const nameOf = (d: Doc<string>) => (d === main ? "Beschreibung" : docLabel(d, me, templates, caseFile.docs))

@@ -1,10 +1,11 @@
-import { SnippetList, SnippetsSettings } from "@/features/case-files/case-files-settings"
+import { MarkdownSettings, SnippetList, SnippetsSettings } from "@/features/case-files/case-files-settings"
 import { cyberStepsAtom, itemStepsAtom } from "./step-templates"
 
-/** The Akten's own settings: the Textbausteine, then the templates of the analyses. */
+/** Settings page "Akten": the markdown colors, the Textbausteine, then the templates of the analyses. */
 export function CaseFilesPreferences() {
   return (
     <>
+      <MarkdownSettings />
       <SnippetsSettings />
       <StepTemplatesSettings />
     </>

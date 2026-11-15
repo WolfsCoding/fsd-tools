@@ -1,13 +1,8 @@
-import { SettingsRow, SettingsValue } from "@/components/settings-layout"
+import { count } from "@/lib/text"
 import { useDnaEntries } from "./use-dna-entries"
 
-/** DNA-DB specific rows in the feature's "Daten" settings section. */
-export function DnaDbSettings() {
+/** What the DNA-DB stores, for its row in the settings. */
+export function DnaDbSummary() {
   const { entries } = useDnaEntries()
-
-  return (
-    <SettingsRow title="Einträge">
-      <SettingsValue>{entries.length.toLocaleString("de-DE")}</SettingsValue>
-    </SettingsRow>
-  )
+  return count(entries.length, "Eintrag", "Einträge")
 }

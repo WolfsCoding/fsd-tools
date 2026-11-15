@@ -19,6 +19,7 @@ import { PERSON } from "@/features/case-files/templates"
 import { lookupPerson } from "@/features/case-files/traces"
 import { useOwnName } from "@/features/case-files/use-case-files"
 import { useDnaEntries } from "@/features/dna-db/use-dna-entries"
+import { useOfficerNames } from "@/features/officers/officers"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { accused, collectiveValues, reportValues } from "./collective-file"
 import { EditOperationDialog } from "./edit-operation-dialog"
@@ -55,6 +56,7 @@ export function OperationView({
   const me = useOwnName()
   const police = usePoliceFiles()
   const { entries } = useDnaEntries()
+  const roster = useOfficerNames()
   const [editing, setEditing] = useState(false)
   useTabTitle(operation.title)
 
@@ -79,11 +81,12 @@ export function OperationView({
     () =>
       unique([
         me,
+        ...roster,
         operation.leitung,
         ...operation.patrols.flatMap((p) => p.beamte),
         ...operation.people.flatMap((p) => [p.beamter, p.belehrung.belehrtVon, p.belehrung.zeuge]),
       ]),
-    [me, operation.leitung, operation.patrols, operation.people],
+    [me, roster, operation.leitung, operation.patrols, operation.people],
   )
   const peopleNames = unique(operation.people.map((p) => nameOf(p.name)))
 

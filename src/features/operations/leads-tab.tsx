@@ -42,6 +42,7 @@ export function LeadsTab({ operation, onChange }: { operation: Operation; onChan
           value={l.beamter}
           onChange={(v) => setLead(i, (x) => ({ ...x, beamter: v }))}
           options={officers}
+          placeholder="N/A"
           aria-label={`Beamter (Zeile ${i + 1})`}
           className={CELL_COMBOBOX}
         />

@@ -1,8 +1,8 @@
 import type { ComponentType, ReactNode } from "react"
-import { BookOpenIcon, CarIcon, DnaIcon, DonutIcon, FileCodeIcon, FolderOpenIcon, ImageIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, WorkflowIcon } from "lucide-react"
+import { BookOpenIcon, CarIcon, DnaIcon, DonutIcon, FolderOpenIcon, ImageIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, UsersIcon, WorkflowIcon } from "lucide-react"
 import type { StoredEntry } from "@/lib/storage"
 import { CaseFilesPage } from "./case-files/case-files-page"
-import { CaseFilesSettings, MarkdownSettings, OwnPersonSettings } from "./case-files/case-files-settings"
+import { CaseFilesSummary, OwnPersonSettings } from "./case-files/case-files-settings"
 import { POLICE_FILES_BASE } from "./case-files/paths"
 import { legacyForensicsAtom, policeFilesAtom } from "./case-files/police-files"
 import { snippetsAtom } from "./case-files/snippets"
@@ -10,7 +10,7 @@ import { colorsAtom, departmentAtom, ownNameAtom, ownRankAtom } from "./case-fil
 import { cyberStepsAtom, itemStepsAtom } from "./forensics/step-templates"
 import { CaseFilesPreferences } from "./forensics/step-templates-settings"
 import { DnaDbPage } from "./dna-db/dna-db-page"
-import { DnaDbSettings } from "./dna-db/dna-db-settings"
+import { DnaDbSummary } from "./dna-db/dna-db-settings"
 import { DNA_DB_BASE } from "./dna-db/paths"
 import { dnaDismissedAtom, dnaEntriesAtom } from "./dna-db/use-dna-entries"
 import { DonutsPage } from "./donuts/donuts-page"
@@ -18,8 +18,13 @@ import { DONUTS_BASE } from "./donuts/paths"
 import { OperationsPage } from "./operations/operations-page"
 import { OPERATIONS_BASE } from "./operations/paths"
 import { operationsAtom } from "./operations/use-operations"
+import { rosterUnitsAtom } from "./operations/roster"
+import { officersAtom } from "./officers/officers"
+import { OfficersSettings } from "./officers/officers-settings"
+import "./officers/seed"
+import { RosterSettings } from "./operations/roster-settings"
 import { FlowchartsPage } from "./flowcharts/flowcharts-page"
-import { FlowchartsSettings } from "./flowcharts/flowcharts-settings"
+import { FlowchartsSummary } from "./flowcharts/flowcharts-settings"
 import { FLOWCHARTS_BASE } from "./flowcharts/paths"
 import { flowchartsAtom } from "./flowcharts/use-flowcharts"
 import { FsuPage } from "./fsu/fsu-page"
@@ -35,7 +40,7 @@ import { PLATES_BASE } from "./plates/paths"
 import { PlatesPage } from "./plates/plates-page"
 import { platesAtom } from "./plates/use-plates"
 import { NotesPage } from "./notes/notes-page"
-import { NotesSettings } from "./notes/notes-settings"
+import { NotesSummary } from "./notes/notes-settings"
 import { NOTES_BASE } from "./notes/paths"
 import { foldersAtom } from "./notes/folders"
 import { legacyPagesAtom, notesAtom } from "./notes/use-notes"
@@ -51,21 +56,19 @@ export interface Feature {
   icon: ComponentType<{ className?: string }>
   element: ReactNode
   /**
-   * The stored atoms this feature owns; enables export/import/clear in its settings. Imports
+   * The stored atoms this feature owns; enables export/import/clear in the settings. Imports
    * are checked against each atom's schema.
    */
   storage?: {
     entries: StoredEntry[]
   }
-  /** Extra rows shown in the "Daten" section of the feature's settings page. */
-  settings?: ComponentType
-  /** Own settings sections built with SettingsSection, shown above "Daten". */
-  preferences?: ComponentType
+  /** Renders what is stored as short text, e.g. "12 Akten", next to the feature's data in the settings. */
+  summary?: ComponentType
 }
 
 /**
- * Every tool in the app. Adding an entry here registers its route, its
- * sidebar entry, and its settings page — no other wiring needed.
+ * Every tool in the app. Adding an entry here registers its route, its sidebar entry, its
+ * switch and its data in the settings — no other wiring needed.
  */
 export const features: Feature[] = [
   {
@@ -75,7 +78,7 @@ export const features: Feature[] = [
     icon: DnaIcon,
     element: <DnaDbPage />,
     storage: { entries: [dnaEntriesAtom, dnaDismissedAtom] },
-    settings: DnaDbSettings,
+    summary: DnaDbSummary,
   },
   {
     path: FSU_BASE.slice(1),
@@ -99,7 +102,7 @@ export const features: Feature[] = [
     icon: NotebookPenIcon,
     element: <NotesPage />,
     storage: { entries: [notesAtom, foldersAtom, legacyPagesAtom] },
-    settings: NotesSettings,
+    summary: NotesSummary,
   },
   {
     path: PLATES_BASE.slice(1),
@@ -116,7 +119,7 @@ export const features: Feature[] = [
     icon: WorkflowIcon,
     element: <FlowchartsPage />,
     storage: { entries: [flowchartsAtom] },
-    settings: FlowchartsSettings,
+    summary: FlowchartsSummary,
   },
   {
     path: HEADERS_BASE.slice(1),
@@ -147,7 +150,7 @@ export const features: Feature[] = [
     description: "Streifenblatt, beteiligte Fahrzeuge und Personen, Funk und Infos für größere Einsätze; daraus eine Sammelakte erstellen",
     icon: SirenIcon,
     element: <OperationsPage />,
-    storage: { entries: [operationsAtom] },
+    storage: { entries: [operationsAtom, rosterUnitsAtom] },
   },
   {
     path: POLICE_FILES_BASE.slice(1),
@@ -162,42 +165,68 @@ export const features: Feature[] = [
         ownNameAtom,
         ownRankAtom,
         departmentAtom,
+        officersAtom,
         colorsAtom,
         snippetsAtom,
         cyberStepsAtom,
         itemStepsAtom,
       ],
     },
-    settings: CaseFilesSettings,
-    preferences: CaseFilesPreferences,
+    summary: CaseFilesSummary,
   },
 ]
 
-/** A settings page of its own, apart from the features. */
+/** The groups of the settings navigation, in their order. */
+export const SETTINGS_GROUPS = ["Profil", "Vorlagen", "App"] as const
+
 export interface SettingsPage {
-  /** Identifies the page in the settings dialog; must not collide with a feature's path. */
+  /** Identifies the page in the settings dialog. */
   id: string
+  group: (typeof SETTINGS_GROUPS)[number]
   title: string
   description?: string
   icon: ComponentType<{ className?: string }>
   /** The page's sections, built with `SettingsSection`. */
   content: ComponentType
+  /** Further terms the settings search finds the page by. */
+  keywords?: string[]
 }
 
-/** Settings shared by several features, listed above the features in the settings dialog. */
+/** The settings pages of the features; the dialog adds those of the app itself. */
 export const settingsPages: SettingsPage[] = [
   {
     id: "eigene-person",
+    group: "Profil",
     title: "Eigene Person",
     description: "Rang, Name und Department für Akten und Analysen",
     icon: UserIcon,
     content: OwnPersonSettings,
   },
   {
-    id: "markdown",
-    title: "Markdown",
-    description: "Farben des kopierten Markdowns der Akten und Analysen",
-    icon: FileCodeIcon,
-    content: MarkdownSettings,
+    id: "officer",
+    group: "Profil",
+    title: "Officer",
+    description: "Officer, die in Akten und in der Einsatzleitung vorgeschlagen werden",
+    icon: UsersIcon,
+    content: OfficersSettings,
+    keywords: ["kollegen"],
+  },
+  {
+    id: POLICE_FILES_BASE.slice(1),
+    group: "Vorlagen",
+    title: "Akten",
+    description: "Textbausteine, Vorlagen der Analysen und Farben des kopierten Markdowns",
+    icon: FolderOpenIcon,
+    content: CaseFilesPreferences,
+    keywords: ["textbaustein", "vorlage", "markdown", "farbe", "cyberforensisch", "forensisch", "untersuchung"],
+  },
+  {
+    id: OPERATIONS_BASE.slice(1),
+    group: "Vorlagen",
+    title: "Einsatzleitung",
+    description: "Fahrzeuge und Kennungen, die das Streifenblatt vorschlägt",
+    icon: SirenIcon,
+    content: RosterSettings,
+    keywords: ["fahrzeug", "kennung", "streifenblatt", "einheit"],
   },
 ]

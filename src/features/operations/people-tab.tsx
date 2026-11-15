@@ -105,6 +105,7 @@ export function PeopleTab({
           value={p.beamter}
           onChange={(v) => setPerson(i, (x) => ({ ...x, beamter: v }))}
           options={officers}
+          placeholder="N/A"
           aria-label={`Zuständiger Beamter (Zeile ${i + 1})`}
           className={CELL_COMBOBOX}
         />
