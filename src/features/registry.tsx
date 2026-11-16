@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react"
-import { BookOpenIcon, CarIcon, DnaIcon, DonutIcon, FolderOpenIcon, ImageIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, UsersIcon, WorkflowIcon } from "lucide-react"
+import { BookOpenIcon, CarIcon, DnaIcon, DonutIcon, FolderOpenIcon, ImageIcon, NotebookPenIcon, ReceiptIcon, ScaleIcon, SirenIcon, UserIcon, UsersIcon, UtensilsIcon, WorkflowIcon } from "lucide-react"
 import type { StoredEntry } from "@/lib/storage"
 import { CaseFilesPage } from "./case-files/case-files-page"
 import { CaseFilesSummary, OwnPersonSettings } from "./case-files/case-files-settings"
@@ -44,6 +44,9 @@ import { NotesSummary } from "./notes/notes-settings"
 import { NOTES_BASE } from "./notes/paths"
 import { foldersAtom } from "./notes/folders"
 import { legacyPagesAtom, notesAtom } from "./notes/use-notes"
+import { catalogAtom, historyAtom, orderAtom } from "./pos/order"
+import { POS_BASE } from "./pos/paths"
+import { PosPage } from "./pos/pos-page"
 import { RECEIPTS_BASE } from "./receipts/paths"
 import { ReceiptsPage } from "./receipts/receipts-page"
 import { receiptAtom, receiptScaleAtom } from "./receipts/storage"
@@ -136,6 +139,14 @@ export const features: Feature[] = [
     icon: ReceiptIcon,
     element: <ReceiptsPage />,
     storage: { entries: [receiptAtom, receiptScaleAtom] },
+  },
+  {
+    path: POS_BASE.slice(1),
+    title: "Kasse",
+    description: "Restaurant-Kasse: Artikel und Menüs antippen, je Person mit Notizen bestellen und zusammen oder einzeln abrechnen",
+    icon: UtensilsIcon,
+    element: <PosPage />,
+    storage: { entries: [catalogAtom, orderAtom, historyAtom] },
   },
   {
     path: DONUTS_BASE.slice(1),
