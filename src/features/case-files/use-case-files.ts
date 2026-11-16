@@ -73,22 +73,19 @@ type Templates = CaseFileKind["templates"]
 
 function plainDocName(d: Doc<string>, me: string, templates: Templates) {
   const t = templates[d.template]
-  return d.title?.trim() || t.subject(createReader(t, d.values, me)) || t.label
+  const r = createReader(t, d.values, me)
+  return d.title?.trim() || t.pageTitle?.(r) || t.subject(r) || t.label
 }
 
 /**
- * The document's own title, else who or what it is about, else the template name. With the
+ * The document's own title, else its template's title (e.g. "🟣 Aussage: Jane Roe"), else who or
+ * what it is about, else the template name. With the
  * case file's `docs`, documents of the same name are numbered, e.g. "Blutanalyse 2".
  */
 export function docName(d: Doc<string>, me: string, templates: Templates = TEMPLATES, docs?: Doc<string>[]) {
   const name = plainDocName(d, me, templates)
   const same = docs?.filter((x) => sameText(plainDocName(x, me, templates), name)) ?? []
   return same.length > 1 ? `${name} ${same.indexOf(d) + 1}` : name
-}
-
-/** `docName` behind the template's emoji, e.g. "🔴 Max Mustermann". */
-export function docLabel(d: Doc<string>, me: string, templates: Templates = TEMPLATES, docs?: Doc<string>[]) {
-  return `${templates[d.template].emoji} ${docName(d, me, templates, docs)}`
 }
 
 /** Field of the case number, e.g. of the analyses; the automatic title ends with it. */

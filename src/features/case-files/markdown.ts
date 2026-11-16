@@ -22,6 +22,8 @@ export const SUSPECT_MIRANDA =
   "Als Beschuldigter haben Sie das Recht zu schweigen. Alles was Sie sagen kann und wird vor Gericht gegen Sie verwendet werden. Sie haben das Recht auf ein 3 minütiges privates Telefonat sowie das Recht den Grund der Festnahme zu erfahren."
 export const WITNESS_CAUTION =
   "Als Zeuge sind Sie dazu verpflichtet die Wahrheit zu sagen. Durch eine Falschaussage machen Sie sich nach `§15 CO` der Falschaussage Strafbar. Sie können die Aussage verweigern sofern Sie sich, direkte Familienmitglieder oder Ehepartner belasten. Haben sie dies Verstanden?"
+export const VICTIM_CAUTION =
+  "Als Geschädigter sind Sie dazu verpflichtet die Wahrheit zu sagen. Durch eine Falschaussage machen Sie sich nach `§15 CO` der Falschaussage Strafbar. Sie haben das Recht auf einen Rechtsbeistand. Sie können die Aussage verweigern sofern Sie sich, direkte Familienmitglieder oder Ehepartner belasten. Haben sie dies Verstanden?"
 
 export const LEGEND = [
   "🔴 = Beschuldigter",
@@ -95,6 +97,25 @@ export function facts(pairs: [label: string, value: string][]) {
 /** Each line as a quoted bullet. */
 export function bullets(lines: string[]) {
   return lines.map((line) => `> - ${line.replace(/^[-*]\s+/, "")}`).join("\n")
+}
+
+/** Marks a point of a list as a question, e.g. one asked in an Aussage; stored in front of its text. */
+export const QUESTION = "❓ "
+export const isQuestion = (point: string) => point.startsWith(QUESTION.trim())
+export const questionText = (point: string) => point.slice(QUESTION.trim().length).trimStart()
+
+/** Gray of the questions, a little apart from the answers. */
+export const QUESTION_COLOR = "#A0A0A0"
+
+/** Each question as gray inline code with its answers as quoted bullets below; a blank line between them. */
+export function interview(points: string[]) {
+  const blocks: string[][] = []
+  for (const p of points) {
+    if (isQuestion(p)) blocks.push([`> <font color="${QUESTION_COLOR}">${code(questionText(p))}</font>`])
+    else if (blocks.length) blocks[blocks.length - 1].push(bullets([p]))
+    else blocks.push([bullets([p])])
+  }
+  return blocks.map((b) => b.join("\n")).join("\n\n")
 }
 
 export function checklist(items: { label: string; checked: boolean }[]) {

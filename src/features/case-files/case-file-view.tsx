@@ -51,13 +51,12 @@ import { DocForm, MeHint, SectionFields } from "./doc-form"
 import { EditCaseFileDialog } from "./edit-case-file-dialog"
 import { withNow } from "./markdown"
 import type { CaseFileKind } from "./kind"
-import { blankMarkdown, canRandomize, createReader, missingRequired, randomized, type Section } from "./templates"
+import { blankMarkdown, canRandomize, createReader, missingRequired, randomized, type Section, type Template } from "./templates"
 import { StatusBadge } from "./status-badge"
-import { statusOf, type CaseFile, type Doc } from "./types"
+import { statusOf, type CaseFile, type Doc, type Values } from "./types"
 import {
   caseFileTitle,
   collectSuggestions,
-  docLabel,
   docName,
   useColors,
   useOwnIdentity,
@@ -83,6 +82,12 @@ function useRoomForSide() {
     return () => observer.disconnect()
   }, [])
   return [ref, room] as const
+}
+
+/** The emoji in front of the template's title, e.g. "🔴" of "🔴 Beschuldigter: …"; else its own. */
+function titleEmoji(t: Template<string>, me: string) {
+  const title = t.pageTitle?.(createReader(t, t.initial ?? {}, me)) ?? ""
+  return /^\p{Extended_Pictographic}️?/u.exec(title)?.[0] ?? t.emoji
 }
 
 /** Copies `text`; with required fields still empty, one warning naming them replaces the usual confirmation. */
@@ -199,11 +204,20 @@ export function CaseFileView({
     [api.caseFiles, caseFile.id, identity, templates, officers],
   )
 
-  const nameOf = (d: Doc<string>) => (d === main ? "Beschreibung" : docLabel(d, me, templates, caseFile.docs))
-  /** The title the records system wants for a document, e.g. "🟣 Aussage: …"; the case file's for the Beschreibung. */
-  const titleOf = (d: Doc<string>) =>
-    templates[d.template].pageTitle?.(readerOf(d)) ?? (d === main ? title : docName(d, me, templates, caseFile.docs))
-  const markdownOf = (d: Doc<string>) => (d === main ? mainMarkdown : templates[d.template].render(readerOf(d)))
+  const nameOf = (d: Doc<string>) => (d === main ? "Beschreibung" : docName(d, me, templates, caseFile.docs))
+  /** The title the records system wants for a document, e.g. "🟣 Aussage: …", unless renamed; the case file's for the Beschreibung. */
+  const titleOf = (d: Doc<string>) => {
+    const own = d === main ? "" : d.title?.trim()
+    return own || (templates[d.template].pageTitle?.(readerOf(d)) ?? (d === main ? title : docName(d, me, templates)))
+  }
+  const markdownOf = (d: Doc<string>) => {
+    if (d === main) return mainMarkdown
+    const t = templates[d.template]
+    const r = readerOf(d)
+    const own = d.title?.trim()
+    // The title in the Markdown's comment follows a renamed document.
+    return own && t.pageTitle ? t.render(r).replace(`Titel: ${t.pageTitle(r)}`, () => `Titel: ${own}`) : t.render(r)
+  }
   const copyDoc = (d: Doc<string>) =>
     copyChecked(withNow(markdownOf(d)), nameOf(d), missingRequired(templates[d.template], d === main ? mainReader : readerOf(d)))
   /** The Beschreibung and every Bericht as one text, in their order. */
@@ -280,8 +294,9 @@ export function CaseFileView({
     })
   }
 
-  function addDoc(id: string) {
+  function addDoc(id: string, values: Values = {}) {
     const added = api.addDoc(caseFile.id, id)
+    if (Object.keys(values).length) api.setValues(caseFile.id, added, values)
     setExpanded((prev) => [...prev, added])
     setEditingOf(added, true)
     setReveal({ id: added, focus: true })
@@ -291,22 +306,24 @@ export function CaseFileView({
   function removeDoc(removed: Doc<string>) {
     const index = caseFile.docs.indexOf(removed)
     api.removeDoc(caseFile.id, removed.id)
-    removedToast(`„${docLabel(removed, me, templates, caseFile.docs)}“`, () => api.restoreDoc(caseFile.id, removed, index))
+    removedToast(`„${docName(removed, me, templates, caseFile.docs)}“`, () => api.restoreDoc(caseFile.id, removed, index))
   }
 
   // Where the group changes (e.g. the analyses after the statements), it gets its own heading.
   const attachItems = mainTemplate.attachable?.flatMap((id, i, ids) => {
-    const group = templates[id].group
-    const item = (
-      <DropdownMenuItem key={id} onSelect={() => addDoc(id)}>
-        <span aria-hidden>{templates[id].emoji}</span> {templates[id].menuLabel ?? templates[id].label}
+    const t = templates[id]
+    const group = t.group
+    const variants = t.variants ?? [{ emoji: titleEmoji(t, me), label: t.menuLabel ?? t.label, values: {} }]
+    const items = variants.map((v) => (
+      <DropdownMenuItem key={`${id}:${v.label}`} onSelect={() => addDoc(id, v.values)}>
+        <span aria-hidden>{v.emoji}</span> {v.label}
       </DropdownMenuItem>
-    )
-    if (i === 0 || group === templates[ids[i - 1]].group) return [item]
+    ))
+    if (i === 0 || group === templates[ids[i - 1]].group) return items
     return [
       <DropdownMenuSeparator key={`${id}:separator`} />,
       <DropdownMenuLabel key={`${id}:label`}>{group ?? kind.title}</DropdownMenuLabel>,
-      item,
+      ...items,
     ]
   })
 
@@ -421,7 +438,7 @@ export function CaseFileView({
                   <PlayIcon className={cn("size-2.5 shrink-0 fill-current transition-transform", open && "rotate-90")} />
                   <span className="grid min-w-0 gap-0.5">
                     <span className="truncate text-base font-semibold">
-                      <WithIds text={docLabel(d, me, templates, caseFile.docs)} />
+                      <WithIds text={docName(d, me, templates, caseFile.docs)} />
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
                       {t.label}

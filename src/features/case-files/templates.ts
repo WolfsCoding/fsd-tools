@@ -12,6 +12,9 @@ import {
   doc,
   facts,
   formatLocalDateTime,
+  interview,
+  isQuestion,
+  questionText,
   LEGEND,
   legend,
   ME,
@@ -23,6 +26,7 @@ import {
   table,
   TEMPLATE_ME,
   titleComment,
+  VICTIM_CAUTION,
   WITNESS_CAUTION,
 } from "./markdown"
 import type { Colors } from "./markdown"
@@ -44,6 +48,7 @@ export type TemplateId =
   | "ermittlungsakte"
   | "bericht"
   | "geschwindigkeit"
+  | "aussage"
   | "aussage-zeuge"
   | "aussage-officer"
   | "aussage-beschuldigter"
@@ -107,6 +112,8 @@ export interface ListField extends BaseField {
   type: "list"
   /** Written as the only point while there are none; "" starts without points and writes none. */
   fallback: string
+  /** Points can be marked as questions from their handle's context menu (see `QUESTION`). */
+  questions?: boolean
 }
 
 /** Empty means automatic: the date and time of copying. */
@@ -176,11 +183,13 @@ export function templateFields(template: Template<string>): Field[] {
   return template.sections.flatMap((s) => s.fields).flatMap((f) => (f.type === "checks" && f.inline ? [f, ...f.inline] : [f]))
 }
 
-/** One of the options, never picked by hand: `auto` derives it from other fields. */
+/** One of the options: picked by hand, or never by hand when `auto` derives it from other fields. */
 export interface ChoiceField extends BaseField {
   type: "choice"
   options: string[]
-  auto: (r: Reader) => string | undefined
+  auto?: (r: Reader) => string | undefined
+  /** The option of a hand-picked choice while none is picked; defaults to the first. */
+  fallback?: string
 }
 
 /** One value of a column picked from a dropdown. */
@@ -286,8 +295,8 @@ export interface Section {
   title: string
   /** What the section is for, shown under its title. */
   description: string
-  /** Rights read out to the person (the Belehrung), shown above the fields. */
-  notice?: string
+  /** Rights read out to the person (the Belehrung), shown above the fields; may depend on the document, e.g. on the role. */
+  notice?: string | ((r: Reader) => string)
   fields: Field[]
   /** Shown in a tab of its own next to the case file's details instead of in the form; never in the Markdown. */
   tab?: boolean
@@ -311,6 +320,8 @@ export interface Template<Id extends string = TemplateId> {
   form?: ComponentType<DocFormProps>
   /** Values of a new document, e.g. prefilled table rows. */
   initial?: Values
+  /** Attached from the menu in these variants instead of once, e.g. an Aussage per role; `values` are set on top of `initial`. */
+  variants?: { emoji: string; label: string; values: Values }[]
   /** Placeholder values of the empty template (e.g. "XXX" rows), so it shows how it's filled in; defaults to `initial`. */
   sample?: Values
   /** Who or what the document is about, e.g. the suspect's name; "" while unknown. */
@@ -395,7 +406,10 @@ export function createReader(
         if (!f.pattern) return value ? formatLocalDateTime(value) : NOW
         return value ? formatLocalDateTime(value, f.pattern) : `{{now:${f.pattern}}}`
       }
-      if (f?.type === "choice") return f.auto(r) ?? ""
+      if (f?.type === "choice") {
+        if (f.auto) return f.auto(r) ?? ""
+        return f.options.includes(value) ? value : (f.fallback ?? f.options[0])
+      }
       if (value) return value
       if (f?.type === "text" && f.me) return me
       if (f?.type === "text") return f.fallback ?? "N/A"
@@ -787,7 +801,7 @@ const criminalFile: Template = {
   emoji: "📁",
   description: "Einzelner Beschuldigter: Tathergang, Identifizierung, Gegenstände, Fahrzeuge und Belehrung.",
   standalone: true,
-  attachable: ["aussage-zeuge", "aussage-officer", "aussage-beschuldigter"],
+  attachable: ["aussage", "aussage-officer"],
   sections: [
     {
       title: "Allgemein",
@@ -896,7 +910,7 @@ const investigationFile: Template = {
   emoji: "🔎",
   description: "Längere Ermittlung gegen Personen oder Gruppierungen. Für jeden Beschuldigten kommt ein eigener Bericht dazu.",
   standalone: true,
-  attachable: ["bericht", "aussage-zeuge", "aussage-officer", "aussage-beschuldigter"],
+  attachable: ["bericht", "aussage", "aussage-officer"],
   sections: [
     {
       title: "Allgemein",
@@ -976,7 +990,7 @@ const collectiveFile: Template = {
   emoji: "🗂️",
   description: "Einsatz mit mehreren Beteiligten. Für jeden Beschuldigten kommt ein eigener Bericht dazu.",
   standalone: true,
-  attachable: ["bericht", "aussage-zeuge", "aussage-officer", "aussage-beschuldigter"],
+  attachable: ["bericht", "aussage", "aussage-officer"],
   sections: [
     {
       title: "Allgemein",
@@ -1037,13 +1051,16 @@ const administrativeFile: Template = {
   emoji: "📝",
   description: "Verwaltungsvorgang ohne Beschuldigten, z. B. eine Beschwerde oder ein Antrag.",
   standalone: true,
-  attachable: ["bericht", "aussage-zeuge", "aussage-officer", "aussage-beschuldigter"],
+  attachable: ["bericht", "aussage", "aussage-officer"],
   // Built from blocks like the own case file.
   sections: CASE_TABS,
   form: BlockEditor,
   subject: () => "",
   render: (r) => blocksMarkdown(readBlocks(r.raw(BLOCKS_KEY)), r),
 }
+
+/** Shown under an Aussage whose points can be questions. */
+const QUESTION_HINT = "Rechtsklick auf den Griff eines Punkts macht ihn zur Frage."
 
 const reportTitle = (r: Reader) => `🔴 Beschuldigter: ${r.text("name")}`
 
@@ -1104,8 +1121,8 @@ const report: Template = {
     },
     {
       title: "Aussage",
-      description: "Was der Beschuldigte ausgesagt hat.",
-      fields: [{ type: "list", key: "aussage", label: "Aussage", fallback: "Die Aussage des Beschuldigten hier" }],
+      description: `Was der Beschuldigte ausgesagt hat. ${QUESTION_HINT}`,
+      fields: [{ type: "list", key: "aussage", label: "Aussage", fallback: "Die Aussage des Beschuldigten hier", questions: true }],
     },
     {
       title: "TO-DO",
@@ -1144,14 +1161,33 @@ function reportMarkdown(r: Reader, titleLine: string) {
         ["ZUSTÄNDIGER OFFICER", r.text("officer")],
         ["STANDORT", r.text("standort")],
       ]),
-      section(r, "1. Abgenommene Gegenstände:", tableOf(r, "gegenstaende")),
-      section(r, "2. Rechtsbeistand & Belehrung:", caution(r, MIRANDA)),
-      section(r, "3. Aussage:", bullets(r.lines("aussage"))),
-      section(r, "4. TO-DO:", checklist(r.checks("todos"))),
-      section(r, "5. Sonstige Informationen:", bullets(r.lines("sonstiges"))),
-      section(r, "6. Entlassen:", checklist(r.checks("entlassen"))),
+      ...numberedSections(r, [
+        ["Abgenommene Gegenstände", tableOf(r, "gegenstaende")],
+        ["Rechtsbeistand & Belehrung", caution(r, MIRANDA)],
+        ...statementParts(r, "aussage"),
+        ["TO-DO", checklist(r.checks("todos"))],
+        ["Sonstige Informationen", bullets(r.lines("sonstiges"))],
+        ["Entlassen", checklist(r.checks("entlassen"))],
+      ]),
     )
   )
+}
+
+/** Sections numbered in their order, e.g. "1. Aussage:"; for documents whose sections come and go. */
+function numberedSections(r: Reader, sections: [title: string, body: string][]) {
+  return sections.map(([title, body], i) => section(r, `${i + 1}. ${title}:`, body))
+}
+
+/** The points of an Aussage; from the first question on, they are the Befragung: each question with its answers. */
+function statementParts(r: Reader, key: string): [string, string][] {
+  const points = r.lines(key).filter((p) => !isQuestion(p) || questionText(p))
+  const first = points.findIndex(isQuestion)
+  if (first < 0) return [["Aussage", bullets(points)]]
+  const told = points.slice(0, first)
+  return [
+    ["Aussage", bullets(told.length ? told : ["N/A"])],
+    ["Befragung", interview(points.slice(first))],
+  ]
 }
 
 const SPEED_FINES = [
@@ -1251,79 +1287,89 @@ const speeding: Template = {
     ) + "\n\n---",
 }
 
-const witnessTitle = (r: Reader) => `🟣 Aussage: ${r.text("name")}`
+/** Who gives an Aussage: the dot in front of its title and the Belehrung read out to them. */
+const ROLES = [
+  { dot: "🔴", name: "Beschuldigter", caution: SUSPECT_MIRANDA },
+  { dot: "🟣", name: "Zeuge", caution: WITNESS_CAUTION },
+  { dot: "🟡", name: "Geschädigter", caution: VICTIM_CAUTION },
+]
+type Role = (typeof ROLES)[number]
 
-const witnessStatement: Template = {
-  id: "aussage-zeuge",
-  label: "Zeugenaussage",
-  menuLabel: "Aussage; Zeuge",
-  emoji: "🟣",
-  description: "Aussage eines Zeugen oder Zivilisten mit Belehrung.",
-  standalone: true,
-  sections: [
-    {
-      title: "Allgemein",
-      description: "Wer aussagt, wann und wer die Aussage aufnimmt.",
-      fields: [
-        {
-          type: "text",
-          key: "name",
-          label: "Aussage von",
-          required: true,
-          fallback: "Name des Zeugen",
-          group: "witness",
-          autocomplete: true,
-        },
-        { type: "datetime", key: "datum", label: "Datum & Uhrzeit", pattern: DATE_UHR },
-        {
-          type: "text",
-          key: "aufgenommen",
-          label: "Aufgenommen durch",
-          me: true,
-          group: "officer",
-          autocomplete: true,
-        },
-        {
-          type: "text",
-          key: "zeuge",
-          label: "Zeuge der Aussage",
-          fallback: "N/A",
-          group: "officer",
-          autocomplete: true,
-        },
-      ],
-    },
-    {
-      title: "Rechtsbeistand & Belehrung",
-      description: "Anwalt, Kanzlei und wer wann belehrt hat.",
-      fields: CAUTION_FIELDS,
-      notice: WITNESS_CAUTION,
-    },
-    {
-      title: "Aussage",
-      description: "Was der Zeuge ausgesagt hat.",
-      fields: [{ type: "list", key: "aussage", label: "Aussage", fallback: "Aussage des Zeugen", required: true }],
-    },
-    OTHER_SECTION,
-  ],
-  subject: (r) => r.filled("name"),
-  pageTitle: witnessTitle,
-  render: (r) =>
-    titleComment(witnessTitle(r)) +
-    "\n\n" +
-    doc(
-      banner(STATEMENT_BANNER),
-      facts([
-        ["AUSSAGE VON", r.text("name")],
-        ["DATUM & UHRZEIT", uhr(r, "datum")],
-        ["AUFGENOMMEN DURCH", r.text("aufgenommen")],
-        ["ZEUGE DER AUSSAGE", r.text("zeuge")],
-      ]),
-      section(r, "1. Rechtsbeistand & Belehrung:", caution(r, WITNESS_CAUTION)),
-      section(r, "2. Aussage:", bullets(r.lines("aussage"))),
-      section(r, "3. Sonstige Informationen:", bullets(r.lines("sonstiges"))),
-    ),
+const roleOption = (role: Role) => `${role.dot} ${role.name}`
+const roleOf = (r: Reader) => ROLES.find((role) => roleOption(role) === r.text("rolle")) ?? ROLES[0]
+const statementTitle = (r: Reader) => `${roleOf(r).dot} Aussage: ${r.text("name")}`
+
+/** The Aussage of a Beschuldigter, Zeuge or Geschädigter; `role` counts while none is picked. */
+function statement(id: TemplateId, role: Role): Template {
+  return {
+    id,
+    label: "Aussage",
+    emoji: "🅰️",
+    description: "Aussage eines Beschuldigten, Zeugen oder Geschädigten mit Belehrung.",
+    standalone: true,
+    variants: ROLES.map((r) => ({ emoji: r.dot, label: `Aussage; ${r.name}`, values: { rolle: roleOption(r) } })),
+    sections: [
+      {
+        title: "Allgemein",
+        description: "Wer in welcher Rolle aussagt, wann und wer die Aussage aufnimmt.",
+        fields: [
+          { type: "choice", key: "rolle", label: "Rolle", options: ROLES.map(roleOption), fallback: roleOption(role) },
+          {
+            type: "text",
+            key: "name",
+            label: "Aussage von",
+            required: true,
+            fallback: "Name der Person",
+            group: "person",
+            autocomplete: true,
+            lookup: PERSON,
+          },
+          { type: "datetime", key: "datum", label: "Datum & Uhrzeit", pattern: DATE_UHR },
+          { type: "text", key: "aufgenommen", label: "Aufgenommen durch", me: true, group: "officer", autocomplete: true },
+          { type: "text", key: "zeuge", label: "Zeuge der Aussage", fallback: "N/A", group: "officer", autocomplete: true },
+        ],
+      },
+      {
+        title: "Rechtsbeistand & Belehrung",
+        description: "Anwalt, Kanzlei und wer wann belehrt hat.",
+        fields: CAUTION_FIELDS,
+        notice: (r) => roleOf(r).caution,
+      },
+      {
+        title: "Aussage",
+        description: `Was die Person ausgesagt hat. ${QUESTION_HINT}`,
+        fields: [
+          { type: "list", key: "aussage", label: "Aussage", fallback: "Aussage der Person", required: true, questions: true },
+        ],
+      },
+      OTHER_SECTION,
+    ],
+    subject: (r) => r.filled("name"),
+    pageTitle: statementTitle,
+    render: (r) =>
+      titleComment(statementTitle(r)) +
+      "\n\n" +
+      doc(
+        banner(STATEMENT_BANNER),
+        facts([
+          ["AUSSAGE VON", r.text("name")],
+          ["ROLLE", roleOf(r).name],
+          ["DATUM & UHRZEIT", uhr(r, "datum")],
+          ["AUFGENOMMEN DURCH", r.text("aufgenommen")],
+          ["ZEUGE DER AUSSAGE", r.text("zeuge")],
+        ]),
+        ...numberedSections(r, [
+          ["Rechtsbeistand & Belehrung", caution(r, roleOf(r).caution)],
+          ...statementParts(r, "aussage"),
+          ["Sonstige Informationen", bullets(r.lines("sonstiges"))],
+        ]),
+      ),
+  }
 }
+
+/** Aussagen made for one role before the role could be picked; new ones are made as `aussage`. */
+const witnessStatement: Template = { ...statement("aussage-zeuge", ROLES[1]), standalone: false }
+const suspectStatement: Template = { ...statement("aussage-beschuldigter", ROLES[0]), standalone: false }
 
 const officerTitle = (r: Reader) => `🔵 Aussage: ${r.text("von")}`
 
@@ -1365,8 +1411,8 @@ const officerStatement: Template = {
     },
     {
       title: "Aussage",
-      description: "Der Ablauf aus eigener Sicht.",
-      fields: [{ type: "list", key: "aussage", label: "Aussage", fallback: "Aussage des Officers", required: true }],
+      description: `Der Ablauf aus eigener Sicht. ${QUESTION_HINT}`,
+      fields: [{ type: "list", key: "aussage", label: "Aussage", fallback: "Aussage des Officers", required: true, questions: true }],
     },
     {
       title: "Sonstige Infos",
@@ -1417,91 +1463,30 @@ const officerStatement: Template = {
         ["AUSSAGE VON", r.text("von")],
         ["DATUM & UHRZEIT", r.text("datum")],
       ]),
-      section(
-        r,
-        "1. Streifenbesetzung:",
-        table(
-          ["Name", "Rang", "Department"],
-          r.rows("streife").map((row) => [row.name, row.rang, row.department]),
-        ),
-      ),
-      section(r, "2. Aussage:", bullets(r.lines("aussage"))),
-      section(r, "3. Sonstige Infos:", bullets(r.lines("sonstiges"))),
-      section(
-        r,
-        "4. Legende:",
-        r
-          .rows("bezeichnungen")
-          .map((row) => `> - ${code(row.name)} nachfolgend als ${row.als} bezeichnet`)
-          .join("\n"),
-      ),
+      ...numberedSections(r, [
+        [
+          "Streifenbesetzung",
+          table(
+            ["Name", "Rang", "Department"],
+            r.rows("streife").map((row) => [row.name, row.rang, row.department]),
+          ),
+        ],
+        ...statementParts(r, "aussage"),
+        ["Sonstige Infos", bullets(r.lines("sonstiges"))],
+        [
+          "Legende",
+          r
+            .rows("bezeichnungen")
+            .map((row) => `> - ${code(row.name)} nachfolgend als ${row.als} bezeichnet`)
+            .join("\n"),
+        ],
+      ]),
     ),
 }
 
 /** A person named "BES" in a statement. */
 function isSuspect(row: Row) {
   return /^bes/i.test(row.als ?? "")
-}
-
-const suspectTitle = (r: Reader) => `🔴 Aussage: ${r.text("name")}`
-
-const suspectStatement: Template = {
-  id: "aussage-beschuldigter",
-  label: "Beschuldigtenaussage",
-  menuLabel: "Aussage; Beschuldigter",
-  emoji: "🔴",
-  description: "Aussage eines Beschuldigten mit Belehrung.",
-  standalone: true,
-  sections: [
-    {
-      title: "Allgemein",
-      description: "Wer aussagt, wann und wer die Aussage aufnimmt.",
-      fields: [
-        {
-          type: "text",
-          key: "name",
-          label: "Aussage von",
-          required: true,
-          fallback: "Name des Beschuldigten",
-          group: "suspect",
-          autocomplete: true,
-          lookup: PERSON,
-        },
-        { type: "datetime", key: "datum", label: "Datum & Uhrzeit", pattern: DATE_UHR },
-        { type: "text", key: "aufgenommen", label: "Aufgenommen durch", me: true, group: "officer", autocomplete: true },
-        { type: "text", key: "zeuge", label: "Zeuge der Aussage", group: "officer", autocomplete: true },
-      ],
-    },
-    {
-      title: "Rechtsbeistand & Belehrung",
-      description: "Anwalt, Kanzlei und wer wann belehrt hat.",
-      fields: CAUTION_FIELDS,
-      notice: SUSPECT_MIRANDA,
-    },
-    {
-      title: "Aussage",
-      description: "Was der Beschuldigte ausgesagt hat.",
-      fields: [{ type: "list", key: "aussage", label: "Aussage", fallback: "Aussage des Beschuldigten", required: true }],
-    },
-    OTHER_SECTION,
-  ],
-  subject: (r) => r.filled("name"),
-  pageTitle: suspectTitle,
-  render: (r) =>
-    titleComment(suspectTitle(r)) +
-    "\n\n" +
-    doc(
-      banner(STATEMENT_BANNER),
-      facts([
-        ["AUSSAGE VON", r.text("name")],
-        ["DATUM & UHRZEIT", uhr(r, "datum")],
-        ["AUFGENOMMEN DURCH", r.text("aufgenommen")],
-        ["ZEUGE DER AUSSAGE", r.text("zeuge")],
-      ]),
-      section(r, "1. Rechtsbeistand & Belehrung:", caution(r, SUSPECT_MIRANDA)),
-      section(r, "2. Aussage:", bullets(r.lines("aussage"))),
-      section(r, "3. Sonstige Informationen:", bullets(r.lines("sonstiges"))),
-    ),
 }
 
 /** Free blocks, written like a note, for whatever none of the other documents fits. */
@@ -1536,7 +1521,7 @@ const ownFile: Template = {
   emoji: "🧩",
   description: "Von Grund auf selbst gebaut: Abschnitte, Text, Listen, Tabellen und Felder.",
   standalone: true,
-  attachable: ["bericht", "aussage-zeuge", "aussage-officer", "aussage-beschuldigter"],
+  attachable: ["bericht", "aussage", "aussage-officer"],
   // Only its tabs; the form is the block editor.
   sections: CASE_TABS,
   form: BlockEditor,
@@ -1551,6 +1536,7 @@ export const TEMPLATES: Record<TemplateId, Template> = {
   ermittlungsakte: investigationFile,
   bericht: report,
   geschwindigkeit: speeding,
+  aussage: statement("aussage", ROLES[0]),
   "aussage-zeuge": witnessStatement,
   "aussage-officer": officerStatement,
   "aussage-beschuldigter": suspectStatement,

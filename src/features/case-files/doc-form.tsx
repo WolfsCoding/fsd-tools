@@ -2,6 +2,7 @@ import { Fragment, useEffect, useId, useLayoutEffect, useRef, useState, type Key
 import {
   CheckIcon,
   ChevronDownIcon,
+  CircleQuestionMarkIcon,
   DicesIcon,
   EyeIcon,
   GripVerticalIcon,
@@ -17,6 +18,7 @@ import { Hint } from "@/components/hint"
 import { move, useReorder } from "@/components/use-reorder"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +37,7 @@ import { Combobox, type ComboboxOption } from "@/components/combobox"
 import { caretOf, setCaret, textLength } from "./caret"
 import { DnaPicker } from "./dna-picker"
 import { SnippetMenu, TemplateMenu } from "./snippet-menu"
-import { ME } from "./markdown"
+import { isQuestion, ME, QUESTION, QUESTION_COLOR, questionText } from "./markdown"
 import { rangeLabel, roll, type Range } from "./range"
 import { RichField } from "./rich-input"
 import { plainText, splitRich } from "./rich-text"
@@ -127,7 +129,7 @@ export function DocForm({
             </span>
           </AccordionTrigger>
           <AccordionContent className="flex flex-wrap gap-x-3 gap-y-4 border-t p-4">
-            <Notice text={s.notice} />
+            <Notice notice={s.notice} reader={reader} />
             {s.fields.map((f) => (
               <FieldInput
                 key={f.key}
@@ -152,7 +154,7 @@ export function DocForm({
 export function SectionFields({ section, ...props }: Omit<FieldProps<Field>, "field" | "bare"> & { section: Section }) {
   return (
     <div className="flex flex-wrap gap-x-3 gap-y-4">
-      <Notice text={section.notice} />
+      <Notice notice={section.notice} reader={props.reader} />
       {section.fields.map((f) => (
         <FieldInput key={f.key} {...props} field={f} bare={section.fields.length === 1} />
       ))}
@@ -447,6 +449,7 @@ function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListF
         placeholder={field.fallback || undefined}
         // Without a fallback nothing stands in for missing points, so the list may have none at all.
         canBeEmpty={!field.fallback}
+        questions={field.questions}
       />
     </Labeled>
   )
@@ -455,7 +458,8 @@ function ListInput({ field, values, onChange, onUpdate, bare }: FieldProps<ListF
 /**
  * Bullet points as rows of one panel, one input per point. Enter starts the next point
  * (splitting at the cursor), Backspace in an empty one removes it, arrows move between them.
- * Points are reordered by dragging their handle.
+ * Points are reordered by dragging their handle. With `questions`, its context menu marks a
+ * point as a question; the mark is stored in front of the text, so the input edits the rest.
  */
 export function PointList({
   id,
@@ -465,6 +469,7 @@ export function PointList({
   onRestore,
   placeholder,
   canBeEmpty,
+  questions,
 }: {
   id?: string
   label: string
@@ -476,8 +481,14 @@ export function PointList({
   placeholder?: string
   /** Whether the list may have no points; otherwise an empty one stands in. */
   canBeEmpty?: boolean
+  questions?: boolean
 }) {
   const items = stored.length || canBeEmpty ? stored : [""]
+  const asked = (i: number) => !!questions && isQuestion(items[i])
+  /** The text of point `i` without its question mark. */
+  const textOf = (i: number) => (asked(i) ? questionText(items[i]) : items[i])
+  /** `text` as point `i`, keeping its question mark. */
+  const asPoint = (i: number, text: string) => (asked(i) ? QUESTION + text : text)
   const refs = useRef<(HTMLElement | null)[]>([])
   /** Where the cursor goes after the next change: the start, the end or a position of a point. */
   const focusNext = useRef<{ index: number; at: "start" | "end" | number } | null>(null)
@@ -533,9 +544,10 @@ export function PointList({
       set([...filled, ...lines])
       return
     }
-    const [before, after] = splitRich(items[at.index], at.start, at.end)
+    const [before, after] = splitRich(textOf(at.index), at.start, at.end)
     const last = lines.length - 1
     const next = lines.map((l, j) => (j === 0 ? before : "") + l + (j === last ? after : ""))
+    next[0] = asPoint(at.index, next[0])
     const pos = (last === 0 ? plainText(before).length : 0) + plainText(lines[last]).length
     caret.current = { index: at.index + last, start: pos, end: pos }
     focusNext.current = { index: at.index + last, at: pos }
@@ -547,9 +559,11 @@ export function PointList({
       // Also with Shift: a point is one line of the list.
       e.preventDefault()
       const { start, end } = caretOf(e.currentTarget)
-      splice(i, splitRich(items[i], start, end))
+      // The part after the cursor is a point of its own, e.g. the answer after a question.
+      const [before, after] = splitRich(textOf(i), start, end)
+      splice(i, [asPoint(i, before), after])
       focusNext.current = { index: i + 1, at: "start" }
-    } else if (e.key === "Backspace" && items[i] === "" && (items.length > 1 || canBeEmpty)) {
+    } else if (e.key === "Backspace" && textOf(i) === "" && (items.length > 1 || canBeEmpty)) {
       e.preventDefault()
       splice(i, [])
       focusNext.current = { index: Math.max(0, i - 1), at: "end" }
@@ -567,35 +581,61 @@ export function PointList({
     <div id={id} className={cn(BOX, "divide-y divide-border/60")}>
       <PanelHeader label={label} removable action={<SnippetMenu onInsert={insertSnippet} />} />
       <ul className="divide-y divide-border/60">
-        {items.map((item, i) => (
-          <li key={i} {...reorder.row(i)} className={cn("group flex items-stretch focus-within:bg-accent/20", reorder.rowClass(i))}>
-            {/* Drag handle, like the rows of the tables. */}
+        {items.map((item, i) => {
+          const question = asked(i)
+          // Drag handle, like the rows of the tables.
+          const handle = (
             <span
               {...reorder.handle(i)}
               className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
             >
               <GripVerticalIcon className="size-3.5 group-focus-within:text-foreground" />
             </span>
-            <RichField
-              inputRef={(el) => {
-                refs.current[i] = el
-              }}
-              value={item}
-              onChange={(v) => set(items.map((x, j) => (j === i ? v : x)))}
-              onKeyDown={(e) => handleKeyDown(e, i)}
-              onPaste={(e) => {
-                const lines = e.clipboardData.getData("text").split(/\r?\n/).filter((l) => l.trim())
-                if (lines.length < 2) return
-                e.preventDefault()
-                splice(i, item.trim() ? [item, ...lines] : lines)
-              }}
-              placeholder={i === 0 ? (placeholder ?? "") : ""}
-              aria-label={`${label}, Punkt ${i + 1}`}
-              className="min-h-10 min-w-0 flex-1 px-3 py-2.5 text-sm leading-5 before:text-muted-foreground"
-            />
-            <RemoveCell label={`Punkt ${i + 1} entfernen`} onRemove={() => remove(i)} />
-          </li>
-        ))}
+          )
+          return (
+            <li
+              key={i}
+              {...reorder.row(i)}
+              className={cn("group flex items-stretch focus-within:bg-accent/20", reorder.rowClass(i))}
+            >
+              {questions ? (
+                <ContextMenu>
+                  <ContextMenuTrigger asChild>{handle}</ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem onSelect={() => set(items.map((x, j) => (j === i ? (question ? textOf(i) : QUESTION + x) : x)))}>
+                      <CircleQuestionMarkIcon /> {question ? "Keine Frage mehr" : "Als Frage markieren"}
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
+              ) : (
+                handle
+              )}
+              <RichField
+                // Shown as code once it's a question; a new field, since the shown text only follows the value.
+                key={question ? "question" : "point"}
+                code={question}
+                inputRef={(el) => {
+                  refs.current[i] = el
+                }}
+                value={textOf(i)}
+                onChange={(v) => set(items.map((x, j) => (j === i ? asPoint(i, v) : x)))}
+                onKeyDown={(e) => handleKeyDown(e, i)}
+                onPaste={(e) => {
+                  const lines = e.clipboardData.getData("text").split(/\r?\n/).filter((l) => l.trim())
+                  if (lines.length < 2) return
+                  e.preventDefault()
+                  splice(i, textOf(i).trim() ? [item, ...lines] : lines)
+                }}
+                placeholder={question ? "Frage" : i === 0 ? (placeholder ?? "") : ""}
+                aria-label={`${label}, ${question ? "Frage" : "Punkt"} ${i + 1}`}
+                // Gray like the question in the Markdown.
+                style={question ? { color: QUESTION_COLOR } : undefined}
+                className="min-h-10 min-w-0 flex-1 px-3 py-2.5 text-sm leading-5 before:text-muted-foreground"
+              />
+              <RemoveCell label={`Punkt ${i + 1} entfernen`} onRemove={() => remove(i)} />
+            </li>
+          )
+        })}
       </ul>
       <AddRow label="Punkt hinzufügen" onClick={() => splice(items.length, [""], 0)} end />
     </div>
@@ -835,21 +875,28 @@ function ChecksInput(props: FieldProps<ChecksField>) {
   )
 }
 
-/** Shows which option the other fields lead to; it can't be picked by hand. */
-function ChoiceInput({ field, reader, bare }: FieldProps<ChoiceField>) {
-  const auto = field.auto(reader)
+/** The options as radios: picked by hand, or showing which one the other fields lead to. */
+function ChoiceInput({ field, reader, onChange, bare }: FieldProps<ChoiceField>) {
+  const auto = !!field.auto
+  const current = reader.text(field.key)
   return (
     <Labeled label={field.label} hint={field.hint} bare={bare} className={FULL}>
-      <div role="radiogroup" aria-readonly className={cn(BOX, "divide-y divide-border/60")}>
+      <div role="radiogroup" aria-readonly={auto} className={cn(BOX, "divide-y divide-border/60")}>
         <PanelHeader label={field.label} />
         {field.options.map((option) => {
-          const active = option === auto
+          const active = option === current
           return (
-            <div
+            <button
               key={option}
+              type="button"
               role="radio"
               aria-checked={active}
-              className={cn("flex min-h-10 items-stretch text-sm text-muted-foreground", active && "bg-accent/30 text-foreground")}
+              disabled={auto}
+              onClick={() => onChange(field.key, option)}
+              className={cn(
+                "flex min-h-10 w-full items-stretch text-left text-sm text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset enabled:hover:bg-accent/20",
+                active && "bg-accent/30 text-foreground enabled:hover:bg-accent/30",
+              )}
             >
               <span className={cn(LEAD, active && "bg-accent/60")}>
                 <span
@@ -859,17 +906,17 @@ function ChoiceInput({ field, reader, bare }: FieldProps<ChoiceField>) {
               </span>
               <span className="flex flex-1 items-center gap-3 px-3 py-2">
                 <span className="flex-1">{withCode(option.replace(/[,.]$/, ""))}</span>
-                {active && (
+                {auto && active && (
                   <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">
                     <SparklesIcon className="size-3" /> automatisch
                   </span>
                 )}
               </span>
-            </div>
+            </button>
           )
         })}
       </div>
-      {!auto && (
+      {auto && !current && (
         <p className="text-xs text-muted-foreground/70">Wird aus gemessener und erlaubter Geschwindigkeit bestimmt.</p>
       )}
     </Labeled>
@@ -1303,7 +1350,8 @@ export function RangeInput({
 }
 
 /** The rights to read out during the statement, e.g. the Miranda warning. */
-function Notice({ text }: { text?: string }) {
+function Notice({ notice, reader }: { notice: Section["notice"]; reader: Reader }) {
+  const text = typeof notice === "function" ? notice(reader) : notice
   if (!text) return null
   return (
     <div className="grid basis-full gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/5 px-4 py-3">

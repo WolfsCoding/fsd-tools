@@ -106,6 +106,7 @@ function describeField(f: Field, me: string): ApiField | undefined {
     case "custom":
       return f.component === ChargesInput ? { ...base, type: "charges" } : undefined
     case "choice":
+      if (!f.auto) return { ...base, type: "text", placeholder: f.fallback ?? f.options[0], suggestions: f.options }
       return { type: "choice", key: f.key, label: f.label, hint: f.hint }
   }
 }
