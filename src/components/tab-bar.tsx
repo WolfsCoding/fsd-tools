@@ -41,10 +41,15 @@ export function TabBar() {
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null)
   const activeIndex = tabs.findIndex((t) => t.id === activeId)
 
+  // Scrolls only sideways: scrollIntoView would also scroll the strip down to a tab still rising in.
   useEffect(() => {
-    scrollRef.current
-      ?.querySelector<HTMLElement>(`[data-tab-id="${activeId}"]`)
-      ?.scrollIntoView({ block: "nearest", inline: "nearest" })
+    const strip = scrollRef.current
+    const tab = strip?.querySelector<HTMLElement>(`[data-tab-id="${activeId}"]`)
+    if (!strip || !tab) return
+    const left = tab.offsetLeft - strip.offsetLeft
+    const right = left + tab.offsetWidth - strip.clientWidth
+    if (strip.scrollLeft > left) strip.scrollLeft = left
+    else if (strip.scrollLeft < right) strip.scrollLeft = right
   }, [activeId, tabs.length])
 
   function onDragOver(e: DragEvent<HTMLElement>, id: string) {
@@ -81,7 +86,7 @@ export function TabBar() {
           }
         }}
         // px-2 leaves room for the active tab's flares.
-        className="flex h-full min-w-0 items-end no-scrollbar overflow-x-auto px-2 app-no-drag"
+        className="flex h-full min-w-0 items-end no-scrollbar overflow-x-auto overflow-y-hidden px-2 app-no-drag"
       >
         {tabs.map((tab, i) => (
           <TabItem
@@ -215,8 +220,8 @@ function TabItem({
             onDrop={onDrop}
             onDragEnd={onDragEnd}
             className={cn(
-              // Opened tabs rise out of the frame; hover fades like the IDE's.
-              "group relative flex h-8 min-w-28 shrink cursor-pointer items-center gap-2 rounded-t-lg pr-1 pl-3 text-xs text-foreground outline-none select-none animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-2 transition-[background-color,opacity] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+              // Opened tabs grow in and rise out of the frame, so the others make room smoothly; hover fades like the IDE's.
+              "group relative flex h-8 min-w-28 shrink cursor-pointer items-center gap-2 rounded-t-lg pr-1 pl-3 text-xs text-foreground outline-none select-none animate-tab-in [interpolate-size:allow-keywords] transition-[background-color,opacity] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
               active
                 ? "z-10 bg-tab-active font-semibold tab-flares"
                 : "hover:bg-tab-hover",

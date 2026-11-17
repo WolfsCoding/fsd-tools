@@ -75,6 +75,7 @@
     --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
     --animate-item-in: item-in 240ms var(--ease-out-quint) backwards;
     --animate-check-draw: check-draw 360ms var(--ease-out-quint) backwards;
+    --animate-tab-in: tab-in 240ms var(--ease-out-quint) backwards;
     --shadow-raised: 0 1px 2px rgb(9 10 12 / 0.24), 0 2px 8px rgb(9 10 12 / 0.2);
     --shadow-overlay: 0 1px 2px rgb(9 10 12 / 0.3), 0 8px 24px rgb(9 10 12 / 0.4);
     --shadow-modal: 0 2px 4px rgb(9 10 12 / 0.3), 0 24px 64px rgb(9 10 12 / 0.55);
@@ -83,6 +84,16 @@
         from {
             opacity: 0;
             transform: translateY(4px);
+        }
+    }
+
+    @keyframes tab-in {
+        from {
+            width: 0;
+            min-width: 0;
+            padding-inline: 0;
+            opacity: 0;
+            transform: translateY(0.5rem);
         }
     }
 
