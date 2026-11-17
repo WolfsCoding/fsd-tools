@@ -10,6 +10,9 @@ export type Place = { before: Item } | { after: Item } | { into: string | undefi
 
 export type Arrange = (item: Item, place: Place) => void
 
+/** A folder "Verschieben nach" offers; the top level when its id is undefined. */
+export type MoveTarget = { id: string | undefined; label: string }
+
 type Zone = "before" | "after" | "into"
 
 const DRAG_ITEM = "application/x-fsd-note-item"

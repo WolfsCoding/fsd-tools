@@ -19,7 +19,7 @@ function Slider({ className, children, ...props }: React.ComponentProps<typeof S
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb
         data-slot="slider-thumb"
-        className="block size-4 cursor-grab rounded-full border-2 border-primary bg-background shadow-sm transition-shadow outline-none hover:ring-4 hover:ring-primary/15 focus-visible:ring-4 focus-visible:ring-primary/25 active:cursor-grabbing"
+        className="block size-4 cursor-grab rounded-full border-2 border-primary bg-background shadow-raised transition-shadow outline-none hover:ring-4 hover:ring-primary/15 focus-visible:ring-4 focus-visible:ring-primary/25 active:cursor-grabbing"
       />
     </SliderPrimitive.Root>
   )

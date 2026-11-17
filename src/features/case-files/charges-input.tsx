@@ -13,7 +13,8 @@ import type { CustomFieldProps } from "./templates"
 import type { Row, Value } from "./types"
 
 /** A plain input that fills its cell. */
-const CELL = "h-10 w-full min-w-0 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:bg-accent/30"
+const CELL =
+  "h-10 w-full min-w-0 bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/60 focus:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
 const QUANTITY = "w-24 shrink-0 border-l border-border/60"
 const AMOUNT = "w-40 shrink-0 border-l border-border/60"
 
@@ -79,7 +80,7 @@ export function ChargesEditor({
     <Labeled label={label} hint={hint} bare className={FULL}>
       {/* Scrolls sideways on narrow screens like the other tables, so the offenses keep room for their names. */}
       <div className={cn(BOX, "relative overflow-x-auto")}>
-        <div className="min-w-lg divide-y divide-border/60">
+        <div className="min-w-lg divide-y divide-border/60 tabular-nums">
           <div className="flex h-9 items-stretch bg-muted/50 text-xs font-medium text-muted-foreground">
             <span className="w-10 shrink-0 border-r border-border/60" />
             <span className="flex min-w-0 flex-1 items-center px-3">Straftat</span>
@@ -192,21 +193,25 @@ function ChargeLine({
             className={cn(CELL, "h-full")}
           />
         ) : (
-          <span className="flex h-full items-center px-3 text-muted-foreground/50">---</span>
+          <span className="flex h-full items-center px-3 text-muted-foreground">—</span>
         )}
       </span>
       <span className={cn(AMOUNT, "flex items-center")}>
         {range ? (
           <>
-            <input
-              value={row.betrag ?? ""}
-              onChange={(e) => onChange({ betrag: e.target.value })}
-              placeholder={formatFine(range)}
-              inputMode="numeric"
-              aria-label={`${offense.ref}: Betrag`}
-              aria-invalid={outOfRange}
-              className={cn(CELL, "h-full", outOfRange && "text-red-400")}
-            />
+            {/* The range stays at hand once an amount hides the placeholder. */}
+            <Hint label={`Strafrahmen: ${formatFine(range)}`}>
+              <input
+                value={row.betrag ?? ""}
+                onChange={(e) => onChange({ betrag: e.target.value })}
+                placeholder={formatFine(range)}
+                inputMode="numeric"
+                aria-label={`${offense.ref}: Betrag in Dollar`}
+                aria-invalid={outOfRange}
+                className={cn(CELL, "h-full", outOfRange && "text-red-400")}
+              />
+            </Hint>
+            {row.betrag?.trim() && <span className={cn("pr-3 text-sm", outOfRange ? "text-red-400" : "text-muted-foreground")}>$</span>}
             {outOfRange && (
               <Hint label={`Außerhalb des Strafrahmens (${formatFine(range)})`}>
                 <TriangleAlertIcon className="mr-2 size-4 shrink-0 text-red-400" />
@@ -214,7 +219,7 @@ function ChargeLine({
             )}
           </>
         ) : (
-          <span className="px-3 text-muted-foreground/50">---</span>
+          <span className="px-3 text-muted-foreground">—</span>
         )}
       </span>
       <RemoveCell label={`${offense.ref} entfernen`} onRemove={onRemove} />

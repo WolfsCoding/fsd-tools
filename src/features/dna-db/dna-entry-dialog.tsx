@@ -14,6 +14,7 @@ import { DatePicker } from "@/components/date-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Combobox } from "@/components/combobox"
+import { useDraftGuard } from "@/hooks/use-draft-guard"
 import { TagInput } from "./tag-input"
 import { PROFILE_FIELDS, type DnaEntry, type DnaEntryInput, type DnaTag, type ProfileKey } from "./types"
 import { entryName, isDuplicate, toId } from "./use-dna-entries"
@@ -44,9 +45,13 @@ export function DnaEntryDialog({
   knownTags,
   onSubmit,
 }: DnaEntryDialogProps) {
+  const guard = useDraftGuard(open)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-xl">
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] sm:max-w-xl"
+        {...guard}
+      >
         {/* Keyed so the form resets whenever the dialog opens for another entry. */}
         <DnaEntryForm
           key={entry?.id ?? "new"}
@@ -209,6 +214,7 @@ function DnaEntryForm({
         <Button type="button" variant="outline" onClick={onCancel}>
           Abbrechen
         </Button>
+        {!canSubmit && <span className="text-xs text-muted-foreground">Name oder ID fehlt</span>}
         <Button type="submit" disabled={!canSubmit}>
           {entry ? "Speichern" : "Hinzufügen"}
         </Button>

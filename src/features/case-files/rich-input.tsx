@@ -296,7 +296,7 @@ export function FormatBar({
       style={style}
       // Pressing a button keeps the text selected; only the color field takes the cursor.
       onMouseDown={(e) => e.target instanceof HTMLInputElement || e.preventDefault()}
-      className="absolute z-50 flex -translate-y-full items-center gap-0.5 rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+      className="absolute z-50 flex -translate-y-full items-center gap-0.5 rounded-md border bg-popover p-1 text-popover-foreground shadow-overlay"
     >
       {bold && (
         <Tool label="Fett (Strg+B)" active={format.bold} onClick={() => onFormat({ bold: !format.bold })}>

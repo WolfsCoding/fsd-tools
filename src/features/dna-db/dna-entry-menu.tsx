@@ -82,7 +82,7 @@ export function DnaEntryContextMenu({
           <UserIcon /> Personenansicht
         </ContextMenuItem>
         <ContextMenuItem onSelect={onEdit}>
-          <PencilIcon /> Bearbeiten
+          <PencilIcon /> Bearbeiten…
           <ContextMenuShortcut>Enter</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem

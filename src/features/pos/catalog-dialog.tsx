@@ -8,6 +8,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Toggle } from "@/components/ui/toggle"
+import { removedToast } from "@/lib/undo"
 import { catalogAtom, type Menu, type Product } from "./order"
 import { Price } from "./price"
 
@@ -34,11 +35,28 @@ export function CatalogDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     setCatalog({ ...catalog, menus: [...catalog.menus, { id, name: "", price: 0, productIds: [] }] })
   }
 
-  function removeProduct(id: string) {
+  /** Removes the product, also from the menus that hold it; the undo puts it back into those. */
+  function removeProduct(product: Product) {
+    const index = catalog.products.indexOf(product)
+    const menuIds = catalog.menus.flatMap((m) => (m.productIds.includes(product.id) ? m.id : []))
     setCatalog({
-      products: catalog.products.filter((p) => p.id !== id),
-      menus: catalog.menus.map((m) => ({ ...m, productIds: m.productIds.filter((p) => p !== id) })),
+      products: catalog.products.filter((p) => p.id !== product.id),
+      menus: catalog.menus.map((m) => ({ ...m, productIds: m.productIds.filter((p) => p !== product.id) })),
     })
+    if (!product.name.trim()) return
+    removedToast(`„${product.name.trim()}“`, () =>
+      setCatalog((now) => ({
+        products: now.products.toSpliced(index, 0, product),
+        menus: now.menus.map((m) => (menuIds.includes(m.id) ? { ...m, productIds: [...m.productIds, product.id] } : m)),
+      })),
+    )
+  }
+
+  function removeMenu(menu: Menu) {
+    const index = catalog.menus.indexOf(menu)
+    setCatalog({ ...catalog, menus: catalog.menus.filter((m) => m.id !== menu.id) })
+    if (!menu.name.trim()) return
+    removedToast(`„${menu.name.trim()}“`, () => setCatalog((now) => ({ ...now, menus: now.menus.toSpliced(index, 0, menu) })))
   }
 
   return (
@@ -47,7 +65,7 @@ export function CatalogDialog({ open, onOpenChange }: { open: boolean; onOpenCha
         <DialogPanel className="grid-rows-[auto_minmax(0,1fr)]">
           <DialogHeader>
             <DialogTitle>Sortiment</DialogTitle>
-            <DialogDescription>Artikel mit Preisen, und Menüs, die mehrere Artikel zu einem Preis bündeln.</DialogDescription>
+            <DialogDescription>Artikel mit Preisen und Menüs, die mehrere Artikel zu einem Preis bündeln.</DialogDescription>
           </DialogHeader>
 
           <Tabs defaultValue="products" className="min-h-0">
@@ -71,7 +89,7 @@ export function CatalogDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => removeProduct(product.id)}
+                    onClick={() => removeProduct(product)}
                     aria-label={product.name.trim() ? `„${product.name.trim()}“ entfernen` : "Artikel entfernen"}
                   >
                     <Trash2Icon />
@@ -101,7 +119,7 @@ export function CatalogDialog({ open, onOpenChange }: { open: boolean; onOpenCha
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => setCatalog({ ...catalog, menus: catalog.menus.filter((m) => m.id !== menu.id) })}
+                        onClick={() => removeMenu(menu)}
                         aria-label={menu.name.trim() ? `„${menu.name.trim()}“ entfernen` : "Menü entfernen"}
                       >
                         <Trash2Icon />

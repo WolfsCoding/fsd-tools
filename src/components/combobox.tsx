@@ -63,10 +63,16 @@ export function Combobox({
     inputRef.current?.focus()
   }
 
+  // Opens on the current value, so Enter right after opening keeps it.
+  function show() {
+    list.activate(shown.findIndex((o) => optionValue(o) === value))
+    setOpen(true)
+  }
+
   const list = useListbox({
     options: shown,
     open,
-    onOpen: () => setOpen(true),
+    onOpen: show,
     onPick: (o) => pick(optionValue(o)),
     onClose: () => setOpen(false),
   })
@@ -85,7 +91,7 @@ export function Combobox({
               list.reset()
               setOpen(true)
             }}
-            onClick={() => setOpen(true)}
+            onClick={() => !open && show()}
             placeholder={placeholder}
             aria-label={ariaLabel}
             className={cn("pr-8", className)}
@@ -96,7 +102,8 @@ export function Combobox({
               tabIndex={-1}
               aria-label="Vorschläge anzeigen"
               onClick={() => {
-                setOpen((o) => !o)
+                if (open) setOpen(false)
+                else show()
                 inputRef.current?.focus()
               }}
               className="absolute inset-y-0 right-0 flex w-8 items-center justify-center text-muted-foreground hover:text-foreground"
@@ -108,7 +115,7 @@ export function Combobox({
       </PopoverAnchor>
       <PopoverContent
         align="start"
-        className="w-(--radix-popover-trigger-width) gap-0 p-1"
+        className="w-max max-w-80 min-w-(--radix-popover-trigger-width) gap-0 p-1"
         // Typing goes on in the input while the list is open.
         onOpenAutoFocus={(e) => e.preventDefault()}
         onInteractOutside={(e) => {

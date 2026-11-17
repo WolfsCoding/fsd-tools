@@ -22,7 +22,7 @@ export function fileName(name: string) {
 async function pickFolder(mode: "read" | "readwrite") {
   const pick = (window as Window & { showDirectoryPicker?: PickDirectory }).showDirectoryPicker
   if (!pick) {
-    toast.error("Ordner auswählen geht hier nicht")
+    toast.error("Ordner können hier nicht ausgewählt werden")
     return undefined
   }
   try {
@@ -69,7 +69,7 @@ export async function readFolder(): Promise<{ name: string; files: TextFile[] } 
     files.sort((a, b) => a.name.localeCompare(b.name, "de", { numeric: true }))
     return { name: dir.name, files }
   } catch {
-    toast.error("Ordner lesen nicht möglich")
+    toast.error("Ordner konnte nicht gelesen werden")
     return undefined
   }
 }

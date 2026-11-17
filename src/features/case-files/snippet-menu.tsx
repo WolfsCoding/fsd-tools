@@ -87,7 +87,7 @@ export function TemplateMenu({ atom, onPick }: { atom: SnippetsAtom; onPick: (te
         {snippets.map((s) => (
           <DropdownMenuItem key={s.id} onSelect={() => (picked.current = s)} className="grid gap-0.5">
             <span className="truncate">{snippetLabel(s)}</span>
-            {s.text.trim() && <span className="line-clamp-2 text-xs text-muted-foreground">{s.text}</span>}
+            {s.text.trim() && <span className="line-clamp-2 text-xs text-muted-foreground hyphens-auto">{s.text}</span>}
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />

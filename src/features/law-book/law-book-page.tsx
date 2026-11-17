@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, type ReactNode } from "react"
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router"
-import { CalculatorIcon, ListIcon, ScaleIcon, StarIcon, StarOffIcon } from "lucide-react"
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams, useSearchParams } from "react-router"
+import { CalculatorIcon, ListIcon, StarIcon, StarOffIcon } from "lucide-react"
 import { cn } from "cn"
 import { BackButton, Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
 import { Hint } from "@/components/hint"
@@ -8,7 +8,6 @@ import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { useBookmarks } from "./bookmarks"
 import { ChargeCalculator } from "./charge-calculator"
@@ -46,7 +45,6 @@ function scrollToParagraph(bookId: string, number: number, behavior: ScrollBehav
 }
 
 export function LawBookPage() {
-  const navigate = useNavigate()
   // The search is part of the URL (`?q=`), so reloading and going back keep it. The hits keep it
   // in their links, so the paragraph opened from them marks the terms and leads back to the hits.
   const [params, setParams] = useSearchParams()
@@ -66,44 +64,7 @@ export function LawBookPage() {
   )
   const terms = useMemo(() => parseQuery(query), [query])
 
-  const commandGroups = useMemo<CommandGroupDef[]>(
-    () => [
-      {
-        heading: "Gesetzbuch",
-        actionLabel: "Paragraph öffnen",
-        items: [
-          {
-            id: "law-book:catalog",
-            label: "Strafkatalog",
-            keywords: ["Strafmaß", "Geldstrafe", "Bußgeld", "Criminal Offenses", "Ticket Offenses"],
-            icon: ListIcon,
-            onSelect: () => navigate(catalogPath()),
-          },
-          {
-            id: "law-book:calculator",
-            label: "Strafrechner",
-            keywords: ["Straftaten", "Strafmaß", "Geldstrafe", "Rechner", "Summe"],
-            icon: CalculatorIcon,
-            onSelect: () => navigate(calculatorPath()),
-          },
-          ...books.flatMap((book) =>
-            book.chapters.flatMap((chapter) =>
-              chapter.paragraphs.map((p) => ({
-                id: `law-book:${book.id}:${p.number}`,
-                label: `§ ${p.number} ${book.abbreviation} ${p.title}`,
-                keywords: [book.title, chapter.title],
-                icon: ScaleIcon,
-                hint: book.abbreviation,
-                onSelect: () => navigate(lawBookPath(book.id, p.number)),
-              })),
-            ),
-          ),
-        ],
-      },
-    ],
-    [navigate],
-  )
-  useRegisterCommands("law-book", commandGroups)
+  // The paragraphs are in the palette from every page (global-commands.tsx).
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -277,7 +238,7 @@ function BookView({ book, paragraph, terms }: { book: Book; paragraph?: number; 
           </header>
           {book.chapters.map((chapter) => (
             <section key={chapter.title} className="mb-10 last:mb-0">
-              <h2 className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">{chapter.title}</h2>
+              <h2 className="mb-3 text-xs font-medium text-muted-foreground">{chapter.title}</h2>
               <div className="grid gap-3">
                 {chapter.paragraphs.map((p) => (
                   <ParagraphCard

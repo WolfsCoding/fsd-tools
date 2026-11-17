@@ -46,8 +46,8 @@ export function HomeRoute() {
       // m-auto centers the content but still lets it scroll when it overflows.
       <div className="flex flex-1 flex-col overflow-y-auto">
         <div className="m-auto flex flex-col items-center py-10">
-          <img src="/favicon.svg" alt="" className="mb-8 size-24 animate-in duration-500 ease-out-quint fade-in-0 zoom-in-90" />
-          <div className="flex w-full max-w-3xl flex-col items-center animate-in duration-500 ease-out-quint fade-in-0 slide-in-from-bottom-2 fill-mode-backwards delay-100">
+          <img src="/favicon.svg" alt="" className="mb-8 size-24 animate-in duration-300 ease-out-quint fade-in-0 zoom-in-90" />
+          <div className="flex w-full max-w-3xl flex-col items-center animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-bottom-2 fill-mode-backwards delay-100">
             <nav aria-label="Werkzeug öffnen" className="mb-10 grid w-full grid-cols-2 gap-2 px-6 sm:grid-cols-3">
               {enabledFeatures.map((f) => (
                 <Link
@@ -97,7 +97,7 @@ function Disclaimer() {
     <section className="w-full max-w-3xl px-6 text-center text-sm text-muted-foreground">
       <h2 className="mb-3 text-lg font-semibold text-foreground">Disclaimer</h2>
       <div className="space-y-1">
-        <p>Diese Website hat keine offizielle Verbindung zu Homestate.</p>
+        <p>Diese App hat keine offizielle Verbindung zu Homestate.</p>
         <p>
           Sie ist vom Homestate Support nicht erlaubt, aber auch nicht verboten.
         </p>
@@ -108,16 +108,14 @@ function Disclaimer() {
       <Separator className="my-6" />
       <div className="space-y-1">
         <p>
-          Diese Website dient nur dazu, Arbeitsschritte auf Homestate zu
+          Diese App dient nur dazu, Arbeitsschritte auf Homestate zu
           erleichtern und zu beschleunigen.
         </p>
         <p>
-          Alle Daten werden lediglich lokal im Browser und nicht online
-          gespeichert.
+          Alle Daten werden nur lokal auf diesem PC gespeichert, nicht online.
         </p>
         <p>
-          Ein Informationsaustausch von IC-Daten ist über diese Website nicht
-          möglich.
+          Ein Austausch von IC-Daten ist über diese App nicht möglich.
         </p>
       </div>
     </section>

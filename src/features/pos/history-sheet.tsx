@@ -23,8 +23,8 @@ export function HistorySheet({ open, onOpenChange }: { open: boolean; onOpenChan
       <SheetContent className="gap-0 data-[side=right]:sm:max-w-md">
         <SheetHeader className="border-b">
           <SheetTitle>Verlauf</SheetTitle>
-          <SheetDescription>
-            {history.length.toLocaleString("de-DE")} {history.length === 1 ? "Bestellung" : "Bestellungen"}, heute <Price value={todayTotal(history)} />
+          <SheetDescription className="tabular-nums">
+            {history.length.toLocaleString("de-DE")} {history.length === 1 ? "Bestellung" : "Bestellungen"} · Umsatz heute: <Price value={todayTotal(history)} />
           </SheetDescription>
         </SheetHeader>
 
@@ -33,10 +33,10 @@ export function HistorySheet({ open, onOpenChange }: { open: boolean; onOpenChan
           <Accordion type="single" collapsible>
             {history.map((order) => (
               <AccordionItem key={order.id} value={order.id}>
-                <AccordionTrigger>
+                <AccordionTrigger className="gap-3">
                   <span className="grid min-w-0 flex-1 gap-0.5 text-left">
                     <span className="truncate">{order.label || "Bestellung"}</span>
-                    <span className="text-xs font-normal text-muted-foreground">
+                    <span className="text-xs font-normal text-muted-foreground tabular-nums">
                       {formatDateAndTime(order.closedAt)} · {order.guests.length} {order.guests.length === 1 ? "Person" : "Personen"}
                     </span>
                   </span>
@@ -65,8 +65,9 @@ export function HistorySheet({ open, onOpenChange }: { open: boolean; onOpenChan
                     size="sm"
                     className="justify-self-start text-muted-foreground"
                     onClick={() => {
+                      const index = history.indexOf(order)
                       setHistory(history.filter((o) => o.id !== order.id))
-                      removedToast("Bestellung", () => setHistory(history))
+                      removedToast("Bestellung", () => setHistory((now) => now.toSpliced(index, 0, order)))
                     }}
                   >
                     <Trash2Icon /> Löschen

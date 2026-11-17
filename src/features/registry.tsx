@@ -67,102 +67,16 @@ export interface Feature {
   }
   /** Renders what is stored as short text, e.g. "12 Akten", next to the feature's data in the settings. */
   summary?: ComponentType
+  /** A generator or side tool; the tool strip sets these apart from the police work, after a divider. */
+  extra?: boolean
 }
 
 /**
- * Every tool in the app. Adding an entry here registers its route, its sidebar entry, its
- * switch and its data in the settings — no other wiring needed.
+ * Every tool in the app, in the order the tool strip, the start screen and the menus show
+ * them: the police work first, then the extras. Adding an entry here registers its route,
+ * its sidebar entry, its switch and its data in the settings — no other wiring needed.
  */
 export const features: Feature[] = [
-  {
-    path: DNA_DB_BASE.slice(1),
-    title: "Personen",
-    description: "Durchsuchbare Datenbank für Personen, DNA- und Fingerabdruck-IDs",
-    icon: DnaIcon,
-    element: <DnaDbPage />,
-    storage: { entries: [dnaEntriesAtom, dnaDismissedAtom] },
-    summary: DnaDbSummary,
-  },
-  {
-    path: FSU_BASE.slice(1),
-    title: "FSU-Erklärungen",
-    description: "Beiträge, die Abläufe wie DNA-Extraktion, BTM-Analysen oder Fingerabdrucksicherung erklären",
-    icon: BookOpenIcon,
-    element: <FsuPage />,
-  },
-  {
-    path: LAW_BOOK_BASE.slice(1),
-    title: "Gesetzbuch",
-    description: "Criminal Offenses, Ticket Offenses, Law und Civil Procedures durchsuchen, mit Strafrahmen je Absatz",
-    icon: ScaleIcon,
-    element: <LawBookPage />,
-    storage: { entries: [bookmarksAtom, calculatorAtom] },
-  },
-  {
-    path: NOTES_BASE.slice(1),
-    title: "Notizen",
-    description: "Notizen aus Blöcken, wie die zu Personen",
-    icon: NotebookPenIcon,
-    element: <NotesPage />,
-    storage: { entries: [notesAtom, foldersAtom, legacyPagesAtom] },
-    summary: NotesSummary,
-  },
-  {
-    path: PLATES_BASE.slice(1),
-    title: "Kennzeichen abfragen",
-    description: "Gesehene Kennzeichen mit Fahrer, Fahrzeug, Datum und Tatort; nicht angemeldete als Ticket kopieren",
-    icon: CarIcon,
-    element: <PlatesPage />,
-    storage: { entries: [platesAtom] },
-  },
-  {
-    path: FLOWCHARTS_BASE.slice(1),
-    title: "Ablaufdiagramme",
-    description: "Abläufe mit Verzweigungen bauen und als PNG zum Posten exportieren",
-    icon: WorkflowIcon,
-    element: <FlowchartsPage />,
-    storage: { entries: [flowchartsAtom] },
-    summary: FlowchartsSummary,
-  },
-  {
-    path: HEADERS_BASE.slice(1),
-    title: "Header-Bilder",
-    description: "Header für Akten mit Titel, Untertitel und Logo gestalten und als PNG exportieren",
-    icon: ImageIcon,
-    element: <HeadersPage />,
-    storage: { entries: [headerDesignAtom, headerScaleAtom] },
-  },
-  {
-    path: RECEIPTS_BASE.slice(1),
-    title: "Kassenbon",
-    description: "Just for fun: Kassenbons mit Artikeln, Summe und Rückgeld gestalten und als PNG exportieren",
-    icon: ReceiptIcon,
-    element: <ReceiptsPage />,
-    storage: { entries: [receiptAtom, receiptScaleAtom] },
-  },
-  {
-    path: POS_BASE.slice(1),
-    title: "Kasse",
-    description: "Restaurant-Kasse: Artikel und Menüs antippen, je Person mit Notizen bestellen und zusammen oder einzeln abrechnen",
-    icon: UtensilsIcon,
-    element: <PosPage />,
-    storage: { entries: [catalogAtom, orderAtom, historyAtom] },
-  },
-  {
-    path: DONUTS_BASE.slice(1),
-    title: "Donut-Rechner",
-    description: "Preis für Donuts ausrechnen, oder wie viele man für einen Betrag bekommt: 10 Stück für 75 $, einzeln 8 $",
-    icon: DonutIcon,
-    element: <DonutsPage />,
-  },
-  {
-    path: OPERATIONS_BASE.slice(1),
-    title: "Einsatzleitung",
-    description: "Streifenblatt, beteiligte Fahrzeuge und Personen, Funk und Infos für größere Einsätze; daraus eine Sammelakte erstellen",
-    icon: SirenIcon,
-    element: <OperationsPage />,
-    storage: { entries: [operationsAtom, rosterUnitsAtom] },
-  },
   {
     path: POLICE_FILES_BASE.slice(1),
     title: "Akten",
@@ -184,6 +98,100 @@ export const features: Feature[] = [
       ],
     },
     summary: CaseFilesSummary,
+  },
+  {
+    path: DNA_DB_BASE.slice(1),
+    title: "Personen",
+    description: "Durchsuchbare Datenbank für Personen, DNA- und Fingerabdruck-IDs",
+    icon: DnaIcon,
+    element: <DnaDbPage />,
+    storage: { entries: [dnaEntriesAtom, dnaDismissedAtom] },
+    summary: DnaDbSummary,
+  },
+  {
+    path: OPERATIONS_BASE.slice(1),
+    title: "Einsatzleitung",
+    description: "Streifenblatt, beteiligte Fahrzeuge und Personen, Funk und Infos für größere Einsätze; daraus eine Sammelakte erstellen",
+    icon: SirenIcon,
+    element: <OperationsPage />,
+    storage: { entries: [operationsAtom, rosterUnitsAtom] },
+  },
+  {
+    path: LAW_BOOK_BASE.slice(1),
+    title: "Gesetzbuch",
+    description: "Criminal Offenses, Ticket Offenses, Law und Civil Procedures durchsuchen, mit Strafrahmen je Absatz",
+    icon: ScaleIcon,
+    element: <LawBookPage />,
+    storage: { entries: [bookmarksAtom, calculatorAtom] },
+  },
+  {
+    path: PLATES_BASE.slice(1),
+    title: "Kennzeichen abfragen",
+    description: "Gesehene Kennzeichen mit Fahrer, Fahrzeug, Datum und Tatort; nicht angemeldete als Ticket kopieren",
+    icon: CarIcon,
+    element: <PlatesPage />,
+    storage: { entries: [platesAtom] },
+  },
+  {
+    path: NOTES_BASE.slice(1),
+    title: "Notizen",
+    description: "Notizen aus Blöcken wie Abschnitten, Listen und Tabellen, in Ordnern sortiert",
+    icon: NotebookPenIcon,
+    element: <NotesPage />,
+    storage: { entries: [notesAtom, foldersAtom, legacyPagesAtom] },
+    summary: NotesSummary,
+  },
+  {
+    path: FSU_BASE.slice(1),
+    title: "FSU-Erklärungen",
+    description: "Beiträge, die Abläufe wie DNA-Extraktion, BTM-Analysen oder Fingerabdrucksicherung erklären",
+    icon: BookOpenIcon,
+    element: <FsuPage />,
+  },
+  {
+    path: FLOWCHARTS_BASE.slice(1),
+    title: "Ablaufdiagramme",
+    description: "Abläufe mit Verzweigungen bauen und als PNG zum Posten exportieren",
+    icon: WorkflowIcon,
+    element: <FlowchartsPage />,
+    storage: { entries: [flowchartsAtom] },
+    summary: FlowchartsSummary,
+    extra: true,
+  },
+  {
+    path: HEADERS_BASE.slice(1),
+    title: "Header-Bilder",
+    description: "Header für Akten mit Titel, Untertitel und Logo gestalten und als PNG exportieren",
+    icon: ImageIcon,
+    element: <HeadersPage />,
+    storage: { entries: [headerDesignAtom, headerScaleAtom] },
+    extra: true,
+  },
+  {
+    path: RECEIPTS_BASE.slice(1),
+    title: "Kassenbon",
+    description: "Kassenbons zum Spaß gestalten, mit Artikeln, Summe und Rückgeld, und als PNG exportieren",
+    icon: ReceiptIcon,
+    element: <ReceiptsPage />,
+    storage: { entries: [receiptAtom, receiptScaleAtom] },
+    extra: true,
+  },
+  {
+    path: POS_BASE.slice(1),
+    title: "Kasse",
+    description: "Restaurant-Kasse: Artikel und Menüs antippen, je Person mit Notizen bestellen und zusammen oder einzeln abrechnen",
+    icon: UtensilsIcon,
+    element: <PosPage />,
+    storage: { entries: [catalogAtom, orderAtom, historyAtom] },
+    extra: true,
+  },
+  {
+    path: DONUTS_BASE.slice(1),
+    title: "Donut-Rechner",
+    description: "Preis für Donuts ausrechnen, oder wie viele man für einen Betrag bekommt: 10 Stück für 75 $, einzeln 8 $",
+    icon: DonutIcon,
+    element: <DonutsPage />,
+    extra: true,
   },
 ]
 

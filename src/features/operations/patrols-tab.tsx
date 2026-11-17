@@ -2,7 +2,7 @@ import { useAtomValue } from "@effect/atom-react"
 import { CheckIcon, RotateCcwIcon } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "cn"
-import type { ComboboxOption } from "@/components/combobox"
+import { Combobox, type ComboboxOption } from "@/components/combobox"
 import { Button } from "@/components/ui/button"
 import { CheckMark } from "@/components/ui/checkbox"
 import {
@@ -12,7 +12,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import { CHIP } from "@/features/case-files/rich-input"
+import { CELL_COMBOBOX } from "@/features/case-files/doc-form"
 import { sameText } from "@/lib/text"
 import { removedToast } from "@/lib/undo"
 import { rosterUnitsAtom } from "./roster"
@@ -70,8 +70,10 @@ export function PatrolsTab({
   const officerColumn = (n: 0 | 1 | 2 | 3): SheetColumn<Patrol> => ({
     key: `beamter${n}`,
     label: `Beamter ${n + 1}`,
+    // Room for rank and name; the table scrolls sideways where the four don't fit.
+    wide: true,
     cell: (p, i) => (
-      <CodeComboboxCell
+      <Combobox
         value={p.beamte[n]}
         onChange={(v) =>
           setPatrol(i, (x) => {
@@ -81,7 +83,9 @@ export function PatrolsTab({
           })
         }
         options={officers}
+        placeholder="N/A"
         aria-label={`Beamter ${n + 1} (Zeile ${i + 1})`}
+        className={CELL_COMBOBOX}
       />
     ),
   })
@@ -97,6 +101,8 @@ export function PatrolsTab({
     {
       key: "einheit",
       label: "Einheit",
+      // Room for the call sign's chip next to the toggle.
+      wide: true,
       cell: (p, i) => (
         <CodeComboboxCell
           value={p.einheit}
@@ -112,9 +118,7 @@ export function PatrolsTab({
       cell: (p) => {
         const vehicle = vehicleOf(p.einheit)
         return (
-          <span className="flex h-10 items-center px-3">
-            {vehicle ? <code className={CHIP}>{vehicle}</code> : <span className="text-muted-foreground/60">—</span>}
-          </span>
+          <span className={cn("flex h-10 items-center px-3 whitespace-nowrap", !vehicle && "text-muted-foreground")}>{vehicle || "—"}</span>
         )
       },
     },
@@ -123,7 +127,7 @@ export function PatrolsTab({
       label: "Aufgabe",
       wide: true,
       cell: (p, i) => (
-        <TextCell value={p.aufgabe} onChange={(v) => setPatrol(i, (x) => ({ ...x, aufgabe: v }))} label={`Aufgabe (Zeile ${i + 1})`} code />
+        <TextCell value={p.aufgabe} onChange={(v) => setPatrol(i, (x) => ({ ...x, aufgabe: v }))} label={`Aufgabe (Zeile ${i + 1})`} placeholder="N/A" />
       ),
     },
     officerColumn(0),
@@ -139,7 +143,6 @@ export function PatrolsTab({
           value={p.anmerkung}
           onChange={(v) => setPatrol(i, (x) => ({ ...x, anmerkung: v }))}
           label={`Anmerkung (Zeile ${i + 1})`}
-          code
         />
       ),
     },
@@ -147,7 +150,7 @@ export function PatrolsTab({
 
   return (
     <SheetSection
-      title="Streifen"
+      title="Streifenblatt"
       actions={
         <>
           <Button variant="outline" size="sm" onClick={reset} disabled={!marked}>

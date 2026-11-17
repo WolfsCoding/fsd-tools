@@ -4,7 +4,7 @@ import { cn } from "cn"
 import { DateTimePicker } from "@/components/date-picker"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { useReorder } from "@/components/use-reorder"
+import { REORDER_HINT, useReorder } from "@/components/use-reorder"
 import { AddRow, BOX, CELL_INPUT, ChoiceCell } from "@/features/case-files/doc-form"
 import type { Choice } from "@/features/case-files/templates"
 import { useColors } from "@/features/case-files/use-case-files"
@@ -43,18 +43,18 @@ export function PlateTable({ checks, api, onAdd }: { checks: PlateCheck[]; api: 
 
   return (
     <div className={cn(BOX, "overflow-x-auto")}>
-      <table className="w-full border-separate border-spacing-0 text-sm">
+      <table className="w-full border-separate border-spacing-0 text-sm tabular-nums">
         <thead>
           <tr className="bg-muted/50 text-xs text-muted-foreground *:border-b">
             <th className="w-10 min-w-10 border-r border-border/60">
               <span className="sr-only">Verschieben</span>
             </th>
             {COLUMNS.map((c) => (
-              <th key={c.key} className={cn(TH, "min-w-28")}>
+              <th key={c.key} className={cn(TH, "min-w-36")}>
                 {c.label}
               </th>
             ))}
-            <th className={cn(TH, "w-48 min-w-48")}>Datum</th>
+            <th className={cn(TH, "w-44 min-w-44")}>Datum</th>
             <th className={cn(TH, "w-32")}>Status</th>
             <th className="w-10 min-w-10 border-border/60">
               <span className="sr-only">Aktionen</span>
@@ -66,6 +66,7 @@ export function PlateTable({ checks, api, onAdd }: { checks: PlateCheck[]; api: 
             <tr key={check.id} {...reorder.row(i)} className={cn("group focus-within:bg-accent/20 *:border-b", reorder.rowClass(i))}>
               <td
                 {...reorder.handle(i)}
+                title={REORDER_HINT}
                 className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing"
               >
                 <GripVerticalIcon className="mx-auto size-3.5" />
@@ -87,7 +88,7 @@ export function PlateTable({ checks, api, onAdd }: { checks: PlateCheck[]; api: 
                   value={check.date}
                   onChange={(date) => api.updateCheck(check.id, { date })}
                   aria-label={`Datum (Zeile ${i + 1})`}
-                  className={cn(CELL_INPUT, "rounded-none border-0 focus-visible:ring-0")}
+                  className={cn(CELL_INPUT, "rounded-none border-0")}
                 />
               </td>
               <td className="border-r border-border/60 p-0">

@@ -3,6 +3,7 @@ import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogPanel, DialogTitle } from "@/components/ui/dialog"
+import { useDraftGuard } from "@/hooks/use-draft-guard"
 
 /** One page of a `StepDialog`; what it shows is up to the caller. */
 export interface Step {
@@ -35,12 +36,12 @@ export function StepDialog({
   onSave: () => void
   onCancel: () => void
 }) {
+  const guard = useDraftGuard(open)
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
       <DialogContent
         className="h-[min(40rem,calc(100dvh-2rem))] sm:max-w-4xl"
-        // A stray click next to the dialog shouldn't throw away what was entered.
-        onInteractOutside={(e) => e.preventDefault()}
+        {...guard}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         {open && (
@@ -60,7 +61,7 @@ function Marker({ n, state }: { n: number; state: State }) {
       className={cn(
         "relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums transition-colors",
         state === "done" && "border-primary bg-primary text-primary-foreground",
-        state === "current" && "border-primary bg-background text-primary ring-4 ring-primary/15",
+        state === "current" && "border-primary bg-background text-link ring-4 ring-primary/15",
         state === "next" && "bg-background text-muted-foreground",
       )}
     >
@@ -119,7 +120,7 @@ function Steps({
                   type="button"
                   onClick={() => setAt(i)}
                   aria-current={i === index ? "step" : undefined}
-                  className="group flex items-center gap-3 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-full sm:pb-6"
+                  className="group flex items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-full sm:pb-6"
                 >
                   <Marker n={i + 1} state={state(i)} />
                   <span className="hidden min-w-0 gap-0.5 sm:grid">
@@ -139,7 +140,7 @@ function Steps({
         </nav>
         <div className="flex min-h-0 flex-1 flex-col">
           <header className="grid gap-1 px-5 pt-5 pb-4">
-            <span className="text-xs font-medium text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
               Schritt {index + 1} von {steps.length}
             </span>
             <h3 className="text-lg font-semibold">{step.title}</h3>

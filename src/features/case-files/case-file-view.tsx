@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react"
 import { useLocation, useSearchParams } from "react-router"
 import {
   CheckIcon,
@@ -134,6 +134,7 @@ export function CaseFileView({
   const [params, setParams] = useSearchParams()
   const tabs = mainTemplate.sections.filter((s) => s.tab)
   const tab = tabs.find((s) => s.title === params.get("tab"))
+  const tabsId = useId()
   const setTab = (next: Section | undefined) =>
     setParams(
       (prev) => {
@@ -371,7 +372,7 @@ export function CaseFileView({
       { label: "Vorschau", icon: EyeIcon, onSelect: () => setPreviewId(d.id) },
       ...(t.pageTitle ? [{ label: "Titel kopieren", icon: HeadingIcon, onSelect: () => copy(titleOf(d), "Titel") }] : []),
       { label: "Umbenennen", icon: PencilIcon, onSelect: () => setRenaming(d.id) },
-      ...(canRandomize(t) ? [{ label: "Würfeln", icon: DicesIcon, onSelect: () => randomize(d) }] : []),
+      ...(canRandomize(t) ? [{ label: "Zufallswerte würfeln", icon: DicesIcon, onSelect: () => randomize(d) }] : []),
       ...(t.blank ? [{ label: "Vorlage kopieren", icon: FileTextIcon, onSelect: () => copyBlank(d) }] : []),
       { label: "Entfernen", icon: Trash2Icon, onSelect: () => removeDoc(d), destructive: true },
     ]
@@ -391,7 +392,7 @@ export function CaseFileView({
         <ContextMenu>
           <div className="flex items-center gap-1 rounded-t-[calc(var(--radius)-1px)] bg-card pr-2 transition-colors last:rounded-b-[calc(var(--radius)-1px)] hover:bg-accent/30">
             {reports.length > 1 && (
-              <Hint label="Ziehen zum Sortieren, oder Pfeil hoch/runter">
+              <Hint label="Ziehen oder ↑/↓ zum Verschieben">
                 <button
                   type="button"
                   aria-label={`„${docName(d, me, templates)}“ verschieben`}
@@ -520,7 +521,7 @@ export function CaseFileView({
                   <EyeIcon /> Vorschau
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => copy(titleOf(main), "Titel")}>
-                  <HeadingIcon /> Seitentitel kopieren
+                  <HeadingIcon /> Titel kopieren
                 </DropdownMenuItem>
                 {several && (
                   <DropdownMenuItem onSelect={copyAll}>
@@ -528,11 +529,11 @@ export function CaseFileView({
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onSelect={saveAsFolder}>
-                  <FolderDownIcon /> Als Ordner speichern
+                  <FolderDownIcon /> Als Ordner speichern…
                 </DropdownMenuItem>
                 {canRandomize(mainTemplate) && (
                   <DropdownMenuItem onSelect={() => randomize(main)}>
-                    <DicesIcon /> Würfeln
+                    <DicesIcon /> Zufallswerte würfeln
                   </DropdownMenuItem>
                 )}
                 {mainTemplate.blank && (
@@ -542,7 +543,7 @@ export function CaseFileView({
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => setEditingDetails(true)}>
-                  <PencilIcon /> {kind.noun} bearbeiten
+                  <PencilIcon /> {kind.noun} bearbeiten…
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={() => onDelete(caseFile)}>
@@ -553,25 +554,27 @@ export function CaseFileView({
           </div>
         </div>
 
-        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 text-xs sm:grid-cols-4">
+        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 text-xs sm:grid-cols-4 short:hidden">
           <Meta label="Aktenzeichen">{number || "—"}</Meta>
           <Meta label="Typ">{type?.label ?? mainTemplate.label}</Meta>
           <Meta label="Erstellt">{formatDate(caseFile.createdAt)}</Meta>
           <Meta label="Geändert">{formatRelative(caseFile.updatedAt)}</Meta>
         </dl>
 
-        <div className="mt-5 grid justify-items-start gap-2.5">
-          <h2 className="text-sm font-semibold">Ablage</h2>
-          <span className="flex items-center gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <UserIcon className="size-5" />
+        {ablage && (
+          <div className="mt-5 grid justify-items-start gap-2.5 short:hidden">
+            <h2 className="text-sm font-semibold">Ablage</h2>
+            <span className="flex items-center gap-3">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <UserIcon className="size-5" />
+              </span>
+              <span className="grid gap-0.5">
+                <span className="font-semibold">{ablage.name.trim() || "Unbekannt"}</span>
+                {ablage.id && <span className="text-sm text-muted-foreground">{ablage.id.trim().toUpperCase()}</span>}
+              </span>
             </span>
-            <span className="grid gap-0.5">
-              <span className="font-semibold">{ablage ? ablage.name.trim() || "Unbekannt" : "—"}</span>
-              {ablage?.id && <span className="text-sm text-muted-foreground">{ablage.id.trim().toUpperCase()}</span>}
-            </span>
-          </span>
-        </div>
+          </div>
+        )}
 
         {tabs.length > 0 && (
           <div role="tablist" aria-label={`Teile der ${kind.noun}`} className="-mx-3 mt-3 flex items-center gap-0.5 no-scrollbar overflow-x-auto">
@@ -582,6 +585,8 @@ export function CaseFileView({
                   key={s?.title ?? "details"}
                   type="button"
                   role="tab"
+                  id={`${tabsId}-${index}`}
+                  aria-controls={`${tabsId}-panel`}
                   aria-selected={selected}
                   tabIndex={selected ? 0 : -1}
                   data-tab={index}
@@ -616,7 +621,12 @@ export function CaseFileView({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <div ref={bodyRef} className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6">
+        <div
+          ref={bodyRef}
+          // The panel of the tabs in the header, where there are any.
+          {...(tabs.length > 0 && { role: "tabpanel", id: `${tabsId}-panel`, "aria-labelledby": `${tabsId}-${tabList.indexOf(tab)}` })}
+          className="relative min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6"
+        >
           {tab ? (
             // Keyed by tab, so switching tabs fades the new one in.
             <Panel key={tab.title} id="tab" title={tab.title} description={tab.description}>
@@ -631,7 +641,9 @@ export function CaseFileView({
               />
             </Panel>
           ) : (
-            <div className="grid gap-8">
+            // grid-cols-1 (here and in Panel): the column is as wide as the page, not as its widest
+            // table, which scrolls in a box of its own.
+            <div className="grid grid-cols-1 gap-8">
               <MeHint me={mainReader.me} />
               <Panel
                 id="beschreibung"
@@ -710,7 +722,7 @@ export function CaseFileView({
           </div>
           {/* Like the command palette's footer: what is shown, and the keys that act on it. */}
           <div className="flex h-14 shrink-0 items-center gap-5 px-3.5 text-sm text-muted-foreground">
-            <span className="min-w-0 flex-1 truncate">
+            <span className="min-w-0 flex-1 truncate tabular-nums">
               {previewDoc && nameOf(previewDoc)} · {preview.split("\n").length.toLocaleString("de-DE")} Zeilen Markdown
             </span>
             {/* Phones have no keys for the shortcuts, so they get a button instead. */}
@@ -754,13 +766,17 @@ function Panel({
   children: ReactNode
 }) {
   return (
-    <section aria-labelledby={id} className="grid gap-4 animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
+    <section aria-labelledby={id} className="grid grid-cols-1 gap-4 animate-in duration-200 ease-out-quint fade-in-0 slide-in-from-bottom-1">
       <div className="flex flex-wrap items-center gap-3">
         <div className="mr-auto grid min-w-0 gap-0.5">
           <h2 id={id} className="truncate text-lg font-semibold">
             {title}
           </h2>
-          {description && <p className="truncate text-xs text-muted-foreground">{description}</p>}
+          {description && (
+            <p title={description} className="truncate text-xs text-muted-foreground">
+              {description}
+            </p>
+          )}
         </div>
         {actions}
       </div>

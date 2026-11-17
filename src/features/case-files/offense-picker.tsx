@@ -35,7 +35,7 @@ export function OffenseDefinition({ offense, terms }: { offense: Offense; terms?
 }
 
 /** Height of the list and the definition; fixed, so the popover doesn't resize (and move the items under the pointer) while the definition changes. */
-const HEIGHT = "h-[min(28rem,60vh)]"
+const HEIGHT = "h-[min(28rem,60vh,calc(var(--radix-popover-content-available-height)-3.5rem))]"
 
 /**
  * Searchable list of every chargeable offense, opened by `children`; the ones picked last

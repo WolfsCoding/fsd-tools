@@ -166,10 +166,10 @@ export function chargeTitle(c: Charge) {
   return needsQuantity(c.offense) ? `${c.offense.title} (${quantityLabel(c.offense)}: ${c.quantity})` : c.offense.title
 }
 
-/** The charge's penalty, e.g. "3.500 – 6.500 $ + Haft"; "--" without one. */
+/** The charge's penalty, e.g. "3.500 – 6.500 $ + Haft"; a dash without one. */
 export function chargePenalty(c: Charge) {
   const fine = fineOf(c)
-  return [fine && formatFine(fine), c.offense.other].filter(Boolean).join(" + ") || "--"
+  return [fine && formatFine(fine), c.offense.other].filter(Boolean).join(" + ") || "—"
 }
 
 /** The penalties of all charges added up, e.g. "7.000 – 13.000 $ + Haft"; "" without known ones. */

@@ -204,7 +204,7 @@ function EntryList() {
         items: [
           {
             id: "dna-db:new",
-            label: "Eintrag hinzufügen",
+            label: "Neuer Eintrag",
             icon: PlusIcon,
             onSelect: () => {
               setEditing(undefined)
@@ -213,27 +213,8 @@ function EntryList() {
           },
         ],
       },
-      {
-        heading: "Einträge",
-        actionLabel: "Eintrag öffnen",
-        items: sortByName(entries).map((entry) => ({
-          id: `dna-db:entry:${entry.id}`,
-          label: entryName(entry),
-          keywords: [
-            entry.dnaId,
-            entry.fingerprintId,
-            ...(entry.tags ?? []).map((t) => t.name),
-          ],
-          icon: UserIcon,
-          hint: entry.dnaId,
-          onSelect: () => {
-            setEditing(entry)
-            setDialogOpen(true)
-          },
-        })),
-      },
     ],
-    [entries],
+    [],
   )
   useRegisterCommands("dna-db", commandGroups)
 
@@ -268,7 +249,7 @@ function EntryList() {
             key={currentPage}
             className="min-h-0 flex-1 overflow-auto [&_[data-slot=table-container]]:overflow-visible"
           >
-            <Table className="[&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase">
+            <Table>
               {/* Opaque bg-card underneath so the tinted header row stays solid while sticky. */}
               <TableHeader className="sticky top-0 z-10 bg-card">
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
@@ -324,7 +305,7 @@ function EntryList() {
                               // Don't let a quick double-click on the name open the edit dialog.
                               onDoubleClick={(e) => e.stopPropagation()}
                               className={cn(
-                                "rounded-sm underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                                "rounded-sm hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
                                 entry.name.trim() ? "font-medium" : "text-muted-foreground italic",
                               )}
                             >
@@ -341,10 +322,10 @@ function EntryList() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <IdChip value={entry.gender?.trim() ?? ""} label="Geschlecht" />
+                        {entry.gender?.trim() || <span className="text-muted-foreground">—</span>}
                       </TableCell>
                       <TableCell>
-                        <IdChip value={entry.phone?.trim() ?? ""} label="Telefonnummer" />
+                        <IdChip value={entry.phone?.trim() ?? ""} label="Telefonnummer" plain />
                       </TableCell>
                       <TableCell>
                         <IdChip value={entry.dnaId} label="DNA-ID" />

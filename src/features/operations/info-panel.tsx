@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { PanelRightCloseIcon, PanelRightOpenIcon, SendHorizontalIcon, XIcon } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { Button } from "@/components/ui/button"
-import { useMediaQuery } from "@/hooks/use-media-query"
 import { removedToast } from "@/lib/undo"
 import { insertAt } from "./rows"
 import type { Operation } from "./types"
@@ -15,7 +14,15 @@ export function InfoPanel({ operation, onChange }: { operation: Operation; onCha
   const [draft, setDraft] = useState("")
   const listRef = useRef<HTMLOListElement>(null)
   const infos = operation.infos
-  const wide = useMediaQuery("(min-width: 1024px)")
+  // By the width of the page it sits in, which is half the window in a split view.
+  const [wide, setWide] = useState(() => window.innerWidth >= 1024)
+  const measure = useCallback((el: HTMLElement | null) => {
+    const page = el?.parentElement
+    if (!page) return
+    const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= 944))
+    observer.observe(page)
+    return () => observer.disconnect()
+  }, [])
   /** Folded or unfolded by hand; until then, open where there is room. */
   const [folded, setFolded] = useState<boolean>()
   const collapsed = folded ?? !wide
@@ -42,6 +49,7 @@ export function InfoPanel({ operation, onChange }: { operation: Operation; onCha
   return (
     // Folding narrows the panel to its toggle; the content stays anchored right, so it slides out like a drawer.
     <aside
+      ref={measure}
       aria-label="Infos"
       className={cn(
         "relative shrink-0 overflow-hidden border-l transition-[width] duration-300 ease-out-quint motion-reduce:transition-none",
@@ -68,7 +76,7 @@ export function InfoPanel({ operation, onChange }: { operation: Operation; onCha
             {infos.length === 0 && <li className="px-1 py-6 text-center text-sm text-muted-foreground">Noch keine Infos</li>}
             {infos.map((info, i) => (
               <li key={info.id} className="group/info relative grid gap-1 rounded-lg bg-muted/60 px-3 py-2 pr-8">
-                <p className="text-sm break-words whitespace-pre-wrap">{info.text}</p>
+                <p className="text-sm break-words whitespace-pre-wrap hyphens-auto">{info.text}</p>
                 <time dateTime={info.at} className="text-[11px] text-muted-foreground tabular-nums">
                   {time.format(new Date(info.at))}
                 </time>

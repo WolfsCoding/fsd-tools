@@ -267,7 +267,7 @@ function FeaturesSettings() {
   return (
     <SettingsSection
       title="Funktionen"
-      description="Deaktivierte Funktionen werden in der Seitenleiste und der Befehlspalette ausgeblendet. Ihre Daten bleiben erhalten."
+      description="Deaktivierte Funktionen werden in der Seitenleiste und der Befehlspalette ausgeblendet. Die Daten bleiben erhalten."
     >
       {features.map((feature) => {
         const switchId = `feature-${feature.path}`
@@ -357,7 +357,7 @@ function FeatureDataRow({ feature }: { feature: Feature }) {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" disabled={bytes === 0} onSelect={() => setConfirmClear(true)}>
-              <Trash2Icon /> Alle Daten löschen…
+              <Trash2Icon /> Daten löschen…
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -374,7 +374,7 @@ function FeatureDataRow({ feature }: { feature: Feature }) {
         open={pendingImport !== undefined}
         onOpenChange={(o) => !o && setPendingImport(undefined)}
         title="Daten ersetzen?"
-        description={`Die aktuellen Daten von ${feature.title} werden durch den Export${
+        description={`Die aktuellen Daten von „${feature.title}“ werden durch den Export${
           pendingImport
             ? ` vom ${new Date(pendingImport.exportedAt).toLocaleString("de-DE")}`
             : ""
@@ -385,8 +385,8 @@ function FeatureDataRow({ feature }: { feature: Feature }) {
       <ConfirmDialog
         open={confirmClear}
         onOpenChange={setConfirmClear}
-        title="Alle Daten löschen?"
-        description={`Alle Daten von ${feature.title} werden dauerhaft gelöscht. Exportiere sie vorher, wenn du sie behalten möchtest.`}
+        title={`Daten von „${feature.title}“ löschen?`}
+        description={`Alle Daten von „${feature.title}“ werden dauerhaft gelöscht. Exportiere sie vorher, wenn du sie behalten möchtest.`}
         action="Löschen"
         onConfirm={clearData}
       />
@@ -470,13 +470,13 @@ function FullBackupSettings() {
       <SettingsSection title="Alle Daten">
         <SettingsRow
           title="Belegter Speicher"
-          description="Browser erlauben meist etwa 5 MB pro Seite. Wird es voll, können Änderungen nicht mehr gespeichert werden."
+          description="Der Speicher der App fasst etwa 5 MB. Ist er voll, werden Änderungen nicht mehr gespeichert."
         >
           <SettingsValue>{formatBytes(bytes)}</SettingsValue>
         </SettingsRow>
         <SettingsRow
           title="Letzte Sicherung"
-          description="Alle Daten liegen nur in diesem Browser. Wird der Browserspeicher geleert, sind sie ohne Sicherung verloren."
+          description="Alle Daten liegen nur auf diesem PC. Wird der Speicher der App gelöscht, sind sie ohne Sicherung verloren."
         >
           <SettingsValue>
             {lastBackup ? new Date(lastBackup).toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" }) : "Nie"}

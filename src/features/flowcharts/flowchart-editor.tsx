@@ -165,7 +165,7 @@ export function FlowchartEditor({
               <ListTreeIcon className="size-4 text-muted-foreground" />
               Schritte
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="tabular-nums">
               {steps} {steps === 1 ? "Schritt" : "Schritte"}
               {splits > 0 && ` · ${splits} ${splits === 1 ? "Verzweigung" : "Verzweigungen"}`}
             </CardDescription>

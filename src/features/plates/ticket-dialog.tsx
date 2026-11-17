@@ -25,7 +25,7 @@ export function TicketDialog({ markdown, onClose }: { markdown: string | undefin
           <MarkdownText text={markdown ?? ""} />
         </div>
         <div className="flex h-14 shrink-0 items-center gap-5 px-3.5 text-sm text-muted-foreground">
-          <span className="min-w-0 flex-1 truncate">
+          <span className="min-w-0 flex-1 truncate tabular-nums">
             {(markdown ?? "").split("\n").length.toLocaleString("de-DE")} Zeilen Markdown
           </span>
           <span className="hidden sm:contents">

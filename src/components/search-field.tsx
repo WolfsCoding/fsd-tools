@@ -79,6 +79,7 @@ export function SearchField({
             onKeyDown?.(e)
           }}
           placeholder="Suchen…"
+          data-handles-escape={value ? "" : undefined}
           className="[&::-webkit-search-cancel-button]:hidden"
           {...props}
         />

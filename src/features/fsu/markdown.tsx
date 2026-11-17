@@ -61,6 +61,8 @@ export function Markdown({
         "[&_.task-list-item]:list-none [&_.task-list-item>input]:my-0 [&_.task-list-item>input]:-ml-5 [&_.task-list-item>input]:mr-1",
         "prose-blockquote:border-l-sidebar-primary prose-blockquote:font-normal prose-blockquote:text-muted-foreground prose-blockquote:not-italic [&_blockquote_p]:before:content-none [&_blockquote_p]:after:content-none",
         "prose-table:text-sm prose-th:bg-muted/50 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-hr:border-border",
+        // In a narrow place a wide table scrolls rather than crushing its columns to a word a line.
+        "prose-th:whitespace-nowrap [&_td_code]:whitespace-nowrap",
         "[&_mark]:rounded-sm [&_mark]:bg-amber-400/25 [&_mark]:text-foreground",
         // Code and bold take the color of a <font> around them, as in the homestate editor.
         "[&_font_b]:text-inherit [&_font_code]:text-inherit [&_font_strong]:text-inherit",
@@ -79,6 +81,13 @@ export function Markdown({
             ) : (
               <a href={href} {...props} target="_blank" rel="noreferrer" />
             ),
+          // A wide table scrolls in a box of its own instead of widening the page. The padding
+          // keeps a ring around the table from being clipped.
+          table: ({ node: _node, ...props }) => (
+            <div className="overflow-x-auto p-px">
+              <table {...props} />
+            </div>
+          ),
           h2: ({ node, ...props }) => <h2 {...props} id={idOf(node) || undefined} />,
           h3: ({ node, ...props }) => <h3 {...props} id={idOf(node) || undefined} />,
         }}

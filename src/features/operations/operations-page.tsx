@@ -147,7 +147,7 @@ function OperationList({ api, onNew, onDelete }: { api: OperationsApi; onNew: ()
       }
     >
       {api.operations.length === 0 ? (
-        <Empty className="p-6">
+        <Empty className="min-h-full">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <SirenIcon />

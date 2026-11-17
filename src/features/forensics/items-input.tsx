@@ -8,7 +8,7 @@ import { Combobox } from "@/components/combobox"
 import type { Step } from "@/components/step-dialog"
 import { DnaPicker } from "@/features/case-files/dna-picker"
 import { AddRow, BOX, CELL_COMBOBOX, CELL_INPUT, Counter, END, FULL, Labeled, LEAD, RemoveCell, SHORT } from "@/features/case-files/doc-form"
-import { move, useReorder } from "@/components/use-reorder"
+import { move, REORDER_HINT, useReorder } from "@/components/use-reorder"
 import { useSettingsDialog } from "@/hooks/use-settings"
 import { POLICE_FILES_BASE } from "@/features/case-files/paths"
 import { snippetLabel, useSnippets, type Snippet } from "@/features/case-files/snippets"
@@ -232,6 +232,7 @@ function ExaminationStep({ row, set, templates }: Draft & { templates: NonNullab
             <li key={s.id} {...reorder.row(i)} className={cn("group flex items-stretch focus-within:bg-accent/20", reorder.rowClass(i))}>
               <span
                 {...reorder.handle(i)}
+                title={REORDER_HINT}
                 className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
               >
                 <GripVerticalIcon className="size-3.5 group-focus-within:text-foreground" />
@@ -245,7 +246,7 @@ function ExaminationStep({ row, set, templates }: Draft & { templates: NonNullab
                   all
                   placeholder="z. B. Datenextraktion"
                   aria-label={`Untersuchung ${i + 1}`}
-                  className={cn(CELL_COMBOBOX, "font-medium text-primary")}
+                  className={cn(CELL_COMBOBOX, "font-medium text-link")}
                 />
               </div>
               {/* Grows with its text; each line becomes a sub-point. */}
@@ -309,7 +310,7 @@ function Progress({ steps }: { steps: ExamStep[] }) {
   const open = openInAll(steps)
   return (
     <div className="grid gap-1.5">
-      <div className="flex items-center text-xs text-muted-foreground">
+      <div className="flex items-center text-xs text-muted-foreground tabular-nums">
         <span>
           {done} von {steps.length} {steps.length === 1 ? "Schritt" : "Schritten"} ausgefüllt
         </span>
@@ -364,11 +365,11 @@ function TemplatePicker({
         onCheckedChange={() => toggle(t)}
         className="grid gap-0.5"
       >
-        <span className="flex items-center gap-2 text-xs font-medium text-primary">
+        <span className="flex items-center gap-2 text-xs font-medium text-link">
           <span className="truncate">{snippetLabel(t)}</span>
           {step && openIn(step) > 0 && <span className="ml-auto shrink-0 text-amber-400">{openIn(step)}× XXX</span>}
         </span>
-        {t.text.trim() && <span className="line-clamp-2">{t.text}</span>}
+        {t.text.trim() && <span className="line-clamp-2 hyphens-auto">{t.text}</span>}
       </DropdownMenuCheckboxItem>
     )
   }
@@ -392,7 +393,7 @@ function TemplatePicker({
                 <button
                   type="button"
                   onClick={() => add(missing)}
-                  className="ml-auto flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-primary hover:bg-accent"
+                  className="ml-auto flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-link hover:bg-accent"
                 >
                   <PlusIcon className="size-3" /> Fehlende ({missing.length})
                 </button>

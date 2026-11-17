@@ -1,7 +1,9 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -88,6 +90,20 @@ function CommandPalette({
   const { enabledFeatures } = useEnabledFeatures()
   const { setOpen: setSettingsOpen, openPage } = useSettingsDialog()
   const [selected, setSelected] = useState("")
+  // Kept here to put the groups with the best hits first; emptied when the palette closes.
+  const [search, setSearch] = useState("")
+  const [wasOpen, setWasOpen] = useState(open)
+  if (open !== wasOpen) {
+    setWasOpen(open)
+    if (!open) setSearch("")
+  }
+  // A new search starts at the top, where its best hit is. cmdk scrolls to the item selected
+  // before the groups were put in their new order, so this runs after it, on the next frame.
+  const listRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const frame = requestAnimationFrame(() => listRef.current?.scrollTo({ top: 0 }))
+    return () => cancelAnimationFrame(frame)
+  }, [search])
 
   function run(action: () => void) {
     onOpenChange(false)
@@ -134,16 +150,21 @@ function CommandPalette({
     ],
   }
 
-  const allGroups = [pages, ...groups, general].filter(
-    (g) => g.items.length > 0,
-  )
+  const listed = [pages, ...groups, general].filter((g) => g.items.length > 0)
+  // While searching, the group with the best hit comes first, so the first hit (which Enter
+  // takes) is the best one: "straf" leads with "Strafakte anlegen" and the Strafkatalog, not
+  // with a page whose description mentions Strafakten. Groups with equally good hits keep
+  // their usual order. cmdk only sorts the items inside a group.
+  const best = (g: CommandGroupDef) => Math.max(...g.items.map((item) => matchScore(item.label, item.keywords, search)))
+  const allGroups = search.trim() ? listed.toSorted((a, b) => best(b) - best(a)) : listed
 
-  // cmdk reports the selected item's value; map it back to its group and item for the footer.
-  const selection = new Map(
+  // cmdk reports items by their value; map it back to the group and item, for the filter and the footer.
+  const byValue = new Map(
     allGroups.flatMap((g) =>
       g.items.map((item) => [itemValue(item.label, item.id), { group: g, item }]),
     ),
-  ).get(selected.toLowerCase())
+  )
+  const selection = byValue.get(selected.toLowerCase())
 
   return (
     <CommandDialog
@@ -156,12 +177,16 @@ function CommandPalette({
       <Command
         value={selected}
         onValueChange={setSelected}
+        filter={(value, search) => {
+          const item = byValue.get(value)?.item
+          return item ? matchScore(item.label, item.keywords, search) : 0
+        }}
         // A darker rounded panel inside the lighter frame; the footer sits on the frame.
-        className="rounded-xl! bg-card p-0 ring-1 ring-border [&_[data-slot=command-input-wrapper]]:p-2 [&_[data-slot=input-group]]:h-9! [&_[data-slot=input-group]]:rounded-lg! [&_[data-slot=input-group]]:border-input! [&_[data-slot=input-group]]:bg-popover/50! [&_[data-slot=input-group-addon]]:pl-2.5!"
+        className="rounded-[calc(var(--radius-2xl)-0.375rem)]! bg-card p-0 ring-1 ring-border [&_[data-slot=command-input-wrapper]]:p-2 [&_[data-slot=input-group]]:h-9! [&_[data-slot=input-group]]:rounded-lg! [&_[data-slot=input-group]]:border-input! [&_[data-slot=input-group]]:bg-popover/50! [&_[data-slot=input-group-addon]]:pl-2.5!"
       >
-        <CommandInput placeholder="Befehl oder Suchbegriff eingeben…" />
+        <CommandInput value={search} onValueChange={setSearch} placeholder="Befehl oder Suchbegriff eingeben…" />
         {/* Sized to end above the window's bottom edge, since the dialog starts a third down. */}
-        <CommandList className="max-h-[min(24rem,calc(66svh-8.5rem))] scroll-py-2 px-2 pb-2 [&_[data-slot=command-group]]:px-0 [&_[data-slot=command-group]]:pt-0 [&_[data-slot=command-group]]:pb-1">
+        <CommandList ref={listRef} className="max-h-[min(24rem,calc(66svh-8.5rem))] scroll-py-2 px-2 pb-2 [&_[data-slot=command-group]]:px-0 [&_[data-slot=command-group]]:pt-0 [&_[data-slot=command-group]]:pb-1">
           <CommandEmpty className="py-12 text-muted-foreground">
             Keine Ergebnisse gefunden.
           </CommandEmpty>
@@ -208,6 +233,25 @@ function CommandPalette({
       </div>
     </CommandDialog>
   )
+}
+
+/**
+ * How well an item fits the search, 0 for not at all. Every typed word must be part of the
+ * label or a keyword (cmdk's own matching also takes letters scattered across the text, which
+ * finds half the app for "straf"). Hits in the label and at the start of a word rank higher.
+ */
+function matchScore(label: string, keywords: string[] | undefined, search: string) {
+  const name = label.toLowerCase()
+  const extra = (keywords ?? []).join(" ").toLowerCase()
+  let score = 0
+  for (const word of search.toLowerCase().split(/\s+/).filter(Boolean)) {
+    const at = name.indexOf(word)
+    if (at === 0) score += 1
+    else if (at > 0) score += /[\s§–-]/.test(name[at - 1]) ? 0.8 : 0.6
+    else if (extra.includes(word)) score += 0.3
+    else return 0
+  }
+  return score || 1
 }
 
 function itemValue(label: string, id: string) {

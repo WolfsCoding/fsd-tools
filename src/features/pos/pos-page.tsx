@@ -85,14 +85,30 @@ export function PosPage() {
     setSelectedIds([guest.id])
   }
 
+  // Every undo puts back only what its action took, so what was entered since stays.
+
+  /** Brings a discarded or closed order back, in front of the persons added since. */
+  const restoreOrder = () => setOrder((now) => ({ label: order.label || now.label, guests: [...order.guests, ...now.guests] }))
+
   function removeGuest(guest: Guest, index: number) {
     setOrder({ ...order, guests: order.guests.filter((g) => g.id !== guest.id) })
-    if (guest.lines.length > 0) removedToast(guestName(guest, index), () => setOrder(order))
+    if (guest.lines.length > 0) {
+      removedToast(guestName(guest, index), () => setOrder((now) => ({ ...now, guests: now.guests.toSpliced(index, 0, guest) })))
+    }
+  }
+
+  function changeLine(guest: Guest, line: Line, patch: Partial<Pick<Line, "qty" | "note">>) {
+    setOrder(patchLine(order, guest.id, line.id, patch))
+    if ((patch.qty ?? line.qty) >= 1) return
+    const index = guest.lines.indexOf(line)
+    removedToast(`„${line.name}“`, () =>
+      setOrder((now) => ({ ...now, guests: now.guests.map((g) => (g.id === guest.id ? { ...g, lines: g.lines.toSpliced(index, 0, line) } : g)) })),
+    )
   }
 
   function discard() {
     setOrder(EMPTY_ORDER)
-    removedToast("Bestellung", () => setOrder(order))
+    removedToast("Bestellung", restoreOrder)
   }
 
   function pay(guestIds: string[]) {
@@ -104,8 +120,12 @@ export function PosPage() {
       action: {
         label: "Rückgängig",
         onClick: () => {
-          setOrder(order)
-          if (closed) setHistory((prev) => prev.filter((o) => o.id !== closed.id))
+          if (closed) {
+            restoreOrder()
+            setHistory((prev) => prev.filter((o) => o.id !== closed.id))
+          } else {
+            setOrder((now) => ({ ...now, guests: now.guests.map((g) => (guestIds.includes(g.id) ? { ...g, paid: false } : g)) }))
+          }
         },
       },
     })
@@ -191,16 +211,17 @@ export function PosPage() {
                 name={guestName(guest, index)}
                 selected={chosen.includes(guest)}
                 onSelect={(extend) => select(guest.id, extend)}
-                onLine={(lineId, patch) => setOrder(patchLine(order, guest.id, lineId, patch))}
+                onLine={(line, patch) => changeLine(guest, line, patch)}
                 onRemove={() => removeGuest(guest, index)}
               />
             ))}
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={addGuest}>
+            {/* Stays in view at the end of a long order instead of ending up half under the total. */}
+            <div className="flex items-center gap-2 bg-card @3xl:sticky @3xl:-bottom-3 @3xl:-mb-3 @3xl:pt-1 @3xl:pb-3">
+              <Button variant="outline" size="sm" onClick={addGuest} aria-label="Person hinzufügen">
                 <UserPlusIcon /> Person
               </Button>
               {chosen.length < open.length && (
-                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(open.map((g) => g.id))}>
+                <Button variant="outline" size="sm" onClick={() => setSelectedIds(open.map((g) => g.id))}>
                   Alle auswählen
                 </Button>
               )}
@@ -231,7 +252,7 @@ export function PosPage() {
 function Tiles({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="grid gap-2">
-      <h2 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{title}</h2>
+      <h2 className="text-xs font-medium text-muted-foreground">{title}</h2>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2">{children}</div>
     </div>
   )
@@ -244,8 +265,8 @@ function Tile({ name, price, detail, onClick }: { name: string; price: number; d
       onClick={onClick}
       className="flex min-h-20 flex-col gap-1 rounded-lg border bg-card p-3 text-left outline-none transition-colors select-none hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring active:translate-y-px"
     >
-      <span className="line-clamp-2 text-sm font-medium">{name.trim()}</span>
-      {detail && <span className="line-clamp-2 text-xs text-muted-foreground">{detail}</span>}
+      <span className="line-clamp-2 text-sm font-medium hyphens-auto">{name.trim()}</span>
+      {detail && <span className="line-clamp-2 text-xs text-muted-foreground hyphens-auto">{detail}</span>}
       <Price value={price} className="mt-auto self-start text-sm text-muted-foreground" />
     </button>
   )
@@ -264,7 +285,7 @@ function GuestCard({
   selected: boolean
   /** `extend` adds the person to the selection, or takes it out, instead of selecting only it. */
   onSelect: (extend: boolean) => void
-  onLine: (lineId: string, patch: Partial<Pick<Line, "qty" | "note">>) => void
+  onLine: (line: Line, patch: Partial<Pick<Line, "qty" | "note">>) => void
   onRemove: () => void
 }) {
   if (guest.paid) {
@@ -288,8 +309,19 @@ function GuestCard({
       className={cn("grid gap-2 rounded-lg border p-2 transition-colors", selected ? "border-selection-border bg-selection" : "hover:bg-accent/40")}
     >
       <div className="flex items-center gap-1">
-        <span className="min-w-0 flex-1 truncate px-1.5 text-sm font-medium select-none">{name}</span>
-        <Price value={guestTotal(guest)} className="bg-background/60 text-sm" />
+        {/* The keyboard's way to select the person; the pointer has the whole card. */}
+        <button
+          type="button"
+          aria-pressed={selected}
+          onClick={(e) => {
+            e.stopPropagation()
+            onSelect(e.shiftKey || e.ctrlKey || e.metaKey)
+          }}
+          className="min-w-0 flex-1 truncate rounded-sm px-1.5 text-left text-sm font-medium outline-none select-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {name}
+        </button>
+        <Price value={guestTotal(guest)} className="text-sm" />
         <Hint label={`${name} entfernen`}>
           <Button variant="ghost" size="icon-sm" onClick={onRemove} aria-label={`${name} entfernen`}>
             <XIcon />
@@ -305,13 +337,13 @@ function GuestCard({
             <Button
               variant="ghost"
               size="icon-xs"
-              onClick={() => onLine(line.id, { qty: line.qty - 1 })}
+              onClick={() => onLine(line, { qty: line.qty - 1 })}
               aria-label={line.qty > 1 ? `Ein ${line.name} weniger` : `${line.name} entfernen`}
             >
               {line.qty > 1 ? <MinusIcon /> : <Trash2Icon />}
             </Button>
             <span className="w-5 text-center font-mono text-sm">{line.qty}</span>
-            <Button variant="ghost" size="icon-xs" onClick={() => onLine(line.id, { qty: line.qty + 1 })} aria-label={`Ein ${line.name} mehr`}>
+            <Button variant="ghost" size="icon-xs" onClick={() => onLine(line, { qty: line.qty + 1 })} aria-label={`Ein ${line.name} mehr`}>
               <PlusIcon />
             </Button>
           </div>
@@ -320,10 +352,10 @@ function GuestCard({
           {line.parts && line.parts.length > 0 && <span className="col-start-2 col-end-4 text-xs text-muted-foreground">{line.parts.join(", ")}</span>}
           <input
             value={line.note}
-            onChange={(e) => onLine(line.id, { note: e.target.value })}
+            onChange={(e) => onLine(line, { note: e.target.value })}
             placeholder="Notiz, z. B. ohne Zwiebeln"
             aria-label={`Notiz zu ${line.name}`}
-            className="col-start-2 col-end-4 h-6 min-w-0 rounded-sm bg-transparent text-xs outline-none placeholder:text-muted-foreground/70 focus-visible:bg-background focus-visible:px-1 focus-visible:ring-2 focus-visible:ring-ring/50"
+            className="col-start-2 col-end-4 h-6 min-w-0 rounded-sm bg-transparent text-xs outline-none placeholder:text-muted-foreground/70 focus-visible:bg-background focus-visible:px-1 focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
       ))}

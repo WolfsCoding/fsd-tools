@@ -74,7 +74,7 @@ function CheckoutForm({ order, guestIds, onPay }: { order: OpenOrder; guestIds: 
               onChange={(e) => setGivenDraft(e.target.value)}
               inputMode="decimal"
               placeholder="optional"
-              className="font-mono"
+              className="tabular-nums"
               autoFocus
             />
           </div>

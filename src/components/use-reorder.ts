@@ -1,5 +1,10 @@
-import { useState, type DragEvent } from "react"
+import { useState, type DragEvent, type KeyboardEvent } from "react"
 import { cn } from "cn"
+
+const FOCUSABLE = "input, textarea, select, button, [contenteditable='true'], [tabindex]"
+
+/** For the `title` of a drag handle that has no hint of its own. */
+export const REORDER_HINT = "Ziehen oder Alt+↑/↓ zum Verschieben"
 
 /** `items` with the item at `from` moved to `to`. */
 export function move<T>(items: T[], from: number, to: number) {
@@ -21,7 +26,7 @@ interface Drag {
  * Drag-to-reorder for rows that are held by a handle. Only the held row is draggable,
  * so text inside the rows stays selectable. While dragging, the rows slide into the order
  * they would get, and the held one into its new place. With `axis` "x" they go side by
- * side, like the columns of a table.
+ * side, like the columns of a table. Alt+arrow moves the focused row by keyboard.
  */
 export function useReorder(onMove: (from: number, to: number) => void, axis: "x" | "y" = "y") {
   const [grabbed, setGrabbed] = useState<number>()
@@ -79,6 +84,22 @@ export function useReorder(onMove: (from: number, to: number) => void, axis: "x"
         finish()
       },
       onDragEnd: finish,
+      // The keyboard's way: Alt+arrow moves the row the focus is in, and the focus goes with it.
+      onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+        // An inner list's row (a table's in a block) has taken the key already.
+        if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.defaultPrevented) return
+        const [back, on] = axis === "y" ? ["ArrowUp", "ArrowDown"] : ["ArrowLeft", "ArrowRight"]
+        if (e.key !== back && e.key !== on) return
+        // Also for the first and last row, so the key doesn't move a list around this one instead.
+        e.preventDefault()
+        const to = i + (e.key === back ? -1 : 1)
+        const list = e.currentTarget.parentElement
+        const target = () => list?.querySelector<HTMLElement>(`:scope > [data-reorder-row="${to}"]`)
+        if (!target()) return
+        const at = [...e.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE)].indexOf(document.activeElement as HTMLElement)
+        onMove(i, to)
+        requestAnimationFrame(() => target()?.querySelectorAll<HTMLElement>(FOCUSABLE)[at]?.focus())
+      },
     }),
     handle: (i: number) => ({
       onPointerDown: () => setGrabbed(i),

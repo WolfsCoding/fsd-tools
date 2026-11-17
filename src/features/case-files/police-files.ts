@@ -51,7 +51,7 @@ export const POLICE_FILES_KIND: CaseFileKind = {
   empty: {
     title: "Noch keine Akten",
     description:
-      "Felder ausfüllen, Werte mit Spanne würfeln, dann das fertige Markdown mit einem Klick kopieren. Leere Felder behalten den Platzhalter der Vorlage, leere Tabellen bleiben leer.",
+      "Leg eine Akte an, füll die Felder aus und kopier das fertige Markdown mit einem Klick.",
   },
 }
 

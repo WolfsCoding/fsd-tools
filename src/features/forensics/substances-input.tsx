@@ -9,7 +9,7 @@ import { Slider } from "@/components/ui/slider"
 import { Combobox } from "@/components/combobox"
 import type { Step } from "@/components/step-dialog"
 import { AddRow, BOX, CELL_COMBOBOX, CELL_INPUT, DiceButton, END, FULL, Labeled, LEAD, RangeInput, RemoveCell, SHORT } from "@/features/case-files/doc-form"
-import { move, useReorder } from "@/components/use-reorder"
+import { move, REORDER_HINT, useReorder } from "@/components/use-reorder"
 import { formatNumber, parseNumber, rangeLabel, withUnit, type Range } from "@/features/case-files/range"
 import { tableRows, type CustomFieldProps } from "@/features/case-files/templates"
 import type { Row, Value } from "@/features/case-files/types"
@@ -145,7 +145,7 @@ function Totals({ value }: { value: Value | undefined }) {
                         formatFine(fine)
                       ) : (
                         <Hint label={`Kein Betäubungsmittel nach ${POSSESSION.ref}`}>
-                          <span className="text-muted-foreground">--</span>
+                          <span className="text-muted-foreground">—</span>
                         </Hint>
                       )}
                     </td>
@@ -297,7 +297,7 @@ function ItemStep({ row, set, replace }: Draft) {
         </div>
       </Labeled>
       <Labeled id={`${id}-anmerkung`} label="Anmerkung" className={FULL}>
-        <Input id={`${id}-anmerkung`} value={row.anmerkung ?? ""} onChange={(e) => set({ anmerkung: e.target.value })} placeholder="--" />
+        <Input id={`${id}-anmerkung`} value={row.anmerkung ?? ""} onChange={(e) => set({ anmerkung: e.target.value })} placeholder="—" />
       </Labeled>
     </div>
   )
@@ -363,6 +363,7 @@ function FindingStep({ row, set, result }: Pick<Draft, "row" | "set"> & { result
           <li key={f.id} {...reorder.row(i)} className={cn("group flex items-stretch focus-within:bg-accent/20", reorder.rowClass(i))}>
             <span
               {...reorder.handle(i)}
+              title={REORDER_HINT}
               className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
             >
               <GripVerticalIcon className="size-3.5 group-focus-within:text-foreground" />
@@ -375,7 +376,7 @@ function FindingStep({ row, set, result }: Pick<Draft, "row" | "set"> & { result
                 all
                 placeholder={CONCLUSION}
                 aria-label={`Punkt ${i + 1}, Titel`}
-                className={cn(CELL_COMBOBOX, "font-medium text-primary")}
+                className={cn(CELL_COMBOBOX, "font-medium text-link")}
               />
             </div>
             {/* Grows with its text; a point stays one paragraph, so Enter adds no line. */}
@@ -413,7 +414,7 @@ function FindingStep({ row, set, result }: Pick<Draft, "row" | "set"> & { result
                 onCheckedChange={() => toggle(preset)}
                 className="grid gap-0.5"
               >
-                <span className="text-xs font-medium text-primary">{preset[0]}</span>
+                <span className="text-xs font-medium text-link">{preset[0]}</span>
                 <span>{preset[1]}</span>
               </DropdownMenuCheckboxItem>
             ))}
@@ -544,7 +545,7 @@ function Composition({ row }: { row: Row }) {
             <li key={x.label} className="flex items-center gap-2">
               <span className={cn("size-2 shrink-0 rounded-full", shown ? x.color : "bg-muted-foreground/40")} />
               <span className="min-w-0 flex-1 truncate">{x.label}</span>
-              <span className="tabular-nums text-muted-foreground">{shown ? withUnit(formatNumber(x.value, x.decimals), "%") : "--"}</span>
+              <span className="tabular-nums text-muted-foreground">{shown ? withUnit(formatNumber(x.value, x.decimals), "%") : "—"}</span>
             </li>
           )
         })}

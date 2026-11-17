@@ -51,7 +51,7 @@ export function SettingsRow({
           <Label htmlFor={htmlFor} className="text-sm font-medium">
             {title}
           </Label>
-          {description && <p className="text-xs text-muted-foreground">{description}</p>}
+          {description && <p className="text-xs text-muted-foreground tabular-nums">{description}</p>}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-2">{children}</div>

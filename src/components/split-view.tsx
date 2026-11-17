@@ -121,7 +121,7 @@ export function SplitLayout({ children }: { children: ReactNode }) {
               className={cn(
                 "flex flex-1 items-center justify-center rounded-xl border-2 border-dashed text-sm font-medium transition-colors duration-150",
                 side === dropSide
-                  ? "border-primary bg-primary/10 text-primary"
+                  ? "border-primary bg-primary/10 text-link"
                   : "border-transparent text-transparent",
               )}
             >
@@ -161,7 +161,7 @@ export function SplitLayout({ children }: { children: ReactNode }) {
                 e.preventDefault()
                 resizeTo(ratio + step)
               }}
-              className="group flex w-1 shrink-0 cursor-col-resize justify-center outline-none animate-in fade-in-0 duration-300"
+              className="group flex w-1 shrink-0 cursor-col-resize justify-center outline-none animate-in fade-in-0 duration-300 ease-out-quint"
             >
               <span
                 className={cn(

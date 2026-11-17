@@ -20,7 +20,7 @@ export const CASE_TYPES: CaseType[] = [
   { id: "sa", label: "Sammelakte", prefix: "Sa", template: "sammelakte" },
   { id: "speed", label: "Speedingticket", prefix: "Speed", template: "geschwindigkeit" },
   // Its Beschreibung is built from blocks.
-  { id: "eigene", label: "Eigene", prefix: "", template: "eigene" },
+  { id: "eigene", label: "Eigene Akte", prefix: "", template: "eigene" },
 ]
 
 export function caseType(id: string) {

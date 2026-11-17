@@ -3,6 +3,7 @@ import { cn } from "cn"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
+import { isOnToast } from "@/lib/modal"
 import { XIcon } from "lucide-react"
 
 function Dialog({
@@ -37,7 +38,7 @@ function DialogOverlay({
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/20 duration-100 dark:bg-black/40 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/20 duration-200 ease-out-quint dark:bg-black/40 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:duration-160 data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -49,6 +50,8 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onEscapeKeyDown,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -60,8 +63,18 @@ function DialogContent({
           panel (DialogPanel), with the footer sitting on the frame below it. */}
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        // Radix sees Escape before the focused field does; a field that uses it itself
+        // (clearing a search, cancelling an inline edit) keeps the dialog open.
+        onEscapeKeyDown={(e) => {
+          if (e.target instanceof Element && e.target.closest("[data-handles-escape]")) e.preventDefault()
+          onEscapeKeyDown?.(e)
+        }}
+        onInteractOutside={(e) => {
+          if (isOnToast(e.target)) e.preventDefault()
+          onInteractOutside?.(e)
+        }}
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 flex w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl bg-popover p-1.5 text-sm text-popover-foreground shadow-2xl shadow-black/40 ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 flex w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-2xl bg-popover p-1.5 text-sm text-popover-foreground shadow-modal ring-1 ring-foreground/10 duration-200 ease-out-quint outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:duration-160 data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
@@ -91,7 +104,7 @@ function DialogPanel({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-panel"
       className={cn(
-        "grid min-h-0 gap-4 rounded-xl bg-card p-4 ring-1 ring-border",
+        "grid min-h-0 gap-4 rounded-[calc(var(--radius-2xl)-0.375rem)] bg-card p-4 ring-1 ring-border",
         className
       )}
       {...props}
@@ -160,7 +173,7 @@ function DialogDescription({
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        "text-sm text-muted-foreground *:[a]:underline *:[a]:hover:text-foreground",
         className
       )}
       {...props}

@@ -656,7 +656,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                   focusAfter(after.id)
                   insertAfter(i, after)
                 }}
-                className="h-8 w-72 max-w-full rounded-md border bg-popover px-2.5 text-center text-sm shadow-md outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring"
+                className="h-8 w-72 max-w-full rounded-md border bg-popover px-2.5 text-center text-sm shadow-overlay outline-none placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-ring"
               />
             )
             // The input stays in place when the picture comes in, so typing the title goes on.
@@ -717,7 +717,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                 <div className="relative self-center">
                 {/* Not modal: a modal menu would take back the focus its items move to a new row or block. */}
                 <DropdownMenu modal={false} open={menu === b.id} onOpenChange={(open) => setMenu(open ? b.id : null)}>
-                  <Hint label="Ziehen zum Verschieben, klicken für Menü">
+                  <Hint label="Ziehen oder Alt+↑/↓ zum Verschieben, klicken für Menü">
                     {/* A press may start a drag, so the menu opens on the click instead of the trigger's pointerdown. */}
                     <button
                       type="button"
@@ -725,7 +725,7 @@ export function BlockEditor({ values, onChange, onUpdate }: DocFormProps) {
                       {...reorder.handle(i)}
                       onClick={() => setMenu(b.id)}
                       className={cn(
-                        "relative flex h-6 w-4 cursor-grab items-center justify-center rounded-md border bg-popover text-muted-foreground shadow-sm hover:text-foreground active:cursor-grabbing",
+                        "relative flex h-6 w-4 cursor-grab items-center justify-center rounded-md border bg-popover text-muted-foreground shadow-raised hover:text-foreground active:cursor-grabbing",
                         menu === b.id && "bg-accent text-foreground",
                       )}
                     >
@@ -936,7 +936,7 @@ function TableBlock({
   })
   const rowGrip = (r: number) => (
     <EdgeGrip
-      label={`Zeile ${r + 1}: ziehen zum Verschieben, klicken für Menü`}
+      label={`Zeile ${r + 1}: ziehen oder Alt+↑/↓ zum Verschieben, klicken für Menü`}
       vertical
       show={hover?.r === r}
       {...gripOpen(true, r)}
@@ -963,7 +963,7 @@ function TableBlock({
     const x = shown[d]
     return (
       <EdgeGrip
-        label={`${x === "#" ? "Nummerierung" : `Spalte ${d + 1}`}: ziehen zum Verschieben, klicken für Menü`}
+        label={`${x === "#" ? "Nummerierung" : `Spalte ${d + 1}`}: ziehen oder Alt+←/→ zum Verschieben, klicken für Menü`}
         show={hover?.d === d}
         {...gripOpen(false, d)}
         {...columnOrder.handle(d)}
@@ -1186,7 +1186,7 @@ function EdgeGrip({
         />
         <span
           className={cn(
-            "hidden size-full items-center justify-center rounded-md border bg-popover text-muted-foreground shadow-sm group-hover/grip:flex",
+            "hidden size-full items-center justify-center rounded-md border bg-popover text-muted-foreground shadow-raised group-hover/grip:flex",
             open && "flex text-foreground",
           )}
         >

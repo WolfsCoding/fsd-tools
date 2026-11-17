@@ -32,6 +32,7 @@ export function InlineEdit({
     placeholder,
     value: draft,
     "aria-label": ariaLabel,
+    "data-handles-escape": "",
     onBlur: finish,
     // The field may sit inside a toggle or link; clicks and keys must not reach it.
     onClick: (e: MouseEvent) => e.stopPropagation(),
@@ -44,7 +45,7 @@ export function InlineEdit({
       } else if (e.key === "Escape") onDone(undefined)
     },
     onKeyUp: (e: KeyboardEvent) => e.preventDefault(),
-    className: cn("-mx-1 w-full min-w-0 rounded-sm bg-background px-1 ring-2 ring-ring/50 outline-none", className),
+    className: cn("-mx-1 w-full min-w-0 rounded-sm bg-background px-1 ring-2 ring-ring outline-none", className),
   }
   return multiline ? (
     <textarea

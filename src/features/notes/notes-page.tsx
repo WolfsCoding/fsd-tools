@@ -17,7 +17,7 @@ import {
 import { useRegisterCommands, type CommandGroupDef } from "@/hooks/use-command-palette"
 import { useTabTitle, useTabTrail } from "@/hooks/use-tabs"
 import { removedToast } from "@/lib/undo"
-import { byPosition, type Item, type Place } from "./arrange"
+import { byPosition, type Item, type MoveTarget, type Place } from "./arrange"
 import { useAfterMenuClose } from "./use-after-menu-close"
 import { folderName, folderSubtree, folderTrail, useNoteFolders } from "./folders"
 import { NoteList } from "./note-list"
@@ -144,6 +144,19 @@ export function NotesPage() {
     )
   }
 
+  /** Every folder but the one `item` is in; for a folder, also not itself or one inside it. */
+  function moveTargets(item: Item): MoveTarget[] {
+    const at = placeOf(
+      item.kind === "note" ? notes.find((n) => n.id === item.id)?.folderId : folders.find((f) => f.id === item.id)?.parentId,
+    )
+    const own = item.kind === "folder" ? folderSubtree(folders, item.id) : new Set<string>()
+    const inFolders = folders
+      .filter((f) => !own.has(f.id))
+      .map((f) => ({ id: f.id, label: folderTrail(folders, f.id).map(folderName).join(" › ") }))
+      .sort((a, b) => a.label.localeCompare(b.label, "de"))
+    return [{ id: undefined, label: "Oberste Ebene" }, ...inFolders].filter((t) => t.id !== at)
+  }
+
   function renameFolder(folder: NoteFolder, name: string | undefined) {
     setRenaming(null)
     if (name === undefined) return
@@ -219,6 +232,7 @@ export function NotesPage() {
               parent={current && !q ? { id: placeOf(trail.at(-1)?.parentId) } : undefined}
               // The results of a search come from all folders, so they keep their places.
               onArrange={q ? undefined : arrange}
+              moveTargets={moveTargets}
               empty={
                 q ? (
                   <NoResults query={query} onReset={() => setQuery("")} />

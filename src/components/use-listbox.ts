@@ -44,6 +44,8 @@ export function useListbox<T>({
     index,
     /** Makes the first option the active one again, e.g. after typing. */
     reset: () => setActive(0),
+    /** Makes option `i` the active one, e.g. the current value when the list opens. */
+    activate: (i: number) => setActive(Math.max(i, 0)),
     inputProps: {
       role: "combobox",
       "aria-expanded": expanded,

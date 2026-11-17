@@ -7,7 +7,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme="dark"
       containerAriaLabel="Benachrichtigungen"
-      className="toaster group"
+      // An open dialog makes the body inert to the pointer; a toast's "Rückgängig" must stay clickable.
+      className="toaster group pointer-events-auto"
       icons={{
         success: (
           <CircleCheckIcon className="size-4" />

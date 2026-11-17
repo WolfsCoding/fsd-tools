@@ -20,6 +20,7 @@ import {
   type CommandGroupDef,
 } from "@/hooks/use-command-palette"
 import { useEnabledFeatures } from "@/hooks/use-settings"
+import { modalOpen } from "@/lib/modal"
 import {
   routeOf,
   TabsContext,
@@ -88,14 +89,6 @@ function withTabs(state: TabsState, tabs: Tab[]): TabsState {
     Object.entries(state.trails ?? {}).filter(([path]) => paths.has(path)),
   )
   return { ...state, tabs, titles, trails }
-}
-
-function isEditable(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
-  )
 }
 
 /**
@@ -424,6 +417,14 @@ export function TabsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (modalOpen()) return
+      // Strg+Tab goes to the next tab, with Umschalt to the one before. Alt+←/→ are the
+      // toolbar's back and forward (nav-bar.tsx).
+      if (e.key === "Tab" && e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault()
+        cycle(e.shiftKey ? -1 : 1)
+        return
+      }
       if (!e.altKey || e.ctrlKey || e.metaKey) return
       // e.code, because Alt changes e.key on macOS (Option+W types "∑").
       if (e.code === "KeyW" && !e.shiftKey && activeId) {
@@ -432,14 +433,6 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       } else if (e.code === "KeyT" && e.shiftKey) {
         e.preventDefault()
         reopenClosed()
-      } else if (
-        (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
-        !e.shiftKey &&
-        !isEditable(e.target)
-      ) {
-        // Also keeps Alt+← from triggering the browser's back navigation.
-        e.preventDefault()
-        cycle(e.key === "ArrowLeft" ? -1 : 1)
       }
     }
     document.addEventListener("keydown", onKeyDown)
@@ -472,7 +465,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
         },
         {
           id: "tabs:pin",
-          label: active.pinned ? "Tab lösen" : "Tab anheften",
+          label: active.pinned ? "Tab loslösen" : "Tab anheften",
           icon: PinIcon,
           onSelect: () => togglePin(active.id),
         },
@@ -498,7 +491,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
         id: "tabs:reopen",
         label: "Geschlossenen Tab wiederherstellen",
         icon: RotateCcwIcon,
-        hint: "Alt ⇧ T",
+        hint: "Alt Umschalt T",
         onSelect: reopenClosed,
       })
     }

@@ -34,7 +34,6 @@ export function OfficersSettings() {
                 onChange={(v) => setOfficer(i, (x) => ({ ...x, name: v }))}
                 label={`Name (Zeile ${i + 1})`}
                 placeholder="Officer I Ryan Shaw"
-                code
               />
             ),
           },

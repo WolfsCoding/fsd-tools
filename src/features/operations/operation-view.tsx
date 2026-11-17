@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useId, useMemo, useState, type ReactNode } from "react"
 import { useNavigate, useSearchParams } from "react-router"
 import { EllipsisIcon, FolderOpenIcon, FolderPlusIcon, PencilIcon, Trash2Icon } from "lucide-react"
 import { toast } from "sonner"
@@ -33,7 +33,7 @@ import type { OperationsApi } from "./use-operations"
 import { VehiclesTab } from "./vehicles-tab"
 
 const TABS = [
-  { id: "streifen", label: "Streifen" },
+  { id: "streifen", label: "Streifenblatt" },
   { id: "bereichsleitung", label: "Bereichsleitung" },
   { id: "personen", label: "Personen" },
   { id: "fahrzeuge", label: "Fahrzeuge" },
@@ -63,6 +63,7 @@ export function OperationView({
   // The open tab is part of the URL, so reloading and going back keep it.
   const [params, setParams] = useSearchParams()
   const tab: TabId = TABS.find((t) => t.id === params.get("tab"))?.id ?? "streifen"
+  const tabsId = useId()
   const setTab = (next: TabId) =>
     setParams(
       (prev) => {
@@ -143,7 +144,7 @@ export function OperationView({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-60" onCloseAutoFocus={(e) => e.preventDefault()}>
                 <DropdownMenuItem onSelect={() => setEditing(true)}>
-                  <PencilIcon /> Einsatz bearbeiten
+                  <PencilIcon /> Einsatz bearbeiten…
                 </DropdownMenuItem>
                 {linked && (
                   <DropdownMenuItem onSelect={createCollectiveFile}>
@@ -159,7 +160,7 @@ export function OperationView({
           </div>
         </div>
 
-        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 text-xs sm:grid-cols-4">
+        <dl className="mt-4 grid grid-cols-2 gap-x-8 gap-y-3 text-xs sm:grid-cols-4 short:hidden">
           <Meta label="Fallakte">{operation.fallakte || "—"}</Meta>
           <Meta label="Funk">{operation.funk || "—"}</Meta>
           <Meta label="Ort">{operation.ort || "—"}</Meta>
@@ -174,6 +175,8 @@ export function OperationView({
                 key={t.id}
                 type="button"
                 role="tab"
+                id={`${tabsId}-${t.id}`}
+                aria-controls={`${tabsId}-panel`}
                 aria-selected={selected}
                 tabIndex={selected ? 0 : -1}
                 data-tab={index}
@@ -202,7 +205,13 @@ export function OperationView({
 
       <div className="flex min-h-0 flex-1">
         {/* Keyed by tab, so switching tabs fades the new one in. */}
-        <div key={tab} role="tabpanel" className="min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6">
+        <div
+          key={tab}
+          role="tabpanel"
+          id={`${tabsId}-panel`}
+          aria-labelledby={`${tabsId}-${tab}`}
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto px-6 py-6"
+        >
           {tabPanel[tab]}
         </div>
         <InfoPanel operation={operation} onChange={onChange} />

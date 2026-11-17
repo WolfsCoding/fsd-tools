@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from "react"
 import { Combobox } from "@/components/combobox"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogTitle } from "@/components/ui/dialog"
+import { useDraftGuard } from "@/hooks/use-draft-guard"
 import { Input } from "@/components/ui/input"
 import { Labeled } from "@/features/case-files/doc-form"
 import type { Operation } from "./types"
@@ -22,9 +23,10 @@ export function EditOperationDialog({
   onSave: (details: OperationDetails) => void
   onClose: () => void
 }) {
+  const guard = useDraftGuard(!!operation)
   return (
     <Dialog open={!!operation} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg" {...guard}>
         {/* Mounted per opening, so it always starts from the operation as it is. */}
         {operation && <EditForm key={operation.id} operation={operation} officers={officers} me={me} onSave={onSave} onCancel={onClose} />}
       </DialogContent>

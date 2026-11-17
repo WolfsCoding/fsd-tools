@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from "react"
 import { ChevronsUpDownIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogPanel, DialogTitle } from "@/components/ui/dialog"
+import { useDraftGuard } from "@/hooks/use-draft-guard"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -32,9 +33,10 @@ export function EditCaseFileDialog({
   onSave: (details: CaseFileDetails) => void
   onClose: () => void
 }) {
+  const guard = useDraftGuard(!!caseFile)
   return (
     <Dialog open={!!caseFile} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] sm:max-w-lg" {...guard}>
         {/* Mounted per opening, so it always starts from the case file as it is. */}
         {caseFile && <EditForm key={caseFile.id} caseFile={caseFile} kind={kind} me={me} onSave={onSave} onCancel={onClose} />}
       </DialogContent>

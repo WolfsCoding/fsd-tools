@@ -72,9 +72,9 @@ export function PeopleTab({
           type="button"
           onClick={() => setOpen({ id: p.id, part })}
           aria-label={`${PARTS[part].title} (Zeile ${i + 1}): ${text || "offen"}`}
-          className="flex h-10 w-full items-center gap-2 px-3 text-left text-sm outline-none hover:bg-accent/30 focus-visible:bg-accent/30"
+          className="flex h-10 w-full items-center gap-2 px-3 text-left text-sm outline-none hover:bg-accent/30 focus-visible:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
         >
-          <span className={cn("flex-1 truncate", !text && "text-muted-foreground/60")}>{text || "Offen"}</span>
+          <span className={cn("flex-1 truncate", !text && "text-muted-foreground")}>{text || "Offen"}</span>
           <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground" />
         </button>
       )
@@ -85,7 +85,8 @@ export function PeopleTab({
     {
       key: "name",
       label: "Name",
-      wide: true,
+      // Room for the name next to its ID chip and the toggle.
+      width: "min-w-64",
       cell: (p, i) => (
         <DnaPicker
           value={p.name}
@@ -100,6 +101,7 @@ export function PeopleTab({
     {
       key: "beamter",
       label: "Zuständiger Beamter",
+      wide: true,
       cell: (p, i) => (
         <Combobox
           value={p.beamter}

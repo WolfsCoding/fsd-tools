@@ -122,7 +122,7 @@ export function UpdateButton() {
           className="max-w-[min(24rem,calc(100vw-2rem))] flex-col items-stretch gap-0 px-2 py-1 text-left"
         >
           <div className="shrink-0 px-1">
-            <div className="whitespace-nowrap text-sm leading-5 font-medium">{titleOf(state)}</div>
+            <div className="whitespace-nowrap text-sm leading-5 font-medium tabular-nums">{titleOf(state)}</div>
             <div className="mt-0.5 text-xs leading-4 text-tooltip-foreground/60">{subtitleOf(state)}</div>
           </div>
           {releases.length > 0 && (
@@ -248,7 +248,7 @@ function ReleaseChanges({ title, version, changes }: { title: string; version: s
         href={`${RELEASES_URL}/tag/v${version}`}
         target="_blank"
         rel="noreferrer"
-        className="mt-2 inline-flex items-center gap-1 rounded-sm text-xs leading-5 text-tooltip-foreground/60 underline decoration-dotted underline-offset-4 outline-none transition-colors hover:text-tooltip-foreground focus-visible:text-tooltip-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+        className="mt-2 inline-flex items-center gap-1 rounded-sm text-xs leading-5 text-tooltip-foreground/60 underline decoration-dotted outline-none transition-colors hover:text-tooltip-foreground focus-visible:text-tooltip-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
       >
         {hidden <= 0
           ? "Release auf GitHub ansehen"

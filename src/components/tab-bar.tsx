@@ -23,6 +23,11 @@ import { TAB_DRAG_TYPE, useTabs, type Tab } from "@/hooks/use-tabs"
 
 type DropTarget = { id: string; side: "before" | "after" }
 
+// The hidden ::after holds the bold width, so a split tab, sized by its titles, keeps its width
+// when it becomes active. A block rather than a grid cell: text-overflow needs a block container.
+const TAB_LABEL =
+  "truncate after:invisible after:block after:h-0 after:overflow-hidden after:font-semibold after:content-[attr(data-text)]"
+
 /**
  * Tabs in the title bar like Windows 11's File Explorer: the active one is joined to
  * the toolbar below, the others sit flat on the frame. The free space drags the
@@ -221,18 +226,18 @@ function TabItem({
             )}
           >
             {feature && <feature.icon className="size-4 shrink-0" />}
-            <span className="truncate">{title}</span>
+            <span data-text={title} className={TAB_LABEL}>{title}</span>
             {tab.split && (
               <>
                 <span aria-hidden className="h-4 w-px shrink-0 bg-foreground/20" />
                 {splitFeature && <splitFeature.icon className="size-4 shrink-0" />}
-                <span className="truncate">{titleOfPath(tab.split)}</span>
+                <span data-text={titleOfPath(tab.split)} className={TAB_LABEL}>{titleOfPath(tab.split)}</span>
               </>
             )}
             <button
               type="button"
               tabIndex={-1}
-              aria-label={tab.pinned ? "Tab lösen" : "Tab schließen"}
+              aria-label={tab.pinned ? "Tab loslösen" : "Tab schließen"}
               onClick={(e) => {
                 e.stopPropagation()
                 if (tab.pinned) togglePin(tab.id)
@@ -252,7 +257,7 @@ function TabItem({
             {dropSide && (
               <span
                 className={cn(
-                  "absolute top-1 bottom-2 w-0.5 rounded-full bg-primary animate-in duration-150 fade-in-0",
+                  "absolute top-1 bottom-2 w-0.5 rounded-full bg-primary animate-in duration-150 ease-out-quint fade-in-0",
                   dropSide === "before" ? "-left-px" : "-right-px",
                 )}
               />
@@ -260,7 +265,7 @@ function TabItem({
           </div>
         </ContextMenuTrigger>
       </Hint>
-      <ContextMenuContent className="w-60">
+      <ContextMenuContent className="w-72">
         <ContextMenuItem onSelect={() => closeTabs(tab.id)}>
           Schließen
           {active && <ContextMenuShortcut>Alt W</ContextMenuShortcut>}
@@ -294,7 +299,7 @@ function TabItem({
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onSelect={() => togglePin(tab.id)}>
-          {tab.pinned ? "Tab lösen" : "Tab anheften"}
+          {tab.pinned ? "Tab loslösen" : "Tab anheften"}
         </ContextMenuItem>
         <ContextMenuItem onSelect={() => duplicate(tab.id)}>
           Tab duplizieren
@@ -318,8 +323,8 @@ function TabItem({
         )}
         <ContextMenuSeparator />
         <ContextMenuItem disabled={!canReopen} onSelect={reopenClosed}>
-          Geschlossenen Tab wiederherstellen
-          <ContextMenuShortcut>Alt ⇧ T</ContextMenuShortcut>
+          Tab wiederherstellen
+          <ContextMenuShortcut>Alt Umschalt T</ContextMenuShortcut>
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>

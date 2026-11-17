@@ -4,7 +4,6 @@ import {
   ChevronDownIcon,
   EllipsisIcon,
   EyeIcon,
-  FileTextIcon,
   FolderInputIcon,
   FolderOpenIcon,
   PencilIcon,
@@ -89,38 +88,20 @@ export function CaseFilesPage({ kind = POLICE_FILES_KIND }: { kind?: CaseFileKin
     [deleteCaseFile, restoreCaseFile, kind, me],
   )
 
-  // One line per case file: typing changes the case files on every key, but this only when a title changes,
-  // so the palette doesn't register its commands again each time.
-  const listed = api.caseFiles
-    .map((a) => [a.id, caseFileTitle(a, me, kind.templates), aktenzeichen(a)].join("\t"))
-    .join("\n")
+  // The Akten themselves are in the palette from every page (global-commands.tsx).
   const commandGroups = useMemo<CommandGroupDef[]>(
     () => [
       {
         heading: kind.title,
         items: CASE_TYPES.map((t) => ({
           id: `${kind.id}:new:${t.id}`,
-          label: `Neue ${t.label}`,
+          label: `${t.label} anlegen`,
           icon: PlusIcon,
           onSelect: () => setCreating(t.id),
         })),
       },
-      {
-        heading: `Alle ${kind.title}`,
-        actionLabel: `${kind.noun} öffnen`,
-        items: (listed ? listed.split("\n") : []).map((line) => {
-          const [id, label, number] = line.split("\t")
-          return {
-            id: `${kind.id}:${id}`,
-            label,
-            keywords: number ? [number] : [],
-            icon: FileTextIcon,
-            onSelect: () => navigate(casePath(kind, id)),
-          }
-        }),
-      },
     ],
-    [listed, kind, navigate],
+    [kind],
   )
   useRegisterCommands(kind.id, commandGroups)
 
@@ -159,7 +140,9 @@ function CaseFileRoute({
 }
 
 /** Room right of a column, so the columns stand apart. */
-const GAP = "pr-20"
+const GAP = "pr-8"
+/** For the Ablage column: left out where the list is narrow (a split view, a small window), so the name keeps its room. */
+const NARROW_HIDDEN = "hidden @3xl:table-cell"
 /** The filter value that hides nothing. */
 const ALL = "alle"
 
@@ -217,7 +200,7 @@ function CaseFileList({
 
   const actions = (a: CaseFile<string>): ItemAction[] => [
     { label: "Vorschau", icon: EyeIcon, onSelect: () => navigate(casePath(kind, a.id), { state: { preview: true } }) },
-    { label: "Bearbeiten", icon: PencilIcon, onSelect: () => setEditingId(a.id) },
+    { label: "Bearbeiten…", icon: PencilIcon, onSelect: () => setEditingId(a.id) },
     { label: "Löschen", icon: Trash2Icon, onSelect: () => onDelete(a), destructive: true },
   ]
 
@@ -234,12 +217,13 @@ function CaseFileList({
             <TableCell className={GAP}>
               <StatusBadge status={statusOf(a)} />
             </TableCell>
-            <TableCell className={GAP}>
+            <TableCell className={cn(GAP, NARROW_HIDDEN)}>
               {a.ablage ? <WithIds text={ablageLabel(a, entries)} /> : <span className="text-muted-foreground">—</span>}
             </TableCell>
-            <TableCell className="w-full max-w-0 truncate font-medium">
+            <TableCell className="w-full max-w-0 min-w-32 truncate font-medium">
               <Link
                 to={casePath(kind, a.id)}
+                title={title}
                 onKeyDown={(e) => {
                   if (e.key === "F2") {
                     e.preventDefault()
@@ -356,14 +340,14 @@ function CaseFileList({
         <Home kind={kind} onNew={onNew} />
       ) : (
         shown.length > 0 && (
-          <div className="overflow-hidden rounded-lg border">
+          <div className="@container overflow-hidden rounded-lg border">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow className="hover:bg-transparent">
                   <TableHead className={GAP}>Aktenzeichen</TableHead>
                   <TableHead className={GAP}>Datum</TableHead>
                   <TableHead className={GAP}>Status</TableHead>
-                  <TableHead className={GAP}>Ablage</TableHead>
+                  <TableHead className={cn(GAP, NARROW_HIDDEN)}>Ablage</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead className="w-0">
                     <span className="sr-only">Aktionen</span>
@@ -404,7 +388,7 @@ function CaseFileList({
 /** Shown while nothing was created yet. */
 function Home({ kind, onNew }: { kind: CaseFileKind; onNew: () => void }) {
   return (
-    <Empty className="p-6">
+    <Empty className="min-h-full">
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <FolderOpenIcon />

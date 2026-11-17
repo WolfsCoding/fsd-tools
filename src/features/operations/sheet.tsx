@@ -12,6 +12,8 @@ export interface SheetColumn<R> {
   wide?: boolean
   /** Just wide enough for a short choice, e.g. Ja or Nein. */
   narrow?: boolean
+  /** A width of its own, e.g. "min-w-64" for a name with its ID chip. */
+  width?: string
   cell: (row: R, i: number) => ReactNode
 }
 
@@ -36,7 +38,7 @@ export function SheetTable<R extends { id: string }>({
 }) {
   return (
     <div className={cn(BOX, "overflow-x-auto")}>
-      <table className="w-full border-separate border-spacing-0 text-sm">
+      <table className="w-full border-separate border-spacing-0 text-sm tabular-nums">
         <thead>
           <tr className="bg-muted/50 text-xs text-muted-foreground *:border-b">
             <th className="w-10 min-w-10 border-r border-border/60">
@@ -47,7 +49,7 @@ export function SheetTable<R extends { id: string }>({
                 key={c.key}
                 className={cn(
                   "h-9 border-r border-border/60 px-3 text-left font-medium whitespace-nowrap",
-                  c.narrow ? "w-32" : c.wide ? "min-w-48" : "min-w-32",
+                  c.width ?? (c.narrow ? "w-32" : c.wide ? "min-w-48" : "min-w-36"),
                 )}
               >
                 {c.label}
@@ -61,7 +63,7 @@ export function SheetTable<R extends { id: string }>({
         <tbody>
           {rows.map((row, i) => (
             <tr key={row.id} className="group focus-within:bg-accent/20 *:border-b">
-              <td className="w-10 min-w-10 border-r border-border/60 bg-muted/50 p-0 text-center text-xs text-muted-foreground tabular-nums">
+              <td className="w-10 min-w-10 border-r border-border/60 bg-muted/50 p-0 text-center text-xs text-muted-foreground">
                 {lead ? lead.cell(row, i) : i + 1}
               </td>
               {columns.map((c) => (
@@ -97,7 +99,7 @@ const CODE_CELL = "flex h-10 cursor-text items-center px-3 [&>div]:flex-1"
 // The combobox's input brings its own size, border and focus ring; these undo them.
 const CODE_COMBOBOX = cn(
   CHIP_INPUT,
-  "h-5 w-auto border-0 py-0 md:text-[0.8em] focus-visible:border-0 focus-visible:ring-1 focus-visible:ring-ring",
+  "h-5 w-auto max-w-[calc(100%-1.75rem)] border-0 py-0 md:text-[0.8em] focus-visible:border-0 focus-visible:ring-1 focus-visible:ring-ring",
 )
 
 /** A plain text cell; `code` shows its value as inline code. */
@@ -157,7 +159,8 @@ export function SheetSection({
         </div>
         {actions}
       </div>
-      <div>{children}</div>
+      {/* min-w-0: a wide table scrolls inside its box instead of widening the section. */}
+      <div className="min-w-0">{children}</div>
     </section>
   )
 }

@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
-import { move, useReorder } from "@/components/use-reorder"
+import { move, REORDER_HINT, useReorder } from "@/components/use-reorder"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from "@/components/ui/context-menu"
@@ -125,7 +125,9 @@ export function DocForm({
             <PlayIcon className="size-2.5 shrink-0 fill-current text-foreground transition-transform group-aria-expanded/accordion-trigger:rotate-90" />
             <span className="grid min-w-0 flex-1 gap-0.5">
               <span className="truncate text-base font-semibold">{s.title}</span>
-              <span className="truncate text-xs font-normal text-muted-foreground">{s.description}</span>
+              <span title={s.description} className="truncate text-xs font-normal text-muted-foreground">
+                {s.description}
+              </span>
             </span>
           </AccordionTrigger>
           <AccordionContent className="flex flex-wrap gap-x-3 gap-y-4 border-t p-4">
@@ -245,7 +247,7 @@ export function Labeled({
         )}
       </label>
       {children}
-      {hint && <p className="text-xs text-muted-foreground/70">{hint}</p>}
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   )
 }
@@ -298,7 +300,7 @@ export const LEAD = "flex w-10 shrink-0 items-center justify-center border-r bor
 export const END = "flex w-10 shrink-0 items-center justify-center border-l border-border/60"
 /** A combobox that fills its cell, without a border of its own. */
 export const CELL_COMBOBOX =
-  "h-10 rounded-none border-0 bg-transparent px-3 shadow-none placeholder:text-muted-foreground/60 focus-visible:bg-accent/30 focus-visible:ring-0 dark:bg-transparent"
+  "h-10 rounded-none border-0 bg-transparent pr-8 pl-3 text-ellipsis shadow-none placeholder:text-muted-foreground/60 focus-visible:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset dark:bg-transparent"
 
 /** Header row of a panel, like a table's: the title, and the remove column if rows can be removed. */
 function PanelHeader({ label, removable, action }: { label: string; removable?: boolean; action?: ReactNode }) {
@@ -587,6 +589,7 @@ export function PointList({
           const handle = (
             <span
               {...reorder.handle(i)}
+              title={REORDER_HINT}
               className={cn(LEAD, "cursor-grab text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing")}
             >
               <GripVerticalIcon className="size-3.5 group-focus-within:text-foreground" />
@@ -710,7 +713,7 @@ function ChecksInput(props: FieldProps<ChecksField>) {
     if (own.includes(option)) {
       const index = own.indexOf(option)
       onChange(customKey(field.key), own.filter((o) => o !== option))
-      removedToast(`„${plain(option)}"`, () => {
+      removedToast(`„${plain(option)}“`, () => {
         onUpdate(customKey(field.key), (v) => {
           const now = listItems(v)
           return now.includes(option) ? now : insertAt(now, index, option)
@@ -778,7 +781,7 @@ function ChecksInput(props: FieldProps<ChecksField>) {
             <div
               key={option}
               {...reorder.row(i)}
-              className={cn("group flex items-stretch animate-in duration-200 fade-in-0 hover:bg-accent/20", reorder.rowClass(i))}
+              className={cn("group flex items-stretch animate-in duration-200 ease-out-quint fade-in-0 hover:bg-accent/20", reorder.rowClass(i))}
             >
               <CheckHandle
                 id={`${id}-${i}`}
@@ -797,7 +800,7 @@ function ChecksInput(props: FieldProps<ChecksField>) {
               >
                 <span className="block">{optionText(option, i)}</span>
                 {auto && (
-                  <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">
+                  <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs text-link">
                     <SparklesIcon className="size-3" /> automatisch
                   </span>
                 )}
@@ -815,7 +818,7 @@ function ChecksInput(props: FieldProps<ChecksField>) {
                   />
                 </span>
               ))}
-              {field.custom && <RemoveCell label={`„${plain(option)}" entfernen`} onRemove={() => remove(option)} />}
+              {field.custom && <RemoveCell label={`„${plain(option)}“ entfernen`} onRemove={() => remove(option)} />}
             </div>
           )
         })}
@@ -907,7 +910,7 @@ function ChoiceInput({ field, reader, onChange, bare }: FieldProps<ChoiceField>)
               <span className="flex flex-1 items-center gap-3 px-3 py-2">
                 <span className="flex-1">{withCode(option.replace(/[,.]$/, ""))}</span>
                 {auto && active && (
-                  <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs text-primary">
+                  <span className="flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-xs text-link">
                     <SparklesIcon className="size-3" /> automatisch
                   </span>
                 )}
@@ -917,7 +920,7 @@ function ChoiceInput({ field, reader, onChange, bare }: FieldProps<ChoiceField>)
         })}
       </div>
       {auto && !current && (
-        <p className="text-xs text-muted-foreground/70">Wird aus gemessener und erlaubter Geschwindigkeit bestimmt.</p>
+        <p className="text-xs text-muted-foreground">Wird aus gemessener und erlaubter Geschwindigkeit bestimmt.</p>
       )}
     </Labeled>
   )
@@ -925,7 +928,7 @@ function ChoiceInput({ field, reader, onChange, bare }: FieldProps<ChoiceField>)
 
 /** A plain input that fills its table cell. */
 export const CELL_INPUT =
-  "h-10 w-full min-w-0 bg-transparent px-3 outline-none placeholder:text-muted-foreground/60 focus:bg-accent/30"
+  "h-10 w-full min-w-0 bg-transparent px-3 text-ellipsis outline-none placeholder:text-muted-foreground/60 focus:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
 
 /**
  * Rows as an editable table. Rows are reordered by dragging their handle, which changes the
@@ -1004,8 +1007,8 @@ function TableInput({
   function cellInput(row: Row, i: number, c: Column) {
     const value = row[c.key] ?? ""
     const label = `${c.label} (Zeile ${i + 1})`
-    // The generic "N/A" isn't worth showing as a hint.
-    const placeholder = c.fallback === "N/A" ? undefined : reader.fill(c.fallback)
+    // The generic "N/A" isn't worth showing as a hint; the Markdown's "--" shows as the app's dash.
+    const placeholder = c.fallback === "N/A" ? undefined : c.fallback === "--" ? "—" : reader.fill(c.fallback)
     const set = (v: string) => setCell(i, c.key, v)
     const choices = c.mark ? MARKS : c.choices
     if (c.counter)
@@ -1141,6 +1144,7 @@ function TableInput({
     return (
       <td
         {...reorder.handle(i)}
+        title={REORDER_HINT}
         className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 text-muted-foreground group-focus-within:bg-accent/60 active:cursor-grabbing"
       >
         <GripVerticalIcon className="mx-auto size-3.5" />
@@ -1153,7 +1157,7 @@ function TableInput({
       <div ref={panel} className={cn(BOX, "overflow-x-auto")}>
         {/* Separate borders, so each cell draws its border inside its own width like the panel rows:
             the handle column then lines up exactly with the add button below. */}
-        <table className="w-full border-separate border-spacing-0 text-sm">
+        <table className="w-full border-separate border-spacing-0 text-sm tabular-nums">
           <thead>
             <tr className="bg-muted/50 text-xs text-muted-foreground *:border-b">
               <th className="w-10 min-w-10 border-r border-border/60">
@@ -1223,7 +1227,7 @@ export function ChoiceCell({
   value,
   choices,
   onChange,
-  empty = "---",
+  empty = "—",
 }: {
   label: string
   value: string
@@ -1239,8 +1243,8 @@ export function ChoiceCell({
         aria-label={`${label}: ${current?.label ?? current?.value ?? "offen"}`}
         className={cn(
           "flex w-full items-center gap-2 text-left text-sm outline-none",
-          "h-10 px-3 hover:bg-accent/30 focus-visible:bg-accent/30 data-[state=open]:bg-accent/30",
-          current ? current.className : "text-muted-foreground/60",
+          "h-10 px-3 hover:bg-accent/30 focus-visible:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset data-[state=open]:bg-accent/30",
+          current ? current.className : "text-muted-foreground",
         )}
       >
         <span className="flex-1 truncate">{current ? (current.label ?? current.value) : empty}</span>
@@ -1297,7 +1301,7 @@ export function DiceButton({ label, onClick, className }: { label: string; onCli
         onClick={onClick}
         aria-label={label}
         className={cn(
-          "flex w-8 items-center justify-center text-muted-foreground/70 hover:text-foreground active:scale-90",
+          "flex w-8 items-center justify-center text-muted-foreground/70 transition-[scale] duration-150 hover:text-foreground active:scale-90",
           className,
         )}
       >
@@ -1375,7 +1379,7 @@ export function MeHint({ me }: { me: string }) {
         <button
           type="button"
           onClick={() => openPage("eigene-person")}
-          className="font-medium text-foreground underline-offset-2 hover:underline"
+          className="font-medium text-foreground hover:underline"
         >
           Name eintragen
         </button>

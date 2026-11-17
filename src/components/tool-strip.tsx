@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react"
+import { Fragment, type ComponentType, type ReactNode } from "react"
 import { NavLink, useLocation } from "react-router"
 import { cn } from "cn"
 import { CommandIcon, SettingsIcon } from "lucide-react"
@@ -23,21 +23,25 @@ export function ToolStrip() {
       aria-label="Werkzeuge"
       className="hidden w-14 shrink-0 flex-col items-center gap-1.5 pb-1 md:flex"
     >
-      {enabledFeatures.map((f) => {
+      {enabledFeatures.map((f, i) => {
         const active = pathname.startsWith(`/${f.path}`)
         return (
-          <StripTooltip key={f.path} label={f.title}>
-            <NavLink
-              to={`/${f.path}`}
-              aria-label={f.title}
-              className={cn(
-                STRIP_BUTTON,
-                active && "bg-strip-active text-white hover:bg-strip-active focus-visible:ring-offset-2 focus-visible:ring-offset-frame",
-              )}
-            >
-              <f.icon />
-            </NavLink>
-          </StripTooltip>
+          <Fragment key={f.path}>
+            {/* A line between the police work and the extras. */}
+            {f.extra && i > 0 && !enabledFeatures[i - 1].extra && <span aria-hidden className="my-1 h-px w-6 shrink-0 bg-foreground/15" />}
+            <StripTooltip label={f.title}>
+              <NavLink
+                to={`/${f.path}`}
+                aria-label={f.title}
+                className={cn(
+                  STRIP_BUTTON,
+                  active && "bg-strip-active text-white hover:bg-strip-active focus-visible:ring-offset-2 focus-visible:ring-offset-frame",
+                )}
+              >
+                <f.icon />
+              </NavLink>
+            </StripTooltip>
+          </Fragment>
         )
       })}
 

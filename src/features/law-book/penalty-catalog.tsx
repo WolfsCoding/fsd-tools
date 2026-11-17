@@ -125,8 +125,8 @@ export function PenaltyCatalog({ query, terms, onQuery }: { query: string; terms
                           <Highlight text={o.title} terms={terms} />
                         </TableCell>
                         <TableCell className="align-top whitespace-normal text-muted-foreground">{o.chapter.title}</TableCell>
-                        <TableCell className="text-right align-top tabular-nums">{o.fine ? formatDollar(o.fine.min) : "–"}</TableCell>
-                        <TableCell className="text-right align-top tabular-nums">{o.fine ? formatDollar(o.fine.max) : "–"}</TableCell>
+                        <TableCell className="text-right align-top tabular-nums">{o.fine ? formatDollar(o.fine.min) : "—"}</TableCell>
+                        <TableCell className="text-right align-top tabular-nums">{o.fine ? formatDollar(o.fine.max) : "—"}</TableCell>
                         <TableCell className="align-top whitespace-normal text-muted-foreground">
                           {penaltyNotes(o).map((note) => (
                             <p key={note}>{note}</p>

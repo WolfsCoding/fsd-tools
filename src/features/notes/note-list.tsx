@@ -19,11 +19,12 @@ import { Label } from "@/components/ui/label"
 import { BLOCKS_KEY, BlockEditor } from "@/features/case-files/block-editor"
 import { blocksMarkdown, markdownBlocks, readBlocks, writeBlocks } from "@/features/case-files/blocks"
 import { useColors, useOwnIdentity } from "@/features/case-files/use-case-files"
+import { useDraftGuard } from "@/hooks/use-draft-guard"
 import { copy } from "@/lib/clipboard"
 import { formatLongDateTime } from "@/lib/format-date"
 import { removedToast } from "@/lib/undo"
-import { byPosition, useArrangeRow, type Arrange } from "./arrange"
-import { DragHandle, FolderItem, ParentItem, ROW } from "./folder-list"
+import { byPosition, useArrangeRow, type Arrange, type Item, type MoveTarget } from "./arrange"
+import { DragHandle, FolderItem, MoveMenu, ParentItem, ROW } from "./folder-list"
 import { useAfterMenuClose } from "./use-after-menu-close"
 import { NoteMarkdown } from "./note-markdown"
 import type { Note, NoteFolder } from "./types"
@@ -65,7 +66,10 @@ export function NoteList({
   folders,
   parent,
   onArrange,
+  moveTargets,
 }: {
+  /** The folders "Verschieben nach" offers for a note or folder. */
+  moveTargets?: (item: Item) => MoveTarget[]
   /** The notes to list; changes go to all stored ones through `onUpdate`. */
   notes: Note[]
   onUpdate: UpdateNotes
@@ -164,6 +168,7 @@ export function NoteList({
                 onCancel={() => setEditing(null)}
                 onRemove={() => remove(entry)}
                 onArrange={onArrange}
+                moveTargets={moveTargets?.({ kind: "note", id: entry.id })}
               />
             ) : (
               <FolderItem
@@ -175,6 +180,7 @@ export function NoteList({
                 onRenameDone={(name) => folders!.onRenameDone(entry, name)}
                 onRemove={() => folders!.onRemove(entry)}
                 onArrange={onArrange}
+                moveTargets={moveTargets?.({ kind: "folder", id: entry.id })}
               />
             ),
           )}
@@ -202,6 +208,7 @@ function NoteItem({
   onCancel,
   onRemove,
   onArrange,
+  moveTargets = [],
 }: {
   note: Note
   open: boolean
@@ -212,6 +219,8 @@ function NoteItem({
   onCancel: () => void
   onRemove: () => void
   onArrange?: Arrange
+  /** Where "Verschieben nach" can send the note. */
+  moveTargets?: MoveTarget[]
 }) {
   const drag = useArrangeRow({ item: { kind: "note", id: note.id }, onArrange })
   const menu = useAfterMenuClose()
@@ -226,7 +235,7 @@ function NoteItem({
           {drag.handle && <DragHandle label={`„${noteTitle(note)}“ verschieben`} {...drag.handle} />}
           <CollapsibleTrigger className="group/note flex min-w-0 flex-1 items-center gap-2.5 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <span className="grid min-w-0">
-              <span className={cn("truncate text-lg font-semibold", !note.title.trim() && "text-muted-foreground italic")}>
+              <span className={cn("truncate text-sm font-medium", !note.title.trim() && "text-muted-foreground italic")}>
                 {note.title.trim() || "Ohne Titel"}
               </span>
               <span className="truncate text-xs text-muted-foreground">
@@ -268,7 +277,7 @@ function NoteItem({
               size="icon-sm"
               onClick={onRemove}
               aria-label={`„${noteTitle(note)}“ löschen`}
-              className="text-red-400 hover:text-red-400"
+              className="hover:text-destructive"
             >
               <Trash2Icon />
             </Button>
@@ -282,6 +291,7 @@ function NoteItem({
             <ContextMenuItem onSelect={copyMarkdown}>
               <ClipboardCopyIcon /> Markdown kopieren
             </ContextMenuItem>
+            {onArrange && <MoveMenu targets={moveTargets} onMove={(into) => onArrange({ kind: "note", id: note.id }, { into })} />}
             <ContextMenuItem variant="destructive" onSelect={onRemove}>
               <Trash2Icon /> Löschen
             </ContextMenuItem>
@@ -342,12 +352,12 @@ function NewNoteDialog({
   onOpenChange: (open: boolean) => void
   onSave: (title: string, content: string, blocks: string) => void
 }) {
+  const guard = useDraftGuard(open)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-h-[calc(100dvh-2rem)] sm:max-w-[min(110rem,calc(100%-4rem))]"
-        // A stray click next to the editor shouldn't throw the note away; Esc and "Abbrechen" still do.
-        onInteractOutside={(e) => e.preventDefault()}
+        {...guard}
       >
         {open && (
           <NoteForm dialog header={<NewNoteHeader author={author} />} onSave={onSave} onCancel={() => onOpenChange(false)} />

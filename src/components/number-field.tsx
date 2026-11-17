@@ -28,7 +28,7 @@ export function NumberField({ id, value, onChange, label }: { id?: string; value
       onBlur={() => setDraft(String(value).replace(".", ","))}
       aria-label={id ? undefined : label}
       aria-invalid={!valid}
-      className="font-mono"
+      className="tabular-nums"
     />
   )
 }

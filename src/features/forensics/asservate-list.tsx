@@ -3,7 +3,7 @@ import { GripVerticalIcon, PencilIcon, XIcon } from "lucide-react"
 import { cn } from "cn"
 import { Hint } from "@/components/hint"
 import { StepDialog, type Step } from "@/components/step-dialog"
-import { move, useReorder } from "@/components/use-reorder"
+import { move, REORDER_HINT, useReorder } from "@/components/use-reorder"
 import { AddRow, BOX, FULL } from "@/features/case-files/doc-form"
 import { insertAt } from "@/features/case-files/templates"
 import type { Row } from "@/features/case-files/types"
@@ -77,7 +77,7 @@ export function AsservateList({
   return (
     <div className={cn(FULL, BOX, "overflow-x-auto")}>
       {/* Separate borders, so the number column lines up exactly with the add button below. */}
-      <table className="w-full border-separate border-spacing-0 text-sm">
+      <table className="w-full border-separate border-spacing-0 text-sm tabular-nums">
         <thead>
           <tr className="h-9 bg-muted/50 text-left text-xs text-muted-foreground *:border-b *:border-border/60">
             <th className="w-10 min-w-10 border-r border-border/60">
@@ -106,6 +106,7 @@ export function AsservateList({
               >
                 <td
                   {...reorder.handle(i)}
+                  title={REORDER_HINT}
                   className="w-10 min-w-10 cursor-grab border-r border-border/60 bg-muted/50 text-center text-xs font-semibold text-muted-foreground active:cursor-grabbing"
                 >
                   <span className="group-hover:hidden">{i + 1}</span>
@@ -116,7 +117,7 @@ export function AsservateList({
                     key={c.label}
                     className={cn("h-10 max-w-64 truncate border-r border-border/60 px-3", out && "text-muted-foreground")}
                   >
-                    {c.cell(row) || <span className="text-muted-foreground/50">--</span>}
+                    {c.cell(row) || <span className="text-muted-foreground">—</span>}
                   </td>
                 ))}
                 <td>

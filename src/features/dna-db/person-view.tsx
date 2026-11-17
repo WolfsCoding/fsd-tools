@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { caseFilePath } from "@/features/case-files/paths"
+import { StatusBadge } from "@/features/case-files/status-badge"
 import { useTabTitle } from "@/hooks/use-tabs"
 import { copy } from "@/lib/clipboard"
 import { formatDate } from "@/lib/format-date"
@@ -236,7 +237,8 @@ function PersonTab({ value, children }: { value: Tab; children: ReactNode }) {
   return (
     <TabsTrigger
       value={value}
-      className="h-12 flex-none px-3 text-[0.95rem] after:bottom-0! data-active:text-primary! group-data-[variant=line]/tabs-list:after:bg-primary"
+      // Like the tabs of an Akte or Einsatz: regular weight, the line under the label only.
+      className="h-auto flex-none px-3 pt-2.5 pb-3 font-normal after:inset-x-3! after:bottom-0!"
     >
       {children}
     </TabsTrigger>
@@ -268,8 +270,6 @@ function Copyable({ value, label }: { value: string; label: string }) {
   )
 }
 
-const TABLE_HEAD = "[&_th]:text-xs [&_th]:font-medium [&_th]:tracking-wide [&_th]:text-muted-foreground [&_th]:uppercase"
-
 function CaseFilesTable({
   mentions,
   caseFiles,
@@ -279,7 +279,7 @@ function CaseFilesTable({
 }) {
   return (
     <div className="overflow-hidden rounded-lg border">
-      <Table className={TABLE_HEAD}>
+      <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
             <TableHead>Titel</TableHead>
@@ -300,14 +300,8 @@ function CaseFilesTable({
                     {m.title}
                   </Link>
                 </TableCell>
-                <TableCell className="text-muted-foreground tabular-nums">{c ? formatDate(c.createdAt) : "--"}</TableCell>
-                <TableCell>
-                  {c?.settled ? (
-                    <span className="text-muted-foreground">Abgeschlossen</span>
-                  ) : (
-                    <span className="text-emerald-300">Laufend</span>
-                  )}
-                </TableCell>
+                <TableCell className="text-muted-foreground tabular-nums">{c ? formatDate(c.createdAt) : "—"}</TableCell>
+                <TableCell>{c ? <StatusBadge status={c.status} /> : <span className="text-muted-foreground">—</span>}</TableCell>
               </TableRow>
             )
           })}
@@ -335,7 +329,7 @@ function ChargesTable({ charges }: { charges: PersonCharge[] }) {
   const total = chargesTotal(charges)
   return (
     <div className="overflow-hidden rounded-lg border">
-      <Table className={TABLE_HEAD}>
+      <Table>
         <TableHeader>
           <TableRow className="bg-muted/50 hover:bg-muted/50">
             <TableHead>Datum</TableHead>
@@ -357,7 +351,7 @@ function ChargesTable({ charges }: { charges: PersonCharge[] }) {
                 </>
               ) : (
                 <>
-                  <TableCell className="font-mono text-xs">{c.charge.row.offense || "--"}</TableCell>
+                  <TableCell className="font-mono text-xs">{c.charge.row.offense || "—"}</TableCell>
                   <TableCell colSpan={2} className="text-amber-300">
                     <TriangleAlertIcon className="mr-1.5 inline size-3.5 align-[-2px]" />
                     Unbekannte Straftat (nicht im Gesetzbuch)

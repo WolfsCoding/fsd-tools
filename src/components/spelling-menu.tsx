@@ -49,7 +49,7 @@ export function SpellingMenu() {
       // Radix dialogs make the body inert to the pointer and close on a press outside them.
       onPointerDown={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.preventDefault()}
-      className="pointer-events-auto fixed z-50 max-w-80 min-w-36 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 animate-in fade-in-0 zoom-in-95"
+      className="pointer-events-auto fixed z-50 max-w-80 min-w-36 rounded-lg bg-popover p-1 text-popover-foreground shadow-overlay ring-1 ring-foreground/10 duration-150 ease-out-quint animate-in fade-in-0 zoom-in-95"
     >
       {menu.suggestions.length === 0 ? (
         <div className="px-1.5 py-1 text-sm text-muted-foreground">Keine Vorschläge</div>

@@ -6,6 +6,8 @@
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
+/* A window near the minimum height (500px): page headers drop their extras so the content keeps room. */
+@custom-variant short (@media (max-height: 640px));
 
 @theme inline {
     --font-heading: var(--font-sans);
@@ -73,6 +75,9 @@
     --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
     --animate-item-in: item-in 240ms var(--ease-out-quint) backwards;
     --animate-check-draw: check-draw 360ms var(--ease-out-quint) backwards;
+    --shadow-raised: 0 1px 2px rgb(9 10 12 / 0.24), 0 2px 8px rgb(9 10 12 / 0.2);
+    --shadow-overlay: 0 1px 2px rgb(9 10 12 / 0.3), 0 8px 24px rgb(9 10 12 / 0.4);
+    --shadow-modal: 0 2px 4px rgb(9 10 12 / 0.3), 0 24px 64px rgb(9 10 12 / 0.55);
 
     @keyframes item-in {
         from {
@@ -157,18 +162,21 @@
     --card-foreground: #dfe1e5;
     --popover: #2b2d30;
     --popover-foreground: #dfe1e5;
-    --primary: #3574f0;
+    /* For fills: a shade darker than WebStorm's #3574f0, for 4.5:1 under white text.
+       Blue text takes --link, which is light enough to read on the dark surfaces. */
+    --primary: #2f6bdf;
     --primary-foreground: #ffffff;
     --secondary: #2b2d30;
     --secondary-foreground: #dfe1e5;
     --muted: #2b2d30;
-    /* A shade lighter than WebStorm's #868a91, for 4.5:1 on popovers and the frame. */
-    --muted-foreground: #92969d;
+    /* Lighter than WebStorm's #868a91, for 4.5:1 on popovers, the frame and hovered rows. */
+    --muted-foreground: #9a9ea5;
     --accent: #33353b;
     --accent-foreground: #dfe1e5;
     --selection: #233558;
     --selection-border: #2e4d89;
-    --link: #548af7;
+    /* Lighter than WebStorm's #548af7, for 4.5:1 on popovers too. */
+    --link: #6094f8;
     --tab-hover: #292b2f;
     --tab-active: var(--frame);
     --strip-foreground: #c3c5cb;
@@ -177,8 +185,8 @@
     --tooltip: #33353b;
     --tooltip-foreground: #d1d3d9;
     --destructive: #f75464;
-    --border: #2b2d30;
-    --input: #43454a;
+    --border: rgb(255 255 255 / 0.08);
+    --input: rgb(255 255 255 / 0.18);
     --ring: #3574f0;
     --chart-1: #548af7;
     --chart-2: #5fb865;
@@ -187,11 +195,11 @@
     --chart-5: #f75464;
     --sidebar: var(--frame);
     --sidebar-foreground: #dfe1e5;
-    --sidebar-primary: #3574f0;
+    --sidebar-primary: #2f6bdf;
     --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: #33353b;
     --sidebar-accent-foreground: #dfe1e5;
-    --sidebar-border: #393b40;
+    --sidebar-border: rgb(255 255 255 / 0.14);
     --sidebar-ring: #3574f0;
 }
 
@@ -204,7 +212,11 @@
     }
   html {
     @apply font-sans antialiased;
+    text-underline-offset: 0.2em;
     }
+  h1, h2, h3 {
+    text-wrap: balance;
+  }
   ::selection {
     background-color: color-mix(in oklch, var(--primary) 40%, transparent);
   }
@@ -243,15 +255,15 @@
   & > * {
     animation: var(--animate-item-in);
   }
-  & > :nth-child(2) { animation-delay: 25ms; }
-  & > :nth-child(3) { animation-delay: 50ms; }
-  & > :nth-child(4) { animation-delay: 75ms; }
-  & > :nth-child(5) { animation-delay: 100ms; }
-  & > :nth-child(6) { animation-delay: 125ms; }
-  & > :nth-child(7) { animation-delay: 150ms; }
-  & > :nth-child(8) { animation-delay: 175ms; }
-  & > :nth-child(9) { animation-delay: 200ms; }
-  & > :nth-child(n + 10) { animation-delay: 225ms; }
+  & > :nth-child(2) { animation-delay: 30ms; }
+  & > :nth-child(3) { animation-delay: 60ms; }
+  & > :nth-child(4) { animation-delay: 90ms; }
+  & > :nth-child(5) { animation-delay: 120ms; }
+  & > :nth-child(6) { animation-delay: 150ms; }
+  & > :nth-child(7) { animation-delay: 180ms; }
+  & > :nth-child(8) { animation-delay: 210ms; }
+  & > :nth-child(9) { animation-delay: 240ms; }
+  & > :nth-child(n + 10) { animation-delay: 270ms; }
 }
 
 /* Desktop shell: the title bar drags the window; its controls must stay clickable.

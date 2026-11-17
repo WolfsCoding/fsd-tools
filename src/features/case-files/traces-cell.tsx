@@ -27,7 +27,7 @@ const newTrace = (): Trace => ({ id: crypto.randomUUID(), dna: "", fa: "", name:
 
 /** A combobox that fills its cell of a trace row, without a border of its own. */
 const TRACE_INPUT =
-  "h-10 rounded-none border-0 bg-transparent px-3 shadow-none placeholder:text-muted-foreground/60 focus-visible:bg-accent/30 focus-visible:ring-0 dark:bg-transparent"
+  "h-10 rounded-none border-0 bg-transparent px-3 shadow-none placeholder:text-muted-foreground/60 focus-visible:bg-accent/30 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset dark:bg-transparent"
 
 /**
  * How many traces were found on an item ("3 Gefunden" / "Keine"), with a button that opens
@@ -94,7 +94,7 @@ export function TracesCell({
   return (
     <>
       <div className="flex h-10 w-full items-center gap-2 pr-1 pl-3 text-sm">
-        <span className={cn("flex-1 truncate", !traces.length && "text-muted-foreground/60")}>
+        <span className={cn("flex-1 truncate", !traces.length && "text-muted-foreground")}>
           {traceSummary(traces.length)}
         </span>
         <Hint label={`${noun} verwalten`}>

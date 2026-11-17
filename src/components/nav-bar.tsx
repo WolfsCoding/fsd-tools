@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type ComponentType } from "react"
+import { Fragment, useEffect, useEffectEvent, useRef, useState, type ComponentType, type ReactNode } from "react"
 import { useNavigate } from "react-router"
 import { cn } from "cn"
 import {
@@ -12,7 +12,9 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { Hint } from "@/components/hint"
+import { Kbd } from "@/components/ui/kbd"
 import { useCommandPalette } from "@/hooks/use-command-palette"
+import { modalOpen } from "@/lib/modal"
 import { routeOf, useTabs, type Tab } from "@/hooks/use-tabs"
 
 const NAV_BUTTON =
@@ -38,8 +40,8 @@ export function NavBar({ onReload }: { onReload: () => void }) {
   return (
     <div className="flex h-12 shrink-0 items-center gap-1 bg-frame px-2">
       <div className="hidden items-center gap-1 sm:flex">
-        <NavButton label="Zurück" icon={ArrowLeftIcon} disabled={!history.canBack} onClick={history.back} />
-        <NavButton label="Vorwärts" icon={ArrowRightIcon} disabled={!history.canForward} onClick={history.forward} />
+        <NavButton label="Zurück" keys="Alt ←" icon={ArrowLeftIcon} disabled={!history.canBack} onClick={history.back} />
+        <NavButton label="Vorwärts" keys="Alt →" icon={ArrowRightIcon} disabled={!history.canForward} onClick={history.forward} />
         <NavButton label="Nach oben" icon={ArrowUpIcon} disabled={!up} onClick={() => up && navigate(up)} />
         <NavButton label="Aktualisieren" icon={RotateCwIcon} disabled={!active} onClick={onReload} />
       </div>
@@ -93,6 +95,31 @@ function useTabHistory(active: Tab | undefined) {
     navigate(target)
   }
 
+  // Alt+←/→ and the mouse's side buttons step through the tab's history, like Explorer's.
+  const onStep = useEffectEvent(step)
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      // defaultPrevented: a table column being moved with the same keys (use-reorder.ts).
+      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.defaultPrevented) return
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return
+      e.preventDefault()
+      if (modalOpen()) return
+      onStep(e.key === "ArrowLeft" ? "back" : "forward")
+    }
+    function onMouseUp(e: MouseEvent) {
+      if (e.button !== 3 && e.button !== 4) return
+      e.preventDefault()
+      if (modalOpen()) return
+      onStep(e.button === 3 ? "back" : "forward")
+    }
+    document.addEventListener("keydown", onKeyDown)
+    document.addEventListener("mouseup", onMouseUp)
+    return () => {
+      document.removeEventListener("keydown", onKeyDown)
+      document.removeEventListener("mouseup", onMouseUp)
+    }
+  }, [])
+
   return {
     canBack: !!history?.back.length,
     canForward: !!history?.forward.length,
@@ -103,18 +130,28 @@ function useTabHistory(active: Tab | undefined) {
 
 function NavButton({
   label,
+  keys,
   icon: Icon,
   disabled,
   onClick,
 }: {
   label: string
+  /** The button's shortcut, shown in its hint. */
+  keys?: string
   icon: ComponentType
   disabled?: boolean
   onClick: () => void
 }) {
+  const hint: ReactNode = keys ? (
+    <>
+      {label} <Kbd>{keys}</Kbd>
+    </>
+  ) : (
+    label
+  )
   // A disabled button gets no pointer events, so the hint sits on a wrapper.
   return (
-    <Hint label={label}>
+    <Hint label={hint}>
       <span className="flex">
         <button type="button" aria-label={label} disabled={disabled} onClick={onClick} className={NAV_BUTTON}>
           <Icon />
@@ -142,7 +179,7 @@ function AddressBar() {
     function onKeyDown(e: KeyboardEvent) {
       if (!e.ctrlKey || e.altKey || e.shiftKey || e.key?.toLowerCase() !== "l") return
       e.preventDefault()
-      setEditing(true)
+      if (!modalOpen()) setEditing(true)
     }
     document.addEventListener("keydown", onKeyDown)
     return () => document.removeEventListener("keydown", onKeyDown)
@@ -175,7 +212,7 @@ function AddressBar() {
           setEditing(false)
           if (value) navigate(path)
         }}
-        className="h-8 min-w-0 flex-1 rounded-lg border-b-2 border-primary bg-field px-3 text-xs text-foreground outline-none animate-in duration-150 fade-in-0"
+        className="h-8 min-w-0 flex-1 rounded-lg border-b-2 border-primary bg-field px-3 text-xs text-foreground outline-none animate-in duration-150 ease-out-quint fade-in-0"
       />
     )
   }
@@ -206,7 +243,6 @@ function AddressBar() {
           )}
         </Fragment>
       ))}
-      <ChevronRightIcon className="size-3.5 shrink-0 text-foreground/70" />
     </nav>
   )
 }
@@ -227,6 +263,7 @@ function SearchButton() {
         className="hidden h-8 w-72 shrink-0 items-center gap-2 rounded-lg bg-field px-3 text-xs text-muted-foreground outline-none transition-colors hover:bg-field-hover focus-visible:ring-2 focus-visible:ring-ring lg:flex xl:w-96"
       >
         <span className="flex-1 truncate text-left">FSD Tools durchsuchen</span>
+        <Kbd>Strg K</Kbd>
         <SearchIcon className="size-4 shrink-0 text-foreground" />
       </button>
     </>

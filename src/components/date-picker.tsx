@@ -54,14 +54,14 @@ export function DateTimePicker({
     onChange(v)
     setOpen(false)
   }
+  const shown = selected ? `${formatDate(selected)}, ${clock(selected)}` : value || placeholder
   return (
     // Modal, so its own scroll lock wins over a dialog's, which would block the wheel in the time columns.
     <Popover modal open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" className={cn(FIELD, className)} {...props}>
-          <span className={cn("flex-1 truncate tabular-nums", !value && "text-muted-foreground")}>
-            {selected ? `${formatDate(selected)}, ${clock(selected)}` : value || placeholder}
-          </span>
+        {/* A label replaces the button's text for screen readers, so the value goes into it. */}
+        <button type="button" className={cn(FIELD, className)} {...props} aria-label={props["aria-label"] && `${props["aria-label"]}: ${shown}`}>
+          <span className={cn("flex-1 truncate tabular-nums", !value && "text-muted-foreground")}>{shown}</span>
           <CalendarClockIcon className="size-4 shrink-0 text-muted-foreground" />
         </button>
       </PopoverTrigger>
@@ -106,7 +106,7 @@ export function DatePicker({
             <button
               type="button"
               aria-label="Kalender öffnen"
-              className="absolute inset-y-0 right-0 flex w-9 items-center justify-center rounded-r-lg text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground"
+              className="absolute inset-y-0 right-0 flex w-9 items-center justify-center rounded-r-lg text-muted-foreground outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               <CalendarIcon className="size-4" />
             </button>
@@ -173,6 +173,13 @@ function addMonths(d: Date, n: number) {
 
 type View = "days" | "months" | "years"
 
+/** What the arrows next to the title step by, in each view. */
+const STEP_LABELS: Record<View, [back: string, on: string]> = {
+  days: ["Vorheriger Monat", "Nächster Monat"],
+  months: ["Vorheriges Jahr", "Nächstes Jahr"],
+  years: ["Frühere Jahre", "Spätere Jahre"],
+}
+
 /** A month of days; its title zooms out to the months of a year, then to twelve years. */
 function Calendar({ selected, onSelect }: { selected?: Date; onSelect: (day: Date) => void }) {
   const [focus, setFocus] = useState(() => selected ?? new Date())
@@ -214,18 +221,18 @@ function Calendar({ selected, onSelect }: { selected?: Date; onSelect: (day: Dat
   return (
     <div className="w-56">
       <div className="mb-1 flex h-8 items-center gap-1">
-        <Button type="button" variant="ghost" size="icon-sm" aria-label="Zurück" onClick={() => setFocus(addMonths(focus, -step))}>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label={STEP_LABELS[view][0]} onClick={() => setFocus(addMonths(focus, -step))}>
           <ChevronLeftIcon />
         </Button>
         <button
           type="button"
           disabled={view === "years"}
           onClick={() => setView(view === "days" ? "months" : "years")}
-          className="h-8 flex-1 rounded-md text-sm font-medium tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 disabled:hover:bg-transparent"
+          className="h-8 flex-1 rounded-md text-sm font-medium tabular-nums outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:hover:bg-transparent"
         >
           {title}
         </button>
-        <Button type="button" variant="ghost" size="icon-sm" aria-label="Weiter" onClick={() => setFocus(addMonths(focus, step))}>
+        <Button type="button" variant="ghost" size="icon-sm" aria-label={STEP_LABELS[view][1]} onClick={() => setFocus(addMonths(focus, step))}>
           <ChevronRightIcon />
         </Button>
       </div>
@@ -243,7 +250,7 @@ function Calendar({ selected, onSelect }: { selected?: Date; onSelect: (day: Dat
             role="grid"
             aria-label={monthTitle.format(focus)}
             onKeyDown={onKeyDown}
-            className="duration-150 animate-in fade-in-0"
+            className="duration-150 ease-out-quint animate-in fade-in-0"
           >
             {weeks.map((week) => (
               <div key={week[0].toDateString()} role="row" className="grid grid-cols-7">
@@ -264,10 +271,12 @@ function Calendar({ selected, onSelect }: { selected?: Date; onSelect: (day: Dat
                         onSelect(day)
                       }}
                       className={cn(
-                        "relative size-8 rounded-md text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
+                        "relative size-8 rounded-md text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
                         day.getMonth() !== focus.getMonth() && "text-muted-foreground/50",
-                        isToday && !isSelected && "font-semibold text-primary",
-                        isSelected && "bg-primary font-medium text-primary-foreground hover:bg-primary/90",
+                        isToday && !isSelected && "font-semibold text-link",
+                        // A white ring inside: the blue one doesn't show next to the fill.
+                        isSelected &&
+                          "bg-primary font-medium text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary-foreground focus-visible:ring-inset",
                       )}
                     >
                       {day.getDate()}
@@ -287,7 +296,7 @@ function Calendar({ selected, onSelect }: { selected?: Date; onSelect: (day: Dat
           </div>
         </>
       ) : (
-        <div key={view} className="grid h-56 grid-cols-3 gap-1 duration-150 animate-in fade-in-0 zoom-in-95">
+        <div key={view} className="grid h-56 grid-cols-3 gap-1 duration-150 ease-out-quint animate-in fade-in-0 zoom-in-95">
           {Array.from({ length: 12 }, (_, i) => {
             const date = view === "months" ? addMonths(new Date(year, 0, focus.getDate()), i) : addMonths(focus, (decade + i - year) * 12)
             const current = view === "months" ? i === focus.getMonth() : decade + i === year
@@ -301,8 +310,8 @@ function Calendar({ selected, onSelect }: { selected?: Date; onSelect: (day: Dat
                   setView(view === "months" ? "days" : "months")
                 }}
                 className={cn(
-                  "rounded-md text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
-                  now && "font-semibold text-primary",
+                  "rounded-md text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring",
+                  now && "font-semibold text-link",
                   current && "bg-accent font-medium",
                 )}
               >
@@ -331,22 +340,35 @@ function TimeColumn({
   onSelect: (value: number) => void
 }) {
   // Only when it opens, so it doesn't jump while picking.
-  const [start] = useState(value)
-  const center = useCallback(
+  const [start] = useState(() => value ?? now(new Date()))
+  // The selected one in the middle of the seven rows shown.
+  const reveal = useCallback(
     (list: HTMLDivElement | null) => {
-      const item = list?.children[start ?? now(new Date())]
-      if (list && item instanceof HTMLElement) list.scrollTop = item.offsetTop - (list.clientHeight - item.offsetHeight) / 2
+      const top = list?.children[Math.max(start - 3, 0)]
+      if (list && top instanceof HTMLElement) list.scrollTop = top.offsetTop
     },
-    [start, now],
+    [start],
   )
+  // One tab stop for the column; the arrows move through it.
+  const tabStop = value ?? start
+  function onKeyDown(e: KeyboardEvent<HTMLDivElement>) {
+    const options = [...e.currentTarget.children] as HTMLElement[]
+    const at = options.indexOf(document.activeElement as HTMLElement)
+    const to = { ArrowUp: at - 1, ArrowDown: at + 1, Home: 0, End: count - 1 }[e.key]
+    if (at < 0 || to === undefined) return
+    e.preventDefault()
+    options[Math.min(Math.max(to, 0), count - 1)].focus()
+  }
   return (
     <div className="w-12">
       <div className="mb-1 flex h-8 items-center justify-center text-xs text-muted-foreground">{label}</div>
       <div
-        ref={center}
+        ref={reveal}
         role="listbox"
         aria-label={label}
-        className="relative flex h-56 flex-col gap-0.5 overflow-y-auto px-1 [scrollbar-width:none]"
+        onKeyDown={onKeyDown}
+        // Seven rows high, so the column never opens or ends on half a row.
+        className="relative flex h-56 flex-col overflow-y-auto px-1 [scrollbar-width:none]"
       >
         {Array.from({ length: count }, (_, i) => (
           <button
@@ -354,10 +376,12 @@ function TimeColumn({
             type="button"
             role="option"
             aria-selected={i === value}
+            tabIndex={i === tabStop ? 0 : -1}
             onClick={() => onSelect(i)}
             className={cn(
-              "h-8 shrink-0 rounded-md text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
-              i === value && "bg-primary font-medium text-primary-foreground hover:bg-primary/90",
+              "h-8 shrink-0 rounded-md text-sm tabular-nums outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+              // A white ring: the blue one doesn't show on the fill.
+              i === value && "bg-primary font-medium text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary-foreground",
             )}
           >
             {pad(i)}
