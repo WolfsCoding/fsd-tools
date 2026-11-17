@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { UpdateButton } from "@/components/update-button"
 import { useCommandPalette } from "@/hooks/use-command-palette"
 import { useEnabledFeatures, useSettingsDialog } from "@/hooks/use-settings"
+import { useTabs } from "@/hooks/use-tabs"
 
 const STRIP_BUTTON =
   "flex size-9 items-center justify-center rounded-lg text-strip-foreground outline-none transition-[background-color,color,scale] duration-150 hover:bg-strip-hover active:scale-90 focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-5"
@@ -17,6 +18,7 @@ export function ToolStrip() {
   const { setOpen: setPaletteOpen } = useCommandPalette()
   const { setOpen: setSettingsOpen } = useSettingsDialog()
   const { enabledFeatures } = useEnabledFeatures()
+  const { openTool, openInNewTab } = useTabs()
 
   return (
     <nav
@@ -33,6 +35,12 @@ export function ToolStrip() {
               <NavLink
                 to={`/${f.path}`}
                 aria-label={f.title}
+                onClick={(e) => {
+                  if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
+                  e.preventDefault()
+                  if (e.shiftKey) openInNewTab(`/${f.path}`)
+                  else openTool(`/${f.path}`)
+                }}
                 className={cn(
                   STRIP_BUTTON,
                   active && "bg-strip-active text-white hover:bg-strip-active focus-visible:ring-offset-2 focus-visible:ring-offset-frame",

@@ -44,7 +44,7 @@ const ISLAND = "relative flex min-h-0 min-w-0 flex-col overflow-hidden rounded-x
  * of it. The second page navigates on its own; the tab remembers where.
  */
 export function SplitLayout({ children }: { children: ReactNode }) {
-  const { tabs, activeId, splitWith } = useTabs()
+  const { tabs, activeId, splitWith, setLastPane } = useTabs()
   const isMobile = useIsMobile()
   const active = tabs.find((t) => t.id === activeId)
   // Phones have no room for two pages; the split returns on a wider screen.
@@ -131,6 +131,8 @@ export function SplitLayout({ children }: { children: ReactNode }) {
         </div>
       )}
       <main
+        onPointerDownCapture={() => setLastPane("main")}
+        onFocusCapture={() => setLastPane("main")}
         style={split ? { flex: `0 0 calc(${ratio * 100}% - 2px)` } : undefined}
         className={cn(ISLAND, "flex-1")}
       >
@@ -180,11 +182,13 @@ export function SplitLayout({ children }: { children: ReactNode }) {
 }
 
 function SplitPane({ path }: { path: string }) {
-  const { featureOf } = useTabs()
+  const { featureOf, setLastPane } = useTabs()
 
   return (
     <section
       aria-label="Split View"
+      onPointerDownCapture={() => setLastPane("split")}
+      onFocusCapture={() => setLastPane("split")}
       className={cn(ISLAND, "flex-1 animate-in duration-300 ease-out-quint fade-in-0 slide-in-from-right-6")}
     >
       <PaneContext value="split">

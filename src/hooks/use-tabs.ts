@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect } from "react"
 import { useLocation } from "react-router"
 import type { Feature } from "@/features/registry"
+import type { Pane } from "@/hooks/use-pane"
 
 export interface Tab {
   id: string
@@ -41,6 +42,13 @@ export interface TabsContextValue {
   activate: (id: string) => void
   /** Opens `path` in a new tab next to the active one. */
   openInNewTab: (path: string) => void
+  /**
+   * Shows `path` in place of the active tab's page, or in a split view of the pane
+   * last used; never switches to another tab. A pinned tab keeps its page.
+   */
+  openTool: (path: string) => void
+  /** Records the pane the user last worked in, which `openTool` replaces. */
+  setLastPane: (pane: Pane) => void
   closeTabs: (id: string, scope?: CloseScope) => void
   reopenClosed: () => void
   canReopen: boolean

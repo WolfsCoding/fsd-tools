@@ -21,6 +21,7 @@ import {
 } from "@/hooks/use-command-palette"
 import { useEnabledFeatures } from "@/hooks/use-settings"
 import { modalOpen } from "@/lib/modal"
+import type { Pane } from "@/hooks/use-pane"
 import {
   routeOf,
   TabsContext,
@@ -195,6 +196,23 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       navigate(path)
     },
     [activeId, update, navigate],
+  )
+
+  const [lastPane, setLastPane] = useState<Pane>("main")
+
+  const openTool = useCallback(
+    (path: string) => {
+      const active = tabs.find((t) => t.id === activeId)
+      if (!active || active.pinned) return openInNewTab(path)
+      if (active.split !== undefined && lastPane === "split") {
+        update((s) => withTabs(s, s.tabs.map((t) => (t.id === active.id ? { ...t, split: path } : t))))
+        return
+      }
+      // Set before navigating, so following the route doesn't switch to a tab already showing it.
+      update((s) => withTabs(s, s.tabs.map((t) => (t.id === active.id ? { ...t, path } : t))))
+      navigate(path)
+    },
+    [tabs, activeId, lastPane, openInNewTab, update, navigate],
   )
 
   const closeTabs = useCallback(
@@ -545,6 +563,8 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       unsplit,
       activate,
       openInNewTab,
+      openTool,
+      setLastPane,
       closeTabs,
       reopenClosed,
       canReopen: closed.length > 0,
@@ -573,6 +593,7 @@ export function TabsProvider({ children }: { children: ReactNode }) {
       unsplit,
       activate,
       openInNewTab,
+      openTool,
       closeTabs,
       reopenClosed,
       closed.length,

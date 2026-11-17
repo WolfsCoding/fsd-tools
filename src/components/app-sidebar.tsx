@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/sidebar"
 import { useCommandPalette } from "@/hooks/use-command-palette"
 import { useEnabledFeatures, useSettingsDialog } from "@/hooks/use-settings"
+import { useTabs } from "@/hooks/use-tabs"
 
 /** Navigation sheet for phones; desktop navigates with the tool strip. */
 export function AppSidebar() {
@@ -23,6 +24,7 @@ export function AppSidebar() {
   const { setOpen: setPaletteOpen } = useCommandPalette()
   const { setOpen: setSettingsOpen } = useSettingsDialog()
   const { enabledFeatures } = useEnabledFeatures()
+  const { openTool } = useTabs()
   if (!isMobile) return null
 
   const close = () => setOpenMobile(false)
@@ -56,7 +58,15 @@ export function AppSidebar() {
                     isActive={pathname.startsWith(`/${feature.path}`)}
                     asChild
                   >
-                    <NavLink to={`/${feature.path}`} onClick={close}>
+                    <NavLink
+                      to={`/${feature.path}`}
+                      onClick={(e) => {
+                        close()
+                        if (e.defaultPrevented) return
+                        e.preventDefault()
+                        openTool(`/${feature.path}`)
+                      }}
+                    >
                       <feature.icon />
                       <span>{feature.title}</span>
                     </NavLink>
