@@ -1,7 +1,8 @@
-import { useLayoutEffect, useMemo, useRef } from "react"
+import { useLayoutEffect, useMemo, useRef, type CSSProperties } from "react"
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router"
 import { BookOpenIcon, FileTextIcon } from "lucide-react"
-import { Explorer, EXPLORER_CARDS, EXPLORER_CARD } from "@/components/explorer"
+import { cn } from "cn"
+import { Explorer, EXPLORER_CARD } from "@/components/explorer"
 import { NoResults } from "@/components/no-results"
 import { SearchField } from "@/components/search-field"
 import {
@@ -106,18 +107,25 @@ function PostList({ query, onQuery }: { query: string; onQuery: (q: string) => v
         <p className="mb-4 text-sm text-muted-foreground">{hits === 1 ? "1 Treffer" : `${hits} Treffer`}</p>
       )}
       <nav aria-label="Beiträge" className="grid gap-4">
-        {groups.map(([category, items]) => (
-          <section key={category} className="grid gap-1.5">
-            <h2 className="px-1 text-xs font-medium text-muted-foreground">
-              {category}
-            </h2>
-            <div className={EXPLORER_CARDS}>
-              {items.map((post) => (
-                <PostRow key={post.id} post={post} search={search} />
-              ))}
-            </div>
-          </section>
-        ))}
+        {groups.map(([category, items], g) => {
+          // One cascade across all sections, rather than each section starting its own.
+          const start = groups.slice(0, g).reduce((n, [, prev]) => n + prev.length + 1, 0)
+          return (
+            <section key={category} className="grid gap-1.5">
+              <h2
+                className="animate-item-in px-1 text-xs font-medium text-muted-foreground"
+                style={staggerDelay(start)}
+              >
+                {category}
+              </h2>
+              <div className="grid content-start gap-2">
+                {items.map((post, i) => (
+                  <PostRow key={post.id} post={post} search={search} style={staggerDelay(start + 1 + i)} />
+                ))}
+              </div>
+            </section>
+          )
+        })}
       </nav>
       {query.trim() && groups.length === 0 && (
         <NoResults query={query} onReset={() => onQuery("")} />
@@ -126,11 +134,14 @@ function PostList({ query, onQuery }: { query: string; onQuery: (q: string) => v
   )
 }
 
-function PostRow({ post, search }: { post: Post; search: string }) {
+const staggerDelay = (index: number): CSSProperties => ({ animationDelay: `${index * 30}ms` })
+
+function PostRow({ post, search, style }: { post: Post; search: string; style: CSSProperties }) {
   return (
     <Link
       to={{ pathname: `${FSU_BASE}/${post.id}`, search }}
-      className={EXPLORER_CARD}
+      className={cn("animate-item-in", EXPLORER_CARD)}
+      style={style}
     >
       <span className="flex items-center gap-2 text-sm font-medium">
         <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
