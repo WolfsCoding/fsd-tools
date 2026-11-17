@@ -99,7 +99,8 @@ export function OperationView({
       ...(operation.fallakte && { caseNumber: operation.fallakte }),
     })
     const suspects = accused(operation)
-    for (const person of suspects) police.setValues(id, police.addDoc(id, "bericht"), reportValues(person))
+    // Each new Bericht goes on top, so the last suspect is added first.
+    for (const person of suspects.toReversed()) police.setValues(id, police.addDoc(id, "bericht"), reportValues(person))
     onChange((o) => ({ ...o, caseFileId: id }))
     toast.success("Sammelakte erstellt", {
       description: suspects.length === 1 ? "Mit 1 Beschuldigten-Bericht" : `Mit ${suspects.length} Beschuldigten-Berichten`,

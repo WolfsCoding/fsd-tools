@@ -71,7 +71,8 @@ export function CaseFilesPage({ kind = POLICE_FILES_KIND }: { kind?: CaseFileKin
     if (!folder) return
     if (!folder.files.length) return void toast.error(`Keine .md-Dateien in „${folder.name}“`)
     const id = createCaseFile("eigene", undefined, { type: "eigene", title: folder.name })
-    for (const file of folder.files) {
+    // Each new Eintrag goes on top, so the last file is added first.
+    for (const file of folder.files.toReversed()) {
       const docId = api.addDoc(id, "eintrag")
       // "02 Notiz.md", as "Als Ordner speichern" numbers them, is titled "Notiz".
       api.setValues(id, docId, { titel: file.name.replace(/\.md$/i, "").replace(/^\d+\s+/, ""), text: file.text })

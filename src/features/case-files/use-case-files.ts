@@ -284,7 +284,8 @@ const now = () => new Date().toISOString()
 function newDoc(kind: CaseFileKind, template: string, docs: Doc<string>[] = [], id = uid()): Doc<string> {
   // Copied so editing a document never touches the shared initial values.
   const values = structuredClone(kind.templates[template].initial ?? {})
-  const sources = [...docs.slice(0, 1), ...docs.slice(1).reverse()]
+  const newestFirst = docs.slice(1).toSorted((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
+  const sources = [...docs.slice(0, 1), ...newestFirst]
   for (const key of kind.inherit ?? []) {
     const from = sources.find((d) => d.values[key] !== undefined)
     if (from) values[key] = structuredClone(from.values[key])
@@ -374,10 +375,10 @@ export function useCaseFiles(kind: CaseFileKind) {
       setValues(id: string, docId: string, values: Record<string, Value>) {
         changeValues(id, docId, (prev) => ({ ...prev, ...values }))
       },
-      /** Attaches a new document and returns its id. */
+      /** Attaches a new document above the others and returns its id. */
       addDoc(id: string, template: string) {
         const docId = uid()
-        change(id, (a) => ({ ...a, docs: [...a.docs, newDoc(kind, template, a.docs, docId)] }))
+        change(id, (a) => ({ ...a, docs: [a.docs[0], newDoc(kind, template, a.docs, docId), ...a.docs.slice(1)] }))
         return docId
       },
       /** Moves an attached document from index `from` to `to`; the main document stays first. */
