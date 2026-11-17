@@ -250,20 +250,22 @@
   }
 }
 
-/* Children ease in one after another, the first ten staggered, the rest together. */
+/* Children ease in one after another, the first ten staggered, the rest together.
+   --stagger-offset delays the whole cascade, so a later list can continue an earlier one. */
 @utility stagger-in {
   & > * {
     animation: var(--animate-item-in);
+    animation-delay: var(--stagger-offset, 0ms);
   }
-  & > :nth-child(2) { animation-delay: 30ms; }
-  & > :nth-child(3) { animation-delay: 60ms; }
-  & > :nth-child(4) { animation-delay: 90ms; }
-  & > :nth-child(5) { animation-delay: 120ms; }
-  & > :nth-child(6) { animation-delay: 150ms; }
-  & > :nth-child(7) { animation-delay: 180ms; }
-  & > :nth-child(8) { animation-delay: 210ms; }
-  & > :nth-child(9) { animation-delay: 240ms; }
-  & > :nth-child(n + 10) { animation-delay: 270ms; }
+  & > :nth-child(2) { animation-delay: calc(var(--stagger-offset, 0ms) + 30ms); }
+  & > :nth-child(3) { animation-delay: calc(var(--stagger-offset, 0ms) + 60ms); }
+  & > :nth-child(4) { animation-delay: calc(var(--stagger-offset, 0ms) + 90ms); }
+  & > :nth-child(5) { animation-delay: calc(var(--stagger-offset, 0ms) + 120ms); }
+  & > :nth-child(6) { animation-delay: calc(var(--stagger-offset, 0ms) + 150ms); }
+  & > :nth-child(7) { animation-delay: calc(var(--stagger-offset, 0ms) + 180ms); }
+  & > :nth-child(8) { animation-delay: calc(var(--stagger-offset, 0ms) + 210ms); }
+  & > :nth-child(9) { animation-delay: calc(var(--stagger-offset, 0ms) + 240ms); }
+  & > :nth-child(n + 10) { animation-delay: calc(var(--stagger-offset, 0ms) + 270ms); }
 }
 
 /* Desktop shell: the title bar drags the window; its controls must stay clickable.

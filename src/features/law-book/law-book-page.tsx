@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, type ReactNode } from "react"
+import { useCallback, useLayoutEffect, useMemo, useRef, type CSSProperties, type ReactNode } from "react"
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useParams, useSearchParams } from "react-router"
 import { CalculatorIcon, ListIcon, StarIcon, StarOffIcon } from "lucide-react"
 import { cn } from "cn"
@@ -102,7 +102,7 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
         <SearchResults hits={hits} query={query} terms={terms} bookmarks={bookmarks} onReset={() => onQuery("")} />
       ) : (
         <div className="grid gap-4">
-          <ExplorerSection title="Bücher">
+          <ExplorerSection title="Bücher" start={0}>
             {books.map((b) => (
               <Link key={b.id} to={lawBookPath(b.id)} className={EXPLORER_CARD}>
                 <span className="flex items-center gap-2 text-sm font-medium">
@@ -115,7 +115,7 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
               </Link>
             ))}
           </ExplorerSection>
-          <ExplorerSection title="Werkzeuge">
+          <ExplorerSection title="Werkzeuge" start={books.length + 1}>
             <Link to={catalogPath()} className={EXPLORER_CARD}>
               <span className="flex items-center gap-2 text-sm font-medium">
                 <ListIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -132,7 +132,7 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
             </Link>
           </ExplorerSection>
           {bookmarks.bookmarks.length > 0 && (
-            <ExplorerSection title="Favoriten">
+            <ExplorerSection title="Favoriten" start={books.length + 4}>
               {bookmarks.bookmarks.map(({ id, book, paragraph }) => (
                 <div key={id} className="group/bookmark relative">
                   <Link to={lawBookPath(book.id, paragraph.number)} className={EXPLORER_CARD}>
@@ -163,11 +163,21 @@ function LawBookExplorer({ query, terms, onQuery }: { query: string; terms: stri
   )
 }
 
-function ExplorerSection({ title, children }: { title: string; children: ReactNode }) {
+/** `start` is how many items the sections above hold, so the cascade runs on instead of restarting. */
+function ExplorerSection({ title, start, children }: { title: string; start: number; children: ReactNode }) {
   return (
     <section className="grid gap-1.5">
-      <h2 className="px-1 text-xs font-medium text-muted-foreground">{title}</h2>
-      <nav aria-label={title} className={EXPLORER_CARDS}>
+      <h2
+        className="animate-item-in px-1 text-xs font-medium text-muted-foreground"
+        style={{ animationDelay: `${start * 30}ms` }}
+      >
+        {title}
+      </h2>
+      <nav
+        aria-label={title}
+        className={EXPLORER_CARDS}
+        style={{ "--stagger-offset": `${(start + 1) * 30}ms` } as CSSProperties}
+      >
         {children}
       </nav>
     </section>
